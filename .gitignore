@@ -141,3 +141,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# claude
+.claude/worktrees
+
+.claude/settings.local.json
+
+PRODUCT_BRIEF.md

@@ -1,0 +1,47 @@
+{
+  "name": "meanwaile",
+  "productName": "Meanwaile",
+  "version": "0.1.0",
+  "description": "Menu-bar app that turns AI coding agent dead time and confirmations into the right moment to notify",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "watch": "tsc --watch",
+    "forge:package": "electron-forge package",
+    "forge:make": "electron-forge make",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.0.0",
+    "@electron-forge/maker-dmg": "^7.0.0",
+    "@electron-forge/maker-zip": "^7.0.0",
+    "@types/node": "^24.13.2",
+    "@vitest/coverage-v8": "^2.1.9",
+    "happy-dom": "^20.10.6",
+    "typescript": "^5.0.0",
+    "vitest": "^2.1.9"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "electron": "^36.0.0"
+  },
+  "vitest": {
+    "coverage": {
+      "provider": "v8",
+      "include": [
+        "src/**/*.{ts,js}",
+        "forge.config.js"
+      ],
+      "thresholds": {
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      }
+    }
+  }
+}
