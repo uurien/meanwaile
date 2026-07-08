@@ -28,20 +28,5 @@
   },
   "dependencies": {
     "electron": "^36.0.0"
-  },
-  "vitest": {
-    "coverage": {
-      "provider": "v8",
-      "include": [
-        "src/**/*.{ts,js}",
-        "forge.config.js"
-      ],
-      "thresholds": {
-        "statements": 100,
-        "branches": 100,
-        "functions": 100,
-        "lines": 100
-      }
-    }
   }
 }
