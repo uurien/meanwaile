@@ -53,11 +53,20 @@ const mocks = vi.hoisted(() => {
     },
   );
 
+  const ipcMainHandlers: Record<string, (...a: unknown[]) => void> = {};
+  const ipcMain = {
+    on: vi.fn((event: string, handler: (...a: unknown[]) => void) => {
+      ipcMainHandlers[event] = handler;
+    }),
+    handlers: ipcMainHandlers,
+  };
+
   return {
     win,
     tray,
     server,
     app,
+    ipcMain,
     BrowserWindow: vi.fn(() => win),
     Tray: vi.fn(() => tray),
     Menu: { buildFromTemplate: vi.fn(() => ({})) },
@@ -73,6 +82,7 @@ vi.mock('electron', () => ({
   BrowserWindow: mocks.BrowserWindow,
   Menu: mocks.Menu,
   nativeImage: mocks.nativeImage,
+  ipcMain: mocks.ipcMain,
 }));
 
 vi.mock('http', () => ({ createServer: mocks.httpCreateServer }));
@@ -268,6 +278,25 @@ describe('HTTP server request handler', () => {
     postHook(JSON.stringify({ custom_field: 'value' }));
     expect(spy).toHaveBeenCalledWith('[hook]', expect.objectContaining({ custom_field: 'value' }));
     spy.mockRestore();
+  });
+});
+
+describe('popover-close IPC', () => {
+  it('hides the popover when renderer sends popover-close', () => {
+    mocks.win.hide.mockClear();
+    mocks.ipcMain.handlers['popover-close']?.();
+    expect(mocks.win.hide).toHaveBeenCalled();
+  });
+});
+
+describe('state change IPC', () => {
+  it('sends state-change to popover webContents when state transitions', () => {
+    mocks.win.webContents.send.mockClear();
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 's1' }));
+    expect(mocks.win.webContents.send).toHaveBeenCalledWith(
+      'state-change',
+      expect.objectContaining({ state: 'agent_working' }),
+    );
   });
 });
 

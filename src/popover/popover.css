@@ -16,4 +16,47 @@ body {
 
 #root {
   height: 100vh;
+  position: relative;
+}
+
+#game {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1001;
+  background: rgba(0, 0, 0, 0.82);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  backdrop-filter: blur(2px);
+}
+
+#overlay-msg {
+  color: #e0e0e0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+#continue-btn {
+  background: #2a2a2a;
+  color: #aaa;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+#continue-btn:hover {
+  background: #333;
+  color: #ddd;
+  border-color: #666;
 }
