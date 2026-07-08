@@ -66,10 +66,13 @@ function showPopover(): void {
   const y = Math.round(trayBounds.y + trayBounds.height + 4);
 
   popover.setPosition(x, y);
+  // Keep visibleOnAllWorkspaces true so macOS always places the window on the
+  // active Space. Calling setVisibleOnAllWorkspaces(false) right after show()
+  // races against the Space assignment and caused the popup to open on the
+  // wrong desktop.
   popover.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   popover.show();
   popover.focus();
-  popover.setVisibleOnAllWorkspaces(false);
 }
 
 function togglePopover(): void {
