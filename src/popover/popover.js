@@ -31,6 +31,7 @@ continueBtn.addEventListener('click', () => {
 });
 
 window.meanwaile.onStateChange((snapshot) => {
+  if (snapshot.state === currentState) return;
   currentState = snapshot.state;
 
   if (snapshot.state === 'agent_working') {

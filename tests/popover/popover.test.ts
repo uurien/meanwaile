@@ -1,18 +1,16 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 let iframePostMessage: ReturnType<typeof vi.fn>;
 let meanwaileClose: ReturnType<typeof vi.fn>;
 let triggerStateChange: (snapshot: { state: string }) => void;
 
 beforeAll(async () => {
-  document.body.innerHTML = `
-    <div id="root">
-      <iframe id="game"></iframe>
-      <div id="overlay"></div>
-      <button id="continue-btn"></button>
-    </div>
-  `;
+  const html = readFileSync(join(__dirname, '../../src/popover/index.html'), 'utf-8');
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  document.body.innerHTML = bodyMatch ? bodyMatch[1] : '';
 
   iframePostMessage = vi.fn();
   const iframe = document.getElementById('game') as HTMLIFrameElement;
@@ -112,5 +110,15 @@ describe('state changes via onStateChange', () => {
     triggerStateChange({ state: 'idle' });
     expect(overlay.style.display).toBe('flex');
     expect(iframePostMessage).toHaveBeenCalledWith({ type: 'game:pause' }, '*');
+  });
+
+  it('does nothing when the same state is received twice', () => {
+    triggerStateChange({ state: 'needs_user' });
+    iframePostMessage.mockClear();
+    const overlay = document.getElementById('overlay')!;
+    const displayBefore = overlay.style.display;
+    triggerStateChange({ state: 'needs_user' });
+    expect(iframePostMessage).not.toHaveBeenCalled();
+    expect(overlay.style.display).toBe(displayBefore);
   });
 });
