@@ -1,4 +1,4 @@
-import { app, Tray, BrowserWindow, Menu, nativeImage } from 'electron';
+import { app, Tray, BrowserWindow, Menu, nativeImage, ipcMain } from 'electron';
 import * as http from 'http';
 import * as path from 'path';
 import { ClaudeCodeAdapter } from './adapters/claude-code';
@@ -125,7 +125,12 @@ app.on('ready', () => {
 
   popover = createPopover();
 
+  ipcMain.on('popover-close', () => { popover?.hide(); });
+
   adapter.onEvent((event) => machine.handle(event));
+  machine.onStateChange((snapshot) => {
+    popover?.webContents.send('state-change', snapshot);
+  });
 
   startHttpServer();
 });
