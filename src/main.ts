@@ -66,13 +66,23 @@ function showPopover(): void {
   const y = Math.round(trayBounds.y + trayBounds.height + 4);
 
   popover.setPosition(x, y);
-  // Keep visibleOnAllWorkspaces true so macOS always places the window on the
-  // active Space. Calling setVisibleOnAllWorkspaces(false) right after show()
-  // races against the Space assignment and caused the popup to open on the
-  // wrong desktop.
+  // Toggle visibleOnAllWorkspaces on just for the show() call so macOS places
+  // the window on the currently active Space rather than the Space it was
+  // last shown on. Leaving it permanently true stops the toggle from
+  // re-triggering on the next show(), which is what caused the popup to jump
+  // back to a previous Space when reopened after being hidden. Resetting it
+  // back to false must happen on a later tick, not synchronously right after
+  // show() — doing it synchronously races the Space assignment and caused an
+  // earlier version of this same bug (see commit 6c278a1).
   popover.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   popover.show();
   popover.focus();
+  const openedPopover = popover;
+  setTimeout(() => {
+    if (openedPopover && !openedPopover.isDestroyed()) {
+      openedPopover.setVisibleOnAllWorkspaces(false, { visibleOnFullScreen: true });
+    }
+  }, 150);
 }
 
 function togglePopover(): void {

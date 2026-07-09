@@ -240,6 +240,38 @@ describe('togglePopover / showPopover', () => {
     expect(mocks.BrowserWindow.mock.calls.length).toBeGreaterThan(callsBefore);
     mocks.win.isDestroyed.mockReturnValue(false);
   });
+
+  it('re-enables visibleOnAllWorkspaces on show so the next show lands on the active Space', () => {
+    vi.useFakeTimers();
+    mocks.win.setVisibleOnAllWorkspaces.mockClear();
+    mocks.win.isVisible.mockReturnValue(false);
+    triggerTray('click');
+    expect(mocks.win.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(
+      true,
+      expect.objectContaining({ visibleOnFullScreen: true }),
+    );
+    vi.advanceTimersByTime(200);
+    expect(mocks.win.setVisibleOnAllWorkspaces).toHaveBeenLastCalledWith(
+      false,
+      expect.objectContaining({ visibleOnFullScreen: true }),
+    );
+    vi.useRealTimers();
+  });
+
+  it('does not reset visibleOnAllWorkspaces on a destroyed window', () => {
+    vi.useFakeTimers();
+    mocks.win.setVisibleOnAllWorkspaces.mockClear();
+    mocks.win.isVisible.mockReturnValue(false);
+    triggerTray('click');
+    mocks.win.isDestroyed.mockReturnValue(true);
+    vi.advanceTimersByTime(200);
+    expect(mocks.win.setVisibleOnAllWorkspaces).not.toHaveBeenLastCalledWith(
+      false,
+      expect.objectContaining({ visibleOnFullScreen: true }),
+    );
+    mocks.win.isDestroyed.mockReturnValue(false);
+    vi.useRealTimers();
+  });
 });
 
 describe('HTTP server request handler', () => {
