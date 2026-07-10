@@ -19,7 +19,7 @@ const machine = new StateMachine();
 function createPopover(): BrowserWindow {
   const win = new BrowserWindow({
     width: 320,
-    height: 160,
+    height: 340,
     show: false,
     frame: false,
     resizable: false,
