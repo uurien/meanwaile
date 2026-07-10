@@ -6,6 +6,8 @@ import { join } from 'path';
 let iframePostMessage: ReturnType<typeof vi.fn>;
 let meanwaileClose: ReturnType<typeof vi.fn>;
 let triggerStateChange: (snapshot: { state: string }) => void;
+let overlayMsg: HTMLElement;
+let continueBtn: HTMLElement;
 
 beforeAll(async () => {
   const html = readFileSync(join(__dirname, '../../src/popover/index.html'), 'utf-8');
@@ -31,6 +33,22 @@ beforeAll(async () => {
   });
 
   await import('../../src/popover/popover.js');
+
+  overlayMsg = document.getElementById('overlay-msg')!;
+  continueBtn = document.getElementById('continue-btn')!;
+});
+
+describe('initial load', () => {
+  it('shows the "Ready to play?" / Start overlay eagerly, without waiting for visibilitychange', () => {
+    // The popover window starts with show:false and this script runs
+    // immediately — Chromium doesn't reliably fire visibilitychange for the
+    // very first hidden -> visible transition, so the overlay must already
+    // be correct by the time main.ts calls win.show() for the first time.
+    const overlay = document.getElementById('overlay')!;
+    expect(overlay.style.display).toBe('flex');
+    expect(overlayMsg.textContent).toBe('Ready to play?');
+    expect(continueBtn.textContent).toBe('Start');
+  });
 });
 
 describe('Escape key', () => {
@@ -55,23 +73,48 @@ describe('visibilitychange', () => {
     expect(iframePostMessage).toHaveBeenCalledWith({ type: 'game:pause' }, '*');
   });
 
-  it('shows overlay when document becomes visible', () => {
+  it('shows a "Ready to play?" / Start overlay before the game has ever started', () => {
     const overlay = document.getElementById('overlay')!;
     overlay.style.display = 'none';
     Object.defineProperty(document, 'hidden', { value: false, configurable: true });
     document.dispatchEvent(new Event('visibilitychange'));
     expect(overlay.style.display).toBe('flex');
+    expect(overlayMsg.textContent).toBe('Ready to play?');
+    expect(continueBtn.textContent).toBe('Start');
   });
 });
 
-describe('continue button', () => {
-  it('hides overlay and resumes game on click', () => {
+describe('before the first start', () => {
+  it('agent_working does not hide the overlay or resume the game — the player has not started yet', () => {
+    iframePostMessage.mockClear();
+    const overlay = document.getElementById('overlay')!;
+    overlay.style.display = 'flex';
+    Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+    triggerStateChange({ state: 'agent_working' });
+    expect(overlay.style.display).toBe('flex');
+    expect(iframePostMessage).not.toHaveBeenCalledWith({ type: 'game:resume' }, '*');
+    triggerStateChange({ state: 'idle' }); // reset currentState for the tests below
+  });
+});
+
+describe('start button', () => {
+  it('hides the overlay and sends game:resume on click, marking the game as started', () => {
     const overlay = document.getElementById('overlay')!;
     overlay.style.display = 'flex';
     iframePostMessage.mockClear();
-    document.getElementById('continue-btn')!.click();
+    continueBtn.click();
     expect(overlay.style.display).toBe('none');
     expect(iframePostMessage).toHaveBeenCalledWith({ type: 'game:resume' }, '*');
+  });
+
+  it('shows "Paused" / Continue from now on, even after reopening', () => {
+    const overlay = document.getElementById('overlay')!;
+    overlay.style.display = 'none';
+    Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(overlay.style.display).toBe('flex');
+    expect(overlayMsg.textContent).toBe('Paused');
+    expect(continueBtn.textContent).toBe('Continue');
   });
 });
 
@@ -89,6 +132,7 @@ describe('state changes via onStateChange', () => {
   it('agent_working does not resume game when document is hidden', () => {
     iframePostMessage.mockClear();
     Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+    triggerStateChange({ state: 'idle' });
     triggerStateChange({ state: 'agent_working' });
     expect(iframePostMessage).not.toHaveBeenCalledWith({ type: 'game:resume' }, '*');
     Object.defineProperty(document, 'hidden', { value: false, configurable: true });
