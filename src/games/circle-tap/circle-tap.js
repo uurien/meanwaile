@@ -32,8 +32,10 @@ function setRecord(value) {
   localStorage.setItem(RECORD_KEY, String(value));
 }
 
+let record = getRecord();
+
 function render() {
-  scoreEl.textContent = String(engine.score);
+  scoreEl.textContent = `Score: ${engine.score} [${record}]`;
   for (let i = 0; i < cells.length; i++) {
     cells[i].classList.toggle('active', engine.cells[i] !== null);
     cells[i].style.setProperty('--progress', String(engine.progressFor(i)));
@@ -52,7 +54,7 @@ function handleClick(index) {
 
 function endGame() {
   cancelLoop();
-  const record = Math.max(engine.score, getRecord());
+  record = Math.max(engine.score, record);
   setRecord(record);
   finalScoreEl.textContent = String(engine.score);
   recordEl.textContent = String(record);
@@ -105,4 +107,3 @@ window.addEventListener('message', (e) => {
 });
 
 render();
-startLoop();

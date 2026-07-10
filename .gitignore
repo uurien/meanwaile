@@ -148,3 +148,6 @@ vite.config.ts.timestamp-*
 .claude/settings.local.json
 
 PRODUCT_BRIEF.md
+
+# macOS
+.DS_Store

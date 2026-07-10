@@ -1,10 +1,23 @@
 const iframe = document.getElementById('game');
 const overlay = document.getElementById('overlay');
+const overlayMsg = document.getElementById('overlay-msg');
 const continueBtn = document.getElementById('continue-btn');
 
 let currentState = 'idle';
+let started = false;
+
+function updateOverlayText() {
+  if (started) {
+    overlayMsg.textContent = 'Paused';
+    continueBtn.textContent = 'Continue';
+  } else {
+    overlayMsg.textContent = 'Ready to play?';
+    continueBtn.textContent = 'Start';
+  }
+}
 
 function showOverlay() {
+  updateOverlayText();
   overlay.style.display = 'flex';
 }
 
@@ -26,6 +39,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 continueBtn.addEventListener('click', () => {
+  started = true;
   hideOverlay();
   iframe.contentWindow.postMessage({ type: 'game:resume' }, '*');
 });
@@ -35,12 +49,24 @@ window.meanwaile.onStateChange((snapshot) => {
   currentState = snapshot.state;
 
   if (snapshot.state === 'agent_working') {
-    hideOverlay();
-    if (!document.hidden) {
-      iframe.contentWindow.postMessage({ type: 'game:resume' }, '*');
+    // Never auto-start: until the player has clicked Start at least once,
+    // keep showing the "Ready to play?" prompt regardless of agent state.
+    if (started) {
+      hideOverlay();
+      if (!document.hidden) {
+        iframe.contentWindow.postMessage({ type: 'game:resume' }, '*');
+      }
     }
   } else {
     iframe.contentWindow.postMessage({ type: 'game:pause' }, '*');
     showOverlay();
   }
 });
+
+// The popover BrowserWindow is created with show:false and loads this page
+// long before it's ever shown. Chromium doesn't reliably fire the first
+// hidden -> visible `visibilitychange` for a window that starts hidden, so
+// waiting for that event to show the overlay left the very first open with
+// no overlay and no way to start the game. Showing it eagerly here means
+// it's already correct by the time main.ts actually calls win.show().
+showOverlay();

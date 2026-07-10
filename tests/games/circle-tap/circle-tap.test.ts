@@ -63,13 +63,20 @@ describe('board setup', () => {
     });
   });
 
-  it('starts the score at 0 and the game-over overlay hidden', () => {
-    expect(scoreEl.textContent).toBe('0');
+  it('starts at "Score: 0 [0]" with the game-over overlay hidden', () => {
+    expect(scoreEl.textContent).toBe('Score: 0 [0]');
     expect((gameOverEl as HTMLElement).hidden).toBe(true);
   });
 
-  it('starts the render loop on load', () => {
-    expect(requestAnimationFrame).toHaveBeenCalled();
+  it('does not start the render loop on load — it waits for the host to send game:resume', () => {
+    expect(requestAnimationFrame).not.toHaveBeenCalled();
+  });
+});
+
+describe('first game:resume from the host', () => {
+  it('starts the render loop — the popover decides when the player may start', () => {
+    window.dispatchEvent(new MessageEvent('message', { data: { type: 'game:resume' } }));
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -84,7 +91,7 @@ describe('game loop', () => {
 describe('clicking', () => {
   it('scores a point when clicking the active circle', () => {
     cells[0].click();
-    expect(scoreEl.textContent).toBe('1');
+    expect(scoreEl.textContent).toBe('Score: 1 [0]');
     expect(cells[0].classList.contains('active')).toBe(false);
   });
 
@@ -93,6 +100,7 @@ describe('clicking', () => {
     expect((gameOverEl as HTMLElement).hidden).toBe(false);
     expect(finalScoreEl.textContent).toBe('1');
     expect(recordEl.textContent).toBe('1');
+    expect(scoreEl.textContent).toBe('Score: 1 [1]');
     expect(localStorage.getItem(RECORD_KEY)).toBe('1');
     expect(cancelAnimationFrame).toHaveBeenCalled();
   });
@@ -100,7 +108,7 @@ describe('clicking', () => {
   it('ignores clicks on cells once the game is over', () => {
     cancelAnimationFrame.mockClear();
     cells[2].click();
-    expect(scoreEl.textContent).toBe('1');
+    expect(scoreEl.textContent).toBe('Score: 1 [1]');
     expect(cancelAnimationFrame).not.toHaveBeenCalled();
   });
 });
@@ -118,7 +126,7 @@ describe('restart', () => {
     requestAnimationFrame.mockClear();
     gameOverEl.click();
     expect((gameOverEl as HTMLElement).hidden).toBe(true);
-    expect(scoreEl.textContent).toBe('0');
+    expect(scoreEl.textContent).toBe('Score: 0 [1]');
     cells.forEach((cell) => expect(cell.classList.contains('active')).toBe(false));
     expect(requestAnimationFrame).toHaveBeenCalled();
   });
@@ -145,7 +153,7 @@ describe('pause/resume via postMessage', () => {
   it('ignores clicks while paused, without ending the game', () => {
     cells[0].click();
     expect((gameOverEl as HTMLElement).hidden).toBe(true);
-    expect(scoreEl.textContent).toBe('0');
+    expect(scoreEl.textContent).toBe('Score: 0 [1]');
   });
 
   it('resume restarts the render loop', () => {
@@ -179,5 +187,15 @@ describe('game over from an unclicked, expiring circle', () => {
     expect(cells.some((cell) => cell.classList.contains('active'))).toBe(true);
     runFrame(10000 + 5000); // well past its green duration
     expect((gameOverEl as HTMLElement).hidden).toBe(false);
+  });
+});
+
+describe('record on a fresh load', () => {
+  it('reads a previously stored record from localStorage', async () => {
+    localStorage.setItem(RECORD_KEY, '5');
+    vi.resetModules();
+    document.getElementById('board')!.innerHTML = '';
+    await import('../../../src/games/circle-tap/circle-tap.js');
+    expect(document.getElementById('score')!.textContent).toBe('Score: 0 [5]');
   });
 });
