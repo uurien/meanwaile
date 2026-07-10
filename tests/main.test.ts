@@ -61,12 +61,15 @@ const mocks = vi.hoisted(() => {
     handlers: ipcMainHandlers,
   };
 
+  const powerMonitor = { getSystemIdleTime: vi.fn(() => 0) };
+
   return {
     win,
     tray,
     server,
     app,
     ipcMain,
+    powerMonitor,
     BrowserWindow: vi.fn(() => win),
     Tray: vi.fn(() => tray),
     Menu: { buildFromTemplate: vi.fn(() => ({})) },
@@ -83,6 +86,7 @@ vi.mock('electron', () => ({
   Menu: mocks.Menu,
   nativeImage: mocks.nativeImage,
   ipcMain: mocks.ipcMain,
+  powerMonitor: mocks.powerMonitor,
 }));
 
 vi.mock('http', () => ({ createServer: mocks.httpCreateServer }));
@@ -329,6 +333,63 @@ describe('state change IPC', () => {
       'state-change',
       expect.objectContaining({ state: 'agent_working' }),
     );
+  });
+});
+
+describe('auto-open popover after idle timeout', () => {
+  it('opens the popover if the system has been idle for the whole delay', () => {
+    vi.useFakeTimers();
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+    mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
+
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit' }));
+    vi.advanceTimersByTime(17000);
+
+    expect(mocks.win.show).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('does not open the popover if system activity was detected', () => {
+    vi.useFakeTimers();
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+    mocks.powerMonitor.getSystemIdleTime.mockReturnValue(2);
+
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit' }));
+    vi.advanceTimersByTime(15000);
+
+    expect(mocks.win.show).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('cancels the timer if the agent responds before the delay elapses', () => {
+    vi.useFakeTimers();
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+    mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
+
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit' }));
+    vi.advanceTimersByTime(5000);
+    postHook(JSON.stringify({ hook_event_name: 'Stop' }));
+    vi.advanceTimersByTime(15000);
+
+    expect(mocks.win.show).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('does not re-show an already visible popover', () => {
+    vi.useFakeTimers();
+    mocks.win.isVisible.mockReturnValue(true);
+    mocks.win.show.mockClear();
+    mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
+
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit' }));
+    vi.advanceTimersByTime(17000);
+
+    expect(mocks.win.show).not.toHaveBeenCalled();
+    mocks.win.isVisible.mockReturnValue(false);
+    vi.useRealTimers();
   });
 });
 
