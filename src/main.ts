@@ -1,4 +1,4 @@
-import { app, Tray, BrowserWindow, Menu, nativeImage, ipcMain } from 'electron';
+import { app, Tray, BrowserWindow, Menu, nativeImage, ipcMain, powerMonitor } from 'electron';
 import * as http from 'http';
 import * as path from 'path';
 import { ClaudeCodeAdapter } from './adapters/claude-code';
@@ -6,12 +6,17 @@ import { StateMachine } from './state-machine';
 
 const HTTP_PORT = 3821;
 
+// How long the agent may work before we auto-open the popover, provided the
+// user hasn't touched the keyboard/mouse/trackpad in the meantime.
+const AUTO_OPEN_DELAY_MS = 15000;
+
 // Prevent Dock icon on macOS — this is a menu-bar-only app
 app.dock?.hide();
 
 let tray: Tray | null = null;
 let popover: BrowserWindow | null = null;
 let httpServer: http.Server | null = null;
+let autoOpenTimer: ReturnType<typeof setTimeout> | null = null;
 
 const adapter = new ClaudeCodeAdapter();
 const machine = new StateMachine();
@@ -93,6 +98,18 @@ function togglePopover(): void {
   showPopover();
 }
 
+// Called AUTO_OPEN_DELAY_MS after the agent starts working. If nothing has
+// interrupted that timer (agent already responded — see onStateChange) and
+// the system has been idle for the whole window (no keys/clicks/trackpad
+// input, which also covers window/Space switches since those require input),
+// surface the popover automatically.
+function maybeAutoOpenPopover(): void {
+  if (popover && !popover.isDestroyed() && popover.isVisible()) return;
+  if (powerMonitor.getSystemIdleTime() * 1000 >= AUTO_OPEN_DELAY_MS) {
+    showPopover();
+  }
+}
+
 function startHttpServer(): void {
   httpServer = http.createServer((req, res) => {
     if (req.method !== 'POST' || req.url !== '/hook') {
@@ -143,6 +160,20 @@ app.on('ready', () => {
   adapter.onEvent((event) => machine.handle(event));
   machine.onStateChange((snapshot) => {
     popover?.webContents.send('state-change', snapshot);
+
+    if (autoOpenTimer) {
+      clearTimeout(autoOpenTimer);
+      autoOpenTimer = null;
+    }
+    if (snapshot.state === 'agent_working') {
+      // setTimeout's clock and the OS's HID-idle clock don't share an origin:
+      // by the time this fires at exactly AUTO_OPEN_DELAY_MS, getSystemIdleTime()
+      // often reads a second short (e.g. 14 instead of 15) because of the delay
+      // between the last real input and when the hook reached us and we armed
+      // this timer. The extra buffer absorbs that gap so we don't miss the
+      // threshold on every near-exact hit.
+      autoOpenTimer = setTimeout(maybeAutoOpenPopover, AUTO_OPEN_DELAY_MS + 2000);
+    }
   });
 
   startHttpServer();
