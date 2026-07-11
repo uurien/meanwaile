@@ -1,7 +1,7 @@
 module.exports = {
   packagerConfig: {
     name: 'Meanwaile',
-    icon: './assets/tray-icon',
+    icon: './assets/app-icon',
     osxSign: {},
   },
   makers: [
