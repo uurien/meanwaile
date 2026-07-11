@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 
 // ─── Hoisted mock state ────────────────────────────────────────────────────
 const mocks = vi.hoisted(() => {
@@ -38,6 +38,8 @@ const mocks = vi.hoisted(() => {
       appHandlers[event] = handler;
     }),
     quit: vi.fn(),
+    setLoginItemSettings: vi.fn(),
+    getPath: vi.fn(() => '/fake/userData'),
     handlers: appHandlers,
   };
 
@@ -63,6 +65,11 @@ const mocks = vi.hoisted(() => {
 
   const powerMonitor = { getSystemIdleTime: vi.fn(() => 0) };
 
+  const dialog = { showMessageBox: vi.fn(async () => ({ response: 1 })) };
+  const hasOnboarded = vi.fn(() => true);
+  const markOnboarded = vi.fn();
+  const installClaudeHooks = vi.fn();
+
   return {
     win,
     tray,
@@ -70,6 +77,10 @@ const mocks = vi.hoisted(() => {
     app,
     ipcMain,
     powerMonitor,
+    dialog,
+    hasOnboarded,
+    markOnboarded,
+    installClaudeHooks,
     BrowserWindow: vi.fn(() => win),
     Tray: vi.fn(() => tray),
     Menu: { buildFromTemplate: vi.fn(() => ({})) },
@@ -87,15 +98,25 @@ vi.mock('electron', () => ({
   nativeImage: mocks.nativeImage,
   ipcMain: mocks.ipcMain,
   powerMonitor: mocks.powerMonitor,
+  dialog: mocks.dialog,
 }));
 
 vi.mock('http', () => ({ createServer: mocks.httpCreateServer }));
+
+vi.mock('../src/onboarding-store', () => ({
+  hasOnboarded: mocks.hasOnboarded,
+  markOnboarded: mocks.markOnboarded,
+}));
+
+vi.mock('../src/claude-settings', () => ({
+  installClaudeHooks: mocks.installClaudeHooks,
+}));
 
 import '../src/main';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 function triggerApp(event: string) {
-  mocks.app.handlers[event]?.();
+  return mocks.app.handlers[event]?.();
 }
 
 function triggerWin(event: string) {
@@ -130,6 +151,118 @@ function postHook(body: string) {
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
+
+// This block must run first and toggles `hasOnboarded` back to `true` in
+// afterAll — main.ts is imported once at module scope, and every describe
+// block below this one triggers `ready` assuming onboarding already happened
+// (no dialogs), so they'd start failing/hanging if that assumption broke.
+describe('first-run onboarding', () => {
+  beforeAll(() => {
+    mocks.hasOnboarded.mockReturnValue(false);
+  });
+
+  afterAll(() => {
+    mocks.hasOnboarded.mockReturnValue(true);
+  });
+
+  beforeEach(() => {
+    mocks.dialog.showMessageBox.mockReset();
+    mocks.app.setLoginItemSettings.mockClear();
+    mocks.installClaudeHooks.mockClear();
+    mocks.markOnboarded.mockClear();
+  });
+
+  it('shows the login-item dialog before the Claude Code hooks dialog, in order', async () => {
+    mocks.dialog.showMessageBox
+      .mockResolvedValueOnce({ response: 1 })
+      .mockResolvedValueOnce({ response: 1 });
+
+    await triggerApp('ready');
+
+    expect(mocks.dialog.showMessageBox).toHaveBeenCalledTimes(2);
+    expect(mocks.dialog.showMessageBox.mock.calls[0][0].message).toMatch(/log in/i);
+    expect(mocks.dialog.showMessageBox.mock.calls[1][0].message).toMatch(/hooks/i);
+  });
+
+  it('does not show the second dialog until the first has fully resolved', async () => {
+    let resolveFirst!: (v: { response: number }) => void;
+    mocks.dialog.showMessageBox
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; }))
+      .mockResolvedValueOnce({ response: 1 });
+
+    const readyPromise = triggerApp('ready');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mocks.dialog.showMessageBox).toHaveBeenCalledTimes(1);
+
+    resolveFirst({ response: 1 });
+    await readyPromise;
+    expect(mocks.dialog.showMessageBox).toHaveBeenCalledTimes(2);
+  });
+
+  it('enables the login item when the user answers "Yes"', async () => {
+    mocks.dialog.showMessageBox
+      .mockResolvedValueOnce({ response: 0 })
+      .mockResolvedValueOnce({ response: 1 });
+
+    await triggerApp('ready');
+
+    expect(mocks.app.setLoginItemSettings).toHaveBeenCalledWith({ openAtLogin: true });
+  });
+
+  it('does not touch the login item when the user answers "No"', async () => {
+    mocks.dialog.showMessageBox
+      .mockResolvedValueOnce({ response: 1 })
+      .mockResolvedValueOnce({ response: 1 });
+
+    await triggerApp('ready');
+
+    expect(mocks.app.setLoginItemSettings).not.toHaveBeenCalled();
+  });
+
+  it('installs Claude Code hooks when the user answers "Yes"', async () => {
+    mocks.dialog.showMessageBox
+      .mockResolvedValueOnce({ response: 1 })
+      .mockResolvedValueOnce({ response: 0 });
+
+    await triggerApp('ready');
+
+    expect(mocks.installClaudeHooks).toHaveBeenCalledTimes(1);
+    expect(mocks.installClaudeHooks.mock.calls[0][1]).toContain('3821');
+  });
+
+  it('does not install Claude Code hooks when the user answers "No"', async () => {
+    mocks.dialog.showMessageBox
+      .mockResolvedValueOnce({ response: 1 })
+      .mockResolvedValueOnce({ response: 1 });
+
+    await triggerApp('ready');
+
+    expect(mocks.installClaudeHooks).not.toHaveBeenCalled();
+  });
+
+  it('marks onboarding complete once both dialogs are answered', async () => {
+    mocks.dialog.showMessageBox
+      .mockResolvedValueOnce({ response: 1 })
+      .mockResolvedValueOnce({ response: 1 });
+
+    await triggerApp('ready');
+
+    expect(mocks.markOnboarded).toHaveBeenCalledWith('/fake/userData');
+  });
+
+  it('skips onboarding entirely on a subsequent launch', async () => {
+    mocks.hasOnboarded.mockReturnValueOnce(true);
+
+    await triggerApp('ready');
+
+    expect(mocks.dialog.showMessageBox).not.toHaveBeenCalled();
+    expect(mocks.app.setLoginItemSettings).not.toHaveBeenCalled();
+    expect(mocks.installClaudeHooks).not.toHaveBeenCalled();
+    expect(mocks.markOnboarded).not.toHaveBeenCalled();
+  });
+});
+
 describe('main.ts top-level', () => {
   it('hides the dock icon on import', () => {
     expect(mocks.app.dock.hide).toHaveBeenCalled();
@@ -143,8 +276,8 @@ describe('main.ts top-level', () => {
 });
 
 describe('app ready handler', () => {
-  beforeAll(() => {
-    triggerApp('ready');
+  beforeAll(async () => {
+    await triggerApp('ready');
   });
 
   it('creates the tray', () => {
