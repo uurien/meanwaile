@@ -20,6 +20,7 @@
     "@types/node": "^24.13.2",
     "@vitest/coverage-v8": "^2.1.9",
     "electron": "^36.0.0",
+    "encoding": "^0.1.13",
     "happy-dom": "^20.10.6",
     "typescript": "^5.0.0",
     "vitest": "^2.1.9"
