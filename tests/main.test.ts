@@ -309,12 +309,6 @@ describe('HTTP server request handler', () => {
     spy.mockRestore();
   });
 
-  it('logs body object when hook_event_name is absent', () => {
-    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    postHook(JSON.stringify({ custom_field: 'value' }));
-    expect(spy).toHaveBeenCalledWith('[hook]', expect.objectContaining({ custom_field: 'value' }));
-    spy.mockRestore();
-  });
 });
 
 describe('popover-close IPC', () => {

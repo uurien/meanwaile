@@ -126,7 +126,6 @@ function startHttpServer(): void {
 
       try {
         const body = JSON.parse(raw);
-        console.log('[hook]', body.hook_event_name ?? body);
         adapter.emit(body);
       } catch {
         console.warn('[hook] could not parse body:', raw);
