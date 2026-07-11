@@ -8,8 +8,8 @@
     "build": "tsc",
     "start": "npm run build && electron .",
     "watch": "tsc --watch",
-    "forge:package": "electron-forge package",
-    "forge:make": "electron-forge make",
+    "forge:package": "npm run build && electron-forge package",
+    "forge:make": "npm run build && electron-forge make",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -19,14 +19,12 @@
     "@electron-forge/maker-zip": "^7.0.0",
     "@types/node": "^24.13.2",
     "@vitest/coverage-v8": "^2.1.9",
+    "electron": "^36.0.0",
     "happy-dom": "^20.10.6",
     "typescript": "^5.0.0",
     "vitest": "^2.1.9"
   },
   "engines": {
     "node": ">=24"
-  },
-  "dependencies": {
-    "electron": "^36.0.0"
   }
 }
