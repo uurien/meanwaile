@@ -5,7 +5,7 @@ import { join } from 'path';
 
 let iframePostMessage: ReturnType<typeof vi.fn>;
 let meanwaileClose: ReturnType<typeof vi.fn>;
-let triggerStateChange: (snapshot: { state: string }) => void;
+let triggerStateChange: (snapshot: { state: string; sessionId?: string | null }) => void;
 let overlayMsg: HTMLElement;
 let continueBtn: HTMLElement;
 
@@ -164,5 +164,25 @@ describe('state changes via onStateChange', () => {
     triggerStateChange({ state: 'needs_user' });
     expect(iframePostMessage).not.toHaveBeenCalled();
     expect(overlay.style.display).toBe(displayBefore);
+  });
+});
+
+describe('pause reason text', () => {
+  it('falls back to generic "Paused" when the reported sessionId is null', () => {
+    triggerStateChange({ state: 'agent_working', sessionId: null });
+    triggerStateChange({ state: 'idle', sessionId: null });
+    expect(overlayMsg.textContent).toBe('Paused');
+  });
+
+  it('shows "Claude needs input" once a real session reports needs_user', () => {
+    triggerStateChange({ state: 'agent_working', sessionId: 'abc' });
+    triggerStateChange({ state: 'needs_user', sessionId: 'abc' });
+    expect(overlayMsg.textContent).toBe('Claude needs input');
+  });
+
+  it('shows "Claude finished" once a real session reports idle', () => {
+    triggerStateChange({ state: 'agent_working', sessionId: 'abc' });
+    triggerStateChange({ state: 'idle', sessionId: 'abc' });
+    expect(overlayMsg.textContent).toBe('Claude finished');
   });
 });
