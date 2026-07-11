@@ -30,7 +30,13 @@ npm start
 
 ## Configure Claude Code hooks
 
-Run once to wire Claude Code's hooks to Meanwaile's local HTTP server (port 3821):
+On first launch, Meanwaile asks two separate questions: whether to launch
+automatically at login, and whether to wire up Claude Code's hooks. Answering
+"Yes" to the second merges the hook config below into `~/.claude/settings.json`
+for you — no manual step needed. Restart Claude Code afterwards for the hooks
+to take effect.
+
+If you answered "No", or need to re-apply/repair the hooks manually, run:
 
 ```bash
 ./scripts/setup-hooks.sh
@@ -48,8 +54,6 @@ This merges the following into `~/.claude/settings.json`:
   }
 }
 ```
-
-Restart Claude Code after running the script.
 
 ## Test without Claude Code
 
@@ -81,6 +85,8 @@ src/
     claude-code.ts    Maps Claude Code hook payloads to AgentEvents
   state-machine.ts    idle / agent_working / needs_user
   main.ts             Electron main: tray, HTTP server (port 3821), popover window
+  onboarding-store.ts First-run "already onboarded" flag (~/Library/Application Support/Meanwaile)
+  claude-settings.ts  Non-destructive merge of Meanwaile's hooks into ~/.claude/settings.json
   preload.ts          contextBridge setup for renderer IPC
   popover/
     index.html

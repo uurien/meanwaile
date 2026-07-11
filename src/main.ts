@@ -1,10 +1,13 @@
-import { app, Tray, BrowserWindow, Menu, nativeImage, ipcMain, powerMonitor } from 'electron';
+import { app, Tray, BrowserWindow, Menu, nativeImage, ipcMain, powerMonitor, dialog } from 'electron';
 import * as http from 'http';
+import * as os from 'os';
 import * as path from 'path';
 import { ClaudeCodeAdapter } from './adapters/claude-code';
 import { StateMachine } from './state-machine';
+import { hasOnboarded, markOnboarded } from './onboarding-store';
+import { installClaudeHooks } from './claude-settings';
 
-const HTTP_PORT = 3821;
+export const HTTP_PORT = 3821;
 
 // How long the agent may work before we auto-open the popover, provided the
 // user hasn't touched the keyboard/mouse/trackpad in the meantime.
@@ -138,7 +141,42 @@ function startHttpServer(): void {
   });
 }
 
-app.on('ready', () => {
+// Runs once, on the very first launch ever. Two separate dialogs — never
+// combined into one screen — so each choice reads as its own decision.
+async function runOnboardingIfNeeded(): Promise<void> {
+  const userDataDir = app.getPath('userData');
+  console.log('userDataDir', userDataDir)
+  if (hasOnboarded(userDataDir)) return;
+
+  const loginResult = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Yes', 'No'],
+    defaultId: 0,
+    cancelId: 1,
+    message: 'Launch Meanwaile automatically when you log in?',
+  });
+  if (loginResult.response === 0) {
+    app.setLoginItemSettings({ openAtLogin: true });
+  }
+
+  const hooksResult = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Yes', 'No'],
+    defaultId: 0,
+    cancelId: 1,
+    message: 'Automatically configure Claude Code hooks for Meanwaile?',
+  });
+  if (hooksResult.response === 0) {
+    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+    installClaudeHooks(settingsPath, `http://localhost:${HTTP_PORT}/hook`);
+  }
+
+  markOnboarded(userDataDir);
+}
+
+app.on('ready', async () => {
+  await runOnboardingIfNeeded();
+
   const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
   const icon = nativeImage.createFromPath(iconPath);
   icon.setTemplateImage(true);
