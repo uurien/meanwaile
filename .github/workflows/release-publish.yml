@@ -1,0 +1,75 @@
+name: Release — Publish
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  publish:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/v')
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Extract version from branch name
+        id: version
+        run: |
+          ref="${{ github.event.pull_request.head.ref }}"
+          echo "version=${ref#release/v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Sanity-check package.json matches the release branch
+        run: |
+          pkg_version="$(node -p "require('./package.json').version")"
+          if [ "$pkg_version" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::package.json version ($pkg_version) doesn't match release branch (v${{ steps.version.outputs.version }})"
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Package app
+        run: npm run forge:make
+
+      - name: Checksums
+        working-directory: out/make
+        run: |
+          find . -type f \( -name "*.dmg" -o -name "*.zip" \) -exec shasum -a 256 {} \; > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Tag release
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            out/make/*.dmg \
+            out/make/zip/darwin/arm64/*.zip \
+            out/make/SHA256SUMS.txt \
+            --title "v${{ steps.version.outputs.version }}" \
+            --generate-notes
