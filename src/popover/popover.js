@@ -4,15 +4,26 @@ const overlayMsg = document.getElementById('overlay-msg');
 const continueBtn = document.getElementById('continue-btn');
 
 let currentState = 'idle';
+let currentSessionId = null;
 let started = false;
 
 function updateOverlayText() {
-  if (started) {
-    overlayMsg.textContent = 'Paused';
-    continueBtn.textContent = 'Continue';
-  } else {
+  if (!started) {
     overlayMsg.textContent = 'Ready to play?';
     continueBtn.textContent = 'Start';
+    return;
+  }
+
+  continueBtn.textContent = 'Continue';
+  // Only attribute the pause to Claude once a real session has reported a
+  // state (sessionId set) - otherwise the default 'idle' state would
+  // misleadingly claim "Claude finished" before Claude has done anything.
+  if (currentSessionId && currentState === 'needs_user') {
+    overlayMsg.textContent = 'Claude needs input';
+  } else if (currentSessionId && currentState === 'idle') {
+    overlayMsg.textContent = 'Claude finished';
+  } else {
+    overlayMsg.textContent = 'Paused';
   }
 }
 
@@ -47,6 +58,7 @@ continueBtn.addEventListener('click', () => {
 window.meanwaile.onStateChange((snapshot) => {
   if (snapshot.state === currentState) return;
   currentState = snapshot.state;
+  currentSessionId = snapshot.sessionId;
 
   if (snapshot.state === 'agent_working') {
     // Never auto-start: until the player has clicked Start at least once,
