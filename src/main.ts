@@ -254,7 +254,7 @@ app.on('ready', async () => {
   tray.setToolTip('Meanwaile');
 
   const contextMenu = Menu.buildFromTemplate([
-    { label: 'Salir', click: () => app.quit() },
+    { label: 'Exit', click: () => app.quit() },
   ]);
   tray.on('click', togglePopover);
   tray.on('right-click', () => tray!.popUpContextMenu(contextMenu));

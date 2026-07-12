@@ -347,7 +347,7 @@ describe('app ready handler', () => {
     expect(mocks.tray.popUpContextMenu).toHaveBeenCalled();
   });
 
-  it('context menu "Salir" click calls app.quit', () => {
+  it('context menu "Exit" click calls app.quit', () => {
     const [items] = vi.mocked(mocks.Menu.buildFromTemplate).mock.calls[0] as [{ click: () => void }[]];
     items[0].click();
     expect(mocks.app.quit).toHaveBeenCalled();
