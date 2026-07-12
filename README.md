@@ -10,16 +10,22 @@ No notifications. No integrations. One trick, done well.
 
 ## Status
 
-**Phase 0** — daemon skeleton. The HTTP hook server, agent adapter, and state machine are in place. The popup opens on tray click (on-demand). Automatic wait detection and the game itself are coming next.
+Working end to end: the hook server, agent adapter, state machine, first-run onboarding (login item + Claude Code hooks), and the first minigame (circle-tap) are all in place. The popup opens automatically once the agent has been working and the system has been idle past a threshold, and on demand any time via the tray icon.
+
+Not yet built: checking that the terminal/agent app is frontmost before auto-opening (so right now it can open even if you've switched to another app), and discreet mode.
 
 ---
 
 ## Requirements
 
 - macOS 13+
-- Node.js 24+
+- To build from source or contribute: Node.js 24+ (only needed for `npm install` / `npm start` / running tests — the packaged app bundles its own Node/Electron runtime, so an installed `.dmg` doesn't need Node at all)
 
-## Build & run
+## Install
+
+Download the latest `.dmg` from [Releases](https://github.com/uurien/meanwaile/releases) — no Node.js required.
+
+## Build & run from source
 
 ```bash
 npm install
@@ -74,28 +80,6 @@ curl -s -X POST http://localhost:3821/hook \
 curl -s -X POST http://localhost:3821/hook \
   -H 'Content-Type: application/json' \
   -d '{"hook_event_name":"Stop","session_id":"test"}'
-```
-
-## Project structure
-
-```
-src/
-  adapters/
-    types.ts          AgentAdapter interface — the only contract the rest of the app knows
-    claude-code.ts    Maps Claude Code hook payloads to AgentEvents
-  state-machine.ts    idle / agent_working / needs_user
-  main.ts             Electron main: tray, HTTP server (port 3821), popover window
-  onboarding-store.ts First-run "already onboarded" flag (~/Library/Application Support/Meanwaile)
-  claude-settings.ts  Non-destructive merge of Meanwaile's hooks into ~/.claude/settings.json
-  preload.ts          contextBridge setup for renderer IPC
-  popover/
-    index.html
-    popover.css
-    popover.js        Game canvas will live here
-assets/
-  tray-icon.png       22×22 template image (white, transparent background)
-scripts/
-  setup-hooks.sh      Merges Claude Code hook config into ~/.claude/settings.json
 ```
 
 ## Contributing
