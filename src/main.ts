@@ -5,21 +5,18 @@ import * as path from 'path';
 import { ClaudeCodeAdapter } from './adapters/claude-code';
 import { StateMachine } from './state-machine';
 import { hasOnboarded, markOnboarded } from './onboarding-store';
-import { installClaudeHooks } from './claude-settings';
-
-export const HTTP_PORT = 3821;
-
-// How long the agent may work before we auto-open the popover, provided the
-// user hasn't touched the keyboard/mouse/trackpad in the meantime.
-const AUTO_OPEN_DELAY_MS = 15000;
+import { installClaudeHooks, hasManagedHooks, renameClaudeHookUrl } from './claude-settings';
+import { AppSettings, DEFAULT_SETTINGS, readSettings, writeSettings, validateSettings } from './settings-store';
 
 // Prevent Dock icon on macOS — this is a menu-bar-only app
 app.dock?.hide();
 
 let tray: Tray | null = null;
 let popover: BrowserWindow | null = null;
+let settingsWindow: BrowserWindow | null = null;
 let httpServer: http.Server | null = null;
 let autoOpenTimer: ReturnType<typeof setTimeout> | null = null;
+let currentSettings: AppSettings = { ...DEFAULT_SETTINGS };
 
 const adapter = new ClaudeCodeAdapter();
 const machine = new StateMachine();
@@ -27,7 +24,7 @@ const machine = new StateMachine();
 function createPopover(): BrowserWindow {
   const win = new BrowserWindow({
     width: 320,
-    height: 340,
+    height: 370,
     show: false,
     frame: false,
     resizable: false,
@@ -101,19 +98,27 @@ function togglePopover(): void {
   showPopover();
 }
 
-// Called AUTO_OPEN_DELAY_MS after the agent starts working. If nothing has
+// Called autoOpenDelaySeconds after the agent starts working. If nothing has
 // interrupted that timer (agent already responded — see onStateChange) and
 // the system has been idle for the whole window (no keys/clicks/trackpad
 // input, which also covers window/Space switches since those require input),
 // surface the popover automatically.
 function maybeAutoOpenPopover(): void {
   if (popover && !popover.isDestroyed() && popover.isVisible()) return;
-  if (powerMonitor.getSystemIdleTime() * 1000 >= AUTO_OPEN_DELAY_MS) {
+  if (powerMonitor.getSystemIdleTime() * 1000 >= currentSettings.autoOpenDelaySeconds * 1000) {
     showPopover();
   }
 }
 
-function startHttpServer(): void {
+function hookUrlFor(port: number): string {
+  return `http://localhost:${port}/hook`;
+}
+
+function claudeSettingsPath(): string {
+  return path.join(os.homedir(), '.claude', 'settings.json');
+}
+
+function startHttpServer(port: number): void {
   httpServer = http.createServer((req, res) => {
     if (req.method !== 'POST' || req.url !== '/hook') {
       res.writeHead(404);
@@ -136,9 +141,72 @@ function startHttpServer(): void {
     });
   });
 
-  httpServer.listen(HTTP_PORT, '127.0.0.1', () => {
-    console.log(`[meanwaile] HTTP server listening on http://127.0.0.1:${HTTP_PORT}/hook`);
+  httpServer.listen(port, '127.0.0.1', () => {
+    console.log(`[meanwaile] HTTP server listening on http://127.0.0.1:${port}/hook`);
   });
+}
+
+function stopHttpServer(): void {
+  httpServer?.close();
+  httpServer = null;
+}
+
+// Applies a validated settings change: persists it, and if the port changed,
+// restarts the HTTP server on the new port. If hooks were already installed
+// for the previous port (user opted in during onboarding), rewriting
+// ~/.claude/settings.json to the new port is a separate, explicit
+// confirmation — the user asked not to have that file edited silently on
+// their behalf. The rename matches the exact previous URL only, so it can
+// never touch another tool's hook that happens to share the /hook path.
+async function applySettings(newSettings: AppSettings): Promise<void> {
+  const portChanged = newSettings.httpPort !== currentSettings.httpPort;
+  const previousHookUrl = hookUrlFor(currentSettings.httpPort);
+
+  currentSettings = newSettings;
+  writeSettings(app.getPath('userData'), newSettings);
+
+  if (portChanged) {
+    stopHttpServer();
+    startHttpServer(currentSettings.httpPort);
+
+    const settingsPath = claudeSettingsPath();
+    if (hasManagedHooks(settingsPath, previousHookUrl)) {
+      const { response } = await dialog.showMessageBox({
+        type: 'question',
+        buttons: ['Yes', 'No'],
+        defaultId: 0,
+        cancelId: 1,
+        message: `Update the Claude Code hook in ${settingsPath} to use port ${currentSettings.httpPort}?`,
+      });
+      if (response === 0) {
+        renameClaudeHookUrl(settingsPath, previousHookUrl, hookUrlFor(currentSettings.httpPort));
+      }
+    }
+  }
+}
+
+function showSettingsWindow(): void {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.focus();
+    return;
+  }
+
+  settingsWindow = new BrowserWindow({
+    width: 300,
+    height: 260,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    title: 'Meanwaile — Settings',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  settingsWindow.setMenuBarVisibility(false);
+  settingsWindow.loadFile(path.join(__dirname, '..', 'src', 'settings', 'index.html'));
+  settingsWindow.on('closed', () => { settingsWindow = null; });
 }
 
 // Runs once, on the very first launch ever. Two separate dialogs — never
@@ -167,14 +235,15 @@ async function runOnboardingIfNeeded(): Promise<void> {
     message: 'Automatically configure Claude Code hooks for Meanwaile?',
   });
   if (hooksResult.response === 0) {
-    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
-    installClaudeHooks(settingsPath, `http://localhost:${HTTP_PORT}/hook`);
+    installClaudeHooks(claudeSettingsPath(), hookUrlFor(currentSettings.httpPort));
   }
 
   markOnboarded(userDataDir);
 }
 
 app.on('ready', async () => {
+  currentSettings = readSettings(app.getPath('userData'));
+
   await runOnboardingIfNeeded();
 
   const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
@@ -193,6 +262,16 @@ app.on('ready', async () => {
   popover = createPopover();
 
   ipcMain.on('popover-close', () => { popover?.hide(); });
+  ipcMain.on('open-settings', () => { showSettingsWindow(); });
+  ipcMain.handle('settings-get', () => currentSettings);
+  ipcMain.handle('settings-save', async (_event, incoming) => {
+    const result = validateSettings(incoming);
+    if (!result.ok) return result;
+
+    await applySettings(result.settings);
+    settingsWindow?.close();
+    return result;
+  });
 
   adapter.onEvent((event) => machine.handle(event));
   machine.onStateChange((snapshot) => {
@@ -204,16 +283,16 @@ app.on('ready', async () => {
     }
     if (snapshot.state === 'agent_working') {
       // setTimeout's clock and the OS's HID-idle clock don't share an origin:
-      // by the time this fires at exactly AUTO_OPEN_DELAY_MS, getSystemIdleTime()
+      // by the time this fires at exactly the configured delay, getSystemIdleTime()
       // often reads a second short (e.g. 14 instead of 15) because of the delay
       // between the last real input and when the hook reached us and we armed
       // this timer. The extra buffer absorbs that gap so we don't miss the
       // threshold on every near-exact hit.
-      autoOpenTimer = setTimeout(maybeAutoOpenPopover, AUTO_OPEN_DELAY_MS + 2000);
+      autoOpenTimer = setTimeout(maybeAutoOpenPopover, currentSettings.autoOpenDelaySeconds * 1000 + 2000);
     }
   });
 
-  startHttpServer();
+  startHttpServer(currentSettings.httpPort);
 });
 
 app.on('window-all-closed', () => {
@@ -221,5 +300,5 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  httpServer?.close();
+  stopHttpServer();
 });

@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => {
     show: vi.fn(),
     hide: vi.fn(),
     focus: vi.fn(),
+    close: vi.fn(),
+    setMenuBarVisibility: vi.fn(),
     isDestroyed: vi.fn(() => false),
     isVisible: vi.fn(() => false),
     setPosition: vi.fn(),
@@ -60,6 +62,9 @@ const mocks = vi.hoisted(() => {
     on: vi.fn((event: string, handler: (...a: unknown[]) => void) => {
       ipcMainHandlers[event] = handler;
     }),
+    handle: vi.fn((event: string, handler: (...a: unknown[]) => void) => {
+      ipcMainHandlers[event] = handler;
+    }),
     handlers: ipcMainHandlers,
   };
 
@@ -69,6 +74,23 @@ const mocks = vi.hoisted(() => {
   const hasOnboarded = vi.fn(() => true);
   const markOnboarded = vi.fn();
   const installClaudeHooks = vi.fn();
+  const hasManagedHooks = vi.fn(() => false);
+  const renameClaudeHookUrl = vi.fn();
+
+  const DEFAULT_SETTINGS = { httpPort: 3821, autoOpenDelaySeconds: 15 };
+  const readSettings = vi.fn(() => ({ ...DEFAULT_SETTINGS }));
+  const writeSettings = vi.fn();
+  const validateSettings = vi.fn((input: Record<string, unknown>) => {
+    const httpPort = Number(input.httpPort);
+    const autoOpenDelaySeconds = Number(input.autoOpenDelaySeconds);
+    if (!Number.isInteger(httpPort) || httpPort < 1 || httpPort > 65535) {
+      return { ok: false, error: 'Port must be an integer between 1 and 65535.' };
+    }
+    if (!Number.isFinite(autoOpenDelaySeconds) || autoOpenDelaySeconds <= 0) {
+      return { ok: false, error: 'Seconds must be a positive number.' };
+    }
+    return { ok: true, settings: { httpPort, autoOpenDelaySeconds } };
+  });
 
   return {
     win,
@@ -81,6 +103,12 @@ const mocks = vi.hoisted(() => {
     hasOnboarded,
     markOnboarded,
     installClaudeHooks,
+    hasManagedHooks,
+    renameClaudeHookUrl,
+    DEFAULT_SETTINGS,
+    readSettings,
+    writeSettings,
+    validateSettings,
     BrowserWindow: vi.fn(() => win),
     Tray: vi.fn(() => tray),
     Menu: { buildFromTemplate: vi.fn(() => ({})) },
@@ -110,6 +138,15 @@ vi.mock('../src/onboarding-store', () => ({
 
 vi.mock('../src/claude-settings', () => ({
   installClaudeHooks: mocks.installClaudeHooks,
+  hasManagedHooks: mocks.hasManagedHooks,
+  renameClaudeHookUrl: mocks.renameClaudeHookUrl,
+}));
+
+vi.mock('../src/settings-store', () => ({
+  DEFAULT_SETTINGS: mocks.DEFAULT_SETTINGS,
+  readSettings: mocks.readSettings,
+  writeSettings: mocks.writeSettings,
+  validateSettings: mocks.validateSettings,
 }));
 
 import '../src/main';
@@ -517,6 +554,98 @@ describe('auto-open popover after idle timeout', () => {
     expect(mocks.win.show).not.toHaveBeenCalled();
     mocks.win.isVisible.mockReturnValue(false);
     vi.useRealTimers();
+  });
+});
+
+describe('settings window IPC', () => {
+  it('open-settings creates a settings window', () => {
+    const callsBefore = mocks.BrowserWindow.mock.calls.length;
+    mocks.ipcMain.handlers['open-settings']?.();
+    expect(mocks.BrowserWindow.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it('settings-get returns the currently loaded settings', async () => {
+    const result = await mocks.ipcMain.handlers['settings-get']?.();
+    expect(result).toEqual({ httpPort: 3821, autoOpenDelaySeconds: 15 });
+  });
+
+  it('settings-save rejects an invalid port and does not touch the HTTP server', async () => {
+    mocks.server.close.mockClear();
+
+    const result = await mocks.ipcMain.handlers['settings-save']?.({}, { httpPort: 0, autoOpenDelaySeconds: 15 });
+
+    expect(result.ok).toBe(false);
+    expect(mocks.server.close).not.toHaveBeenCalled();
+  });
+
+  it('settings-save persists valid settings and restarts the HTTP server on a new port', async () => {
+    mocks.server.close.mockClear();
+    mocks.httpCreateServer.mockClear();
+    mocks.writeSettings.mockClear();
+
+    const result = await mocks.ipcMain.handlers['settings-save']?.(
+      {},
+      { httpPort: 4000, autoOpenDelaySeconds: 20 },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(mocks.server.close).toHaveBeenCalled();
+    expect(mocks.httpCreateServer).toHaveBeenCalled();
+    expect(mocks.server.listen).toHaveBeenCalledWith(4000, '127.0.0.1', expect.any(Function));
+    expect(mocks.writeSettings).toHaveBeenCalledWith('/fake/userData', {
+      httpPort: 4000,
+      autoOpenDelaySeconds: 20,
+    });
+  });
+
+  it('asks for confirmation before renaming the Claude Code hook, and renames it when confirmed', async () => {
+    mocks.hasManagedHooks.mockReturnValueOnce(true);
+    mocks.renameClaudeHookUrl.mockClear();
+    mocks.dialog.showMessageBox.mockClear();
+    mocks.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 });
+
+    await mocks.ipcMain.handlers['settings-save']?.({}, { httpPort: 4500, autoOpenDelaySeconds: 20 });
+
+    expect(mocks.dialog.showMessageBox).toHaveBeenCalledTimes(1);
+    expect(mocks.renameClaudeHookUrl).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining('4000'),
+      expect.stringContaining('4500'),
+    );
+  });
+
+  it('does not rename the Claude Code hook when the confirmation is declined', async () => {
+    mocks.hasManagedHooks.mockReturnValueOnce(true);
+    mocks.renameClaudeHookUrl.mockClear();
+    mocks.dialog.showMessageBox.mockResolvedValueOnce({ response: 1 });
+
+    await mocks.ipcMain.handlers['settings-save']?.({}, { httpPort: 4600, autoOpenDelaySeconds: 20 });
+
+    expect(mocks.renameClaudeHookUrl).not.toHaveBeenCalled();
+  });
+
+  it('does not ask for confirmation when hooks were never configured', async () => {
+    mocks.hasManagedHooks.mockReturnValueOnce(false);
+    mocks.dialog.showMessageBox.mockClear();
+
+    await mocks.ipcMain.handlers['settings-save']?.({}, { httpPort: 4700, autoOpenDelaySeconds: 20 });
+
+    expect(mocks.dialog.showMessageBox).not.toHaveBeenCalled();
+  });
+
+  it('does not touch the HTTP server when the saved port is unchanged', async () => {
+    // Picks up from the 4700 port set by the previous test.
+    mocks.server.close.mockClear();
+    mocks.httpCreateServer.mockClear();
+
+    const result = await mocks.ipcMain.handlers['settings-save']?.(
+      {},
+      { httpPort: 4700, autoOpenDelaySeconds: 45 },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(mocks.server.close).not.toHaveBeenCalled();
+    expect(mocks.httpCreateServer).not.toHaveBeenCalled();
   });
 });
 

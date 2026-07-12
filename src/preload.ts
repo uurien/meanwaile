@@ -7,4 +7,13 @@ contextBridge.exposeInMainWorld('meanwaile', {
   close(): void {
     ipcRenderer.send('popover-close');
   },
+  openSettings(): void {
+    ipcRenderer.send('open-settings');
+  },
+  getSettings(): Promise<unknown> {
+    return ipcRenderer.invoke('settings-get');
+  },
+  saveSettings(settings: unknown): Promise<unknown> {
+    return ipcRenderer.invoke('settings-save', settings);
+  },
 });

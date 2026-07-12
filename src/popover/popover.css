@@ -16,13 +16,55 @@ body {
 
 #root {
   height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#header {
+  flex: 0 0 auto;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  background-color: #050505;
+}
+
+#brand {
+  color: #999;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+#game-area {
+  flex: 1 1 auto;
   position: relative;
+  min-height: 0;
 }
 
 #game {
   width: 100%;
   height: 100%;
   border: none;
+}
+
+#settings-btn {
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  color: #999;
+  border: none;
+  border-radius: 50%;
+  font-size: 23px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#settings-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 
 #overlay {
