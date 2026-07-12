@@ -8,6 +8,8 @@ let meanwaileClose: ReturnType<typeof vi.fn>;
 let triggerStateChange: (snapshot: { state: string; sessionId?: string | null }) => void;
 let overlayMsg: HTMLElement;
 let continueBtn: HTMLElement;
+let settingsBtn: HTMLElement;
+let meanwaileOpenSettings: ReturnType<typeof vi.fn>;
 
 beforeAll(async () => {
   const html = readFileSync(join(__dirname, '../../src/popover/index.html'), 'utf-8');
@@ -22,9 +24,11 @@ beforeAll(async () => {
   });
 
   meanwaileClose = vi.fn();
+  meanwaileOpenSettings = vi.fn();
   Object.defineProperty(window, 'meanwaile', {
     value: {
       close: meanwaileClose,
+      openSettings: meanwaileOpenSettings,
       onStateChange(cb: (snapshot: unknown) => void) {
         triggerStateChange = cb as (snapshot: { state: string }) => void;
       },
@@ -36,6 +40,7 @@ beforeAll(async () => {
 
   overlayMsg = document.getElementById('overlay-msg')!;
   continueBtn = document.getElementById('continue-btn')!;
+  settingsBtn = document.getElementById('settings-btn')!;
 });
 
 describe('initial load', () => {
@@ -94,6 +99,13 @@ describe('before the first start', () => {
     expect(overlay.style.display).toBe('flex');
     expect(iframePostMessage).not.toHaveBeenCalledWith({ type: 'game:resume' }, '*');
     triggerStateChange({ state: 'idle' }); // reset currentState for the tests below
+  });
+});
+
+describe('settings button', () => {
+  it('opens the settings window without closing the popover', () => {
+    settingsBtn.click();
+    expect(meanwaileOpenSettings).toHaveBeenCalledOnce();
   });
 });
 

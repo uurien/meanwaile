@@ -8,10 +8,16 @@
 </head>
 <body>
   <div id="root">
-    <iframe id="game" src="../games/circle-tap/index.html"></iframe>
-    <div id="overlay">
-      <p id="overlay-msg">Ready to play?</p>
-      <button id="continue-btn">Start</button>
+    <div id="header">
+      <span id="brand">meanwaile</span>
+      <button id="settings-btn" title="Settings">⚙</button>
+    </div>
+    <div id="game-area">
+      <iframe id="game" src="../games/circle-tap/index.html"></iframe>
+      <div id="overlay">
+        <p id="overlay-msg">Ready to play?</p>
+        <button id="continue-btn">Start</button>
+      </div>
     </div>
   </div>
   <script src="popover.js"></script>

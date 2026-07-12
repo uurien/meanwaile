@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <link rel="stylesheet" href="settings.css" />
+  <title>Meanwaile — Settings</title>
+</head>
+<body>
+  <form id="settings-form">
+    <label for="http-port">Port</label>
+    <input id="http-port" name="httpPort" type="number" min="1" max="65535" step="1" required />
+
+    <label for="auto-open-delay">Seconds until popup opens</label>
+    <input id="auto-open-delay" name="autoOpenDelaySeconds" type="number" min="1" step="1" required />
+
+    <p id="error-msg"></p>
+
+    <div id="actions">
+      <button type="button" id="cancel-btn">Cancel</button>
+      <button type="submit" id="save-btn">Save</button>
+    </div>
+  </form>
+  <script src="settings.js"></script>
+</body>
+</html>

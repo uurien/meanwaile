@@ -2,6 +2,7 @@ const iframe = document.getElementById('game');
 const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const continueBtn = document.getElementById('continue-btn');
+const settingsBtn = document.getElementById('settings-btn');
 
 let currentState = 'idle';
 let currentSessionId = null;
@@ -53,6 +54,11 @@ continueBtn.addEventListener('click', () => {
   started = true;
   hideOverlay();
   iframe.contentWindow.postMessage({ type: 'game:resume' }, '*');
+});
+
+settingsBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  window.meanwaile.openSettings();
 });
 
 window.meanwaile.onStateChange((snapshot) => {
