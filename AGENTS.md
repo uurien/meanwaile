@@ -42,7 +42,7 @@ Node >= 24 required. TypeScript strict mode is on — no `any` without a comment
 
 ## Git workflow
 
-Solo developer — pushing directly to `main` is allowed and expected. No PR required.
+`main` is protected: no force-push, no deletion, linear history required. External contributors don't have write access, so pull requests are the only way in — fork the repo, branch, and open a PR.
 
 ## Architecture rules
 

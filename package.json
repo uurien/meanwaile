@@ -4,6 +4,15 @@
   "version": "0.1.0",
   "description": "Menu-bar app that turns AI coding agent dead time and confirmations into the right moment to notify",
   "main": "dist/main.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/uurien/meanwaile.git"
+  },
+  "homepage": "https://github.com/uurien/meanwaile#readme",
+  "bugs": {
+    "url": "https://github.com/uurien/meanwaile/issues"
+  },
   "scripts": {
     "build": "tsc",
     "start": "npm run build && electron .",
