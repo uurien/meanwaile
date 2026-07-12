@@ -564,6 +564,16 @@ describe('settings window IPC', () => {
     expect(mocks.BrowserWindow.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 
+  it('open-settings focuses the existing settings window instead of creating a new one', () => {
+    mocks.win.focus.mockClear();
+    const callsBefore = mocks.BrowserWindow.mock.calls.length;
+
+    mocks.ipcMain.handlers['open-settings']?.();
+
+    expect(mocks.BrowserWindow.mock.calls.length).toBe(callsBefore);
+    expect(mocks.win.focus).toHaveBeenCalled();
+  });
+
   it('settings-get returns the currently loaded settings', async () => {
     const result = await mocks.ipcMain.handlers['settings-get']?.();
     expect(result).toEqual({ httpPort: 3821, autoOpenDelaySeconds: 15 });

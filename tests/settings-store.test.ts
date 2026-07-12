@@ -33,11 +33,19 @@ describe('settings-store', () => {
       expect(readSettings(dir)).toEqual({ httpPort: 4000, autoOpenDelaySeconds: 30 });
     });
 
-    it('fills in missing fields with defaults', () => {
+    it('fills in a missing autoOpenDelaySeconds with the default', () => {
       fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ httpPort: 4000 }));
       expect(readSettings(dir)).toEqual({
         httpPort: 4000,
         autoOpenDelaySeconds: DEFAULT_SETTINGS.autoOpenDelaySeconds,
+      });
+    });
+
+    it('fills in a missing httpPort with the default', () => {
+      fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ autoOpenDelaySeconds: 30 }));
+      expect(readSettings(dir)).toEqual({
+        httpPort: DEFAULT_SETTINGS.httpPort,
+        autoOpenDelaySeconds: 30,
       });
     });
   });

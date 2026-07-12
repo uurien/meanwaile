@@ -184,6 +184,22 @@ describe('renameClaudeHookUrl', () => {
     expect(fs.existsSync(settingsPath)).toBe(false);
   });
 
+  it('only renames the matching hook within an entry that has several, leaving the rest untouched', () => {
+    const otherHook = { type: 'command', command: 'some-other-tool' };
+    fs.writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        hooks: { Stop: [{ hooks: [{ type: 'http', url: URL }, otherHook] }] },
+      }),
+    );
+
+    const newUrl = 'http://localhost:4000/hook';
+    renameClaudeHookUrl(settingsPath, URL, newUrl);
+    const settings = readSettings(settingsPath);
+
+    expect(settings.hooks.Stop).toEqual([{ hooks: [{ type: 'http', url: newUrl }, otherHook] }]);
+  });
+
   it('is a no-op when the old URL is not present', () => {
     installClaudeHooks(settingsPath, URL);
     renameClaudeHookUrl(settingsPath, 'http://localhost:9999/hook', 'http://localhost:4000/hook');
