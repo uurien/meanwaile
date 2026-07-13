@@ -246,6 +246,15 @@ app.on('ready', async () => {
 
   await runOnboardingIfNeeded();
 
+  // Users who opted into hooks on an earlier version won't have newly added
+  // managed events (e.g. PreToolUse) in their settings.json — installClaudeHooks
+  // is idempotent per-event, so re-running it here just backfills what's missing.
+  // Skipped entirely if the user never opted in (hasManagedHooks is false).
+  const currentHookUrl = hookUrlFor(currentSettings.httpPort);
+  if (hasManagedHooks(claudeSettingsPath(), currentHookUrl)) {
+    installClaudeHooks(claudeSettingsPath(), currentHookUrl);
+  }
+
   const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
   const icon = nativeImage.createFromPath(iconPath);
   icon.setTemplateImage(true);

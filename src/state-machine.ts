@@ -35,6 +35,7 @@ export class StateMachine {
   }
 
   private transition(next: AppState): void {
+    if (this.state === next) return;
     this.state = next;
     this.onChange?.(this.snapshot());
   }

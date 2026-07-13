@@ -5,7 +5,7 @@ import * as path from 'path';
 import { installClaudeHooks, hasManagedHooks, renameClaudeHookUrl } from '../src/claude-settings';
 
 const URL = 'http://localhost:3821/hook';
-const MANAGED_EVENTS = ['Notification', 'Stop', 'SubagentStop', 'UserPromptSubmit'];
+const MANAGED_EVENTS = ['Notification', 'Stop', 'SubagentStop', 'UserPromptSubmit', 'PreToolUse'];
 
 function readSettings(settingsPath: string) {
   return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
@@ -24,14 +24,13 @@ describe('installClaudeHooks', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it('creates the file with exactly the 4 managed events when missing', () => {
+  it('creates the file with exactly the 5 managed events when missing', () => {
     installClaudeHooks(settingsPath, URL);
     const settings = readSettings(settingsPath);
 
     for (const event of MANAGED_EVENTS) {
       expect(settings.hooks[event]).toEqual([{ hooks: [{ type: 'http', url: URL }] }]);
     }
-    expect(settings.hooks.PreToolUse).toBeUndefined();
     expect(settings.hooks.PostToolUse).toBeUndefined();
   });
 
@@ -91,12 +90,11 @@ describe('installClaudeHooks', () => {
     ]);
   });
 
-  it('leaves pre-existing PreToolUse/PostToolUse untouched', () => {
+  it('leaves pre-existing PostToolUse untouched — it is not a managed event', () => {
     fs.writeFileSync(
       settingsPath,
       JSON.stringify({
         hooks: {
-          PreToolUse: [{ hooks: [{ type: 'command', command: 'legacy' }] }],
           PostToolUse: [{ hooks: [{ type: 'command', command: 'legacy' }] }],
         },
       }),
@@ -105,8 +103,26 @@ describe('installClaudeHooks', () => {
     installClaudeHooks(settingsPath, URL);
     const settings = readSettings(settingsPath);
 
-    expect(settings.hooks.PreToolUse).toEqual([{ hooks: [{ type: 'command', command: 'legacy' }] }]);
     expect(settings.hooks.PostToolUse).toEqual([{ hooks: [{ type: 'command', command: 'legacy' }] }]);
+  });
+
+  it('merges into a pre-existing PreToolUse entry — it is a managed event', () => {
+    fs.writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [{ hooks: [{ type: 'command', command: 'legacy' }] }],
+        },
+      }),
+    );
+
+    installClaudeHooks(settingsPath, URL);
+    const settings = readSettings(settingsPath);
+
+    expect(settings.hooks.PreToolUse).toEqual([
+      { hooks: [{ type: 'command', command: 'legacy' }] },
+      { hooks: [{ type: 'http', url: URL }] },
+    ]);
   });
 
   it('does not clobber a malformed settings file — logs a warning and leaves it untouched', () => {

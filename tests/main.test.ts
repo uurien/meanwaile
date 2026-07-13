@@ -298,6 +298,17 @@ describe('first-run onboarding', () => {
     expect(mocks.installClaudeHooks).not.toHaveBeenCalled();
     expect(mocks.markOnboarded).not.toHaveBeenCalled();
   });
+
+  it('backfills newly managed hook events on a subsequent launch for users who already opted in', async () => {
+    mocks.hasOnboarded.mockReturnValueOnce(true);
+    mocks.hasManagedHooks.mockReturnValueOnce(true);
+
+    await triggerApp('ready');
+
+    expect(mocks.dialog.showMessageBox).not.toHaveBeenCalled();
+    expect(mocks.installClaudeHooks).toHaveBeenCalledTimes(1);
+    expect(mocks.installClaudeHooks.mock.calls[0][1]).toContain('3821');
+  });
 });
 
 describe('main.ts top-level', () => {
@@ -501,6 +512,15 @@ describe('state change IPC', () => {
 });
 
 describe('auto-open popover after idle timeout', () => {
+  // The state machine is a module-level singleton shared across this whole
+  // file and no longer re-notifies on a no-op transition (same state in,
+  // same state out), so each test needs to start from a known, different
+  // state — otherwise a same-state UserPromptSubmit here is a silent no-op
+  // and never arms the auto-open timer.
+  beforeEach(() => {
+    postHook(JSON.stringify({ hook_event_name: 'Stop' }));
+  });
+
   it('opens the popover if the system has been idle for the whole delay', () => {
     vi.useFakeTimers();
     mocks.win.isVisible.mockReturnValue(false);

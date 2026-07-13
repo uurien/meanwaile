@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const MANAGED_HOOK_EVENTS = ['Notification', 'Stop', 'SubagentStop', 'UserPromptSubmit'] as const;
+const MANAGED_HOOK_EVENTS = ['Notification', 'Stop', 'SubagentStop', 'UserPromptSubmit', 'PreToolUse'] as const;
 
 interface HookEntry {
   hooks: { type: string; url: string }[];
