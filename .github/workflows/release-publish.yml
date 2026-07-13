@@ -50,6 +50,11 @@ jobs:
       - name: Package app
         run: npm run forge:make
 
+      - name: Package games artifact
+        run: |
+          mkdir -p out/make
+          (cd src/games && zip -r ../../out/make/games.zip . -x '.*')
+
       - name: Checksums
         working-directory: out/make
         run: |
@@ -70,6 +75,7 @@ jobs:
           gh release create "v${{ steps.version.outputs.version }}" \
             out/make/*.dmg \
             out/make/zip/darwin/arm64/*.zip \
+            out/make/games.zip \
             out/make/SHA256SUMS.txt \
             --title "v${{ steps.version.outputs.version }}" \
             --generate-notes
