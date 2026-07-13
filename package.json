@@ -1,7 +1,7 @@
 {
   "name": "meanwaile",
   "productName": "Meanwaile",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Menu-bar app that turns AI coding agent dead time and confirmations into the right moment to notify",
   "main": "dist/main.js",
   "license": "MIT",
