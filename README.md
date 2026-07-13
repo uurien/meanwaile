@@ -56,7 +56,8 @@ This merges the following into `~/.claude/settings.json`:
     "Notification":     [{"hooks": [{"type": "http", "url": "http://localhost:3821/hook"}]}],
     "Stop":             [{"hooks": [{"type": "http", "url": "http://localhost:3821/hook"}]}],
     "SubagentStop":     [{"hooks": [{"type": "http", "url": "http://localhost:3821/hook"}]}],
-    "UserPromptSubmit": [{"hooks": [{"type": "http", "url": "http://localhost:3821/hook"}]}]
+    "UserPromptSubmit": [{"hooks": [{"type": "http", "url": "http://localhost:3821/hook"}]}],
+    "PreToolUse":       [{"hooks": [{"type": "http", "url": "http://localhost:3821/hook"}]}]
   }
 }
 ```
@@ -75,6 +76,11 @@ curl -s -X POST http://localhost:3821/hook \
 curl -s -X POST http://localhost:3821/hook \
   -H 'Content-Type: application/json' \
   -d '{"hook_event_name":"Notification","notification_type":"permission_prompt","session_id":"test"}'
+
+# Agent resumes after the user answers a prompt
+curl -s -X POST http://localhost:3821/hook \
+  -H 'Content-Type: application/json' \
+  -d '{"hook_event_name":"PreToolUse","session_id":"test"}'
 
 # Agent finishes
 curl -s -X POST http://localhost:3821/hook \
