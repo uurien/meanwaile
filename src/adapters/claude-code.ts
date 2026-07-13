@@ -28,6 +28,13 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         return { type: 'task_finished', sessionId, timestamp: ts };
       case 'UserPromptSubmit':
         return { type: 'prompt_submitted', sessionId, timestamp: ts };
+      case 'PreToolUse':
+        // A tool call retrying after a permission prompt (or any tool call at
+        // all) means the agent is actively working again — same transition
+        // as UserPromptSubmit, so it re-arms the auto-open timer and clears
+        // a stale needs_user state instead of leaving the popover stuck on
+        // "needs attention" for the rest of the turn.
+        return { type: 'prompt_submitted', sessionId, timestamp: ts };
       default:
         return null;
     }

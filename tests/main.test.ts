@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 
 // ─── Hoisted mock state ────────────────────────────────────────────────────
 const mocks = vi.hoisted(() => {
@@ -73,6 +73,8 @@ const mocks = vi.hoisted(() => {
   const dialog = { showMessageBox: vi.fn(async () => ({ response: 1 })) };
   const hasOnboarded = vi.fn(() => true);
   const markOnboarded = vi.fn();
+  const hasOfferedHookBackfill = vi.fn(() => true);
+  const markHookBackfillOffered = vi.fn();
   const installClaudeHooks = vi.fn();
   const hasManagedHooks = vi.fn(() => false);
   const renameClaudeHookUrl = vi.fn();
@@ -102,6 +104,8 @@ const mocks = vi.hoisted(() => {
     dialog,
     hasOnboarded,
     markOnboarded,
+    hasOfferedHookBackfill,
+    markHookBackfillOffered,
     installClaudeHooks,
     hasManagedHooks,
     renameClaudeHookUrl,
@@ -134,6 +138,8 @@ vi.mock('http', () => ({ createServer: mocks.httpCreateServer }));
 vi.mock('../src/onboarding-store', () => ({
   hasOnboarded: mocks.hasOnboarded,
   markOnboarded: mocks.markOnboarded,
+  hasOfferedHookBackfill: mocks.hasOfferedHookBackfill,
+  markHookBackfillOffered: mocks.markHookBackfillOffered,
 }));
 
 vi.mock('../src/claude-settings', () => ({
@@ -297,6 +303,64 @@ describe('first-run onboarding', () => {
     expect(mocks.app.setLoginItemSettings).not.toHaveBeenCalled();
     expect(mocks.installClaudeHooks).not.toHaveBeenCalled();
     expect(mocks.markOnboarded).not.toHaveBeenCalled();
+  });
+
+});
+
+describe('hook backfill for already-onboarded users', () => {
+  beforeEach(() => {
+    mocks.hasOnboarded.mockReturnValue(true);
+    mocks.dialog.showMessageBox.mockReset();
+    mocks.installClaudeHooks.mockClear();
+    mocks.markHookBackfillOffered.mockClear();
+  });
+
+  afterEach(() => {
+    mocks.hasOfferedHookBackfill.mockReturnValue(true);
+  });
+
+  it('asks for confirmation and installs when the user confirms', async () => {
+    mocks.hasOfferedHookBackfill.mockReturnValueOnce(false);
+    mocks.hasManagedHooks.mockReturnValueOnce(true);
+    mocks.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 });
+
+    await triggerApp('ready');
+
+    expect(mocks.dialog.showMessageBox).toHaveBeenCalledTimes(1);
+    expect(mocks.installClaudeHooks).toHaveBeenCalledTimes(1);
+    expect(mocks.installClaudeHooks.mock.calls[0][1]).toContain('3821');
+    expect(mocks.markHookBackfillOffered).toHaveBeenCalledWith('/fake/userData');
+  });
+
+  it('does not install anything when the user declines', async () => {
+    mocks.hasOfferedHookBackfill.mockReturnValueOnce(false);
+    mocks.hasManagedHooks.mockReturnValueOnce(true);
+    mocks.dialog.showMessageBox.mockResolvedValueOnce({ response: 1 });
+
+    await triggerApp('ready');
+
+    expect(mocks.installClaudeHooks).not.toHaveBeenCalled();
+    expect(mocks.markHookBackfillOffered).toHaveBeenCalledWith('/fake/userData');
+  });
+
+  it('does not ask at all for users who never opted into hooks', async () => {
+    mocks.hasOfferedHookBackfill.mockReturnValueOnce(false);
+    mocks.hasManagedHooks.mockReturnValueOnce(false);
+
+    await triggerApp('ready');
+
+    expect(mocks.dialog.showMessageBox).not.toHaveBeenCalled();
+    expect(mocks.installClaudeHooks).not.toHaveBeenCalled();
+  });
+
+  it('does not ask again once already offered', async () => {
+    mocks.hasOfferedHookBackfill.mockReturnValueOnce(true);
+    mocks.hasManagedHooks.mockReturnValueOnce(true);
+
+    await triggerApp('ready');
+
+    expect(mocks.dialog.showMessageBox).not.toHaveBeenCalled();
+    expect(mocks.installClaudeHooks).not.toHaveBeenCalled();
   });
 });
 
@@ -501,6 +565,15 @@ describe('state change IPC', () => {
 });
 
 describe('auto-open popover after idle timeout', () => {
+  // The state machine is a module-level singleton shared across this whole
+  // file and no longer re-notifies on a no-op transition (same state in,
+  // same state out), so each test needs to start from a known, different
+  // state — otherwise a same-state UserPromptSubmit here is a silent no-op
+  // and never arms the auto-open timer.
+  beforeEach(() => {
+    postHook(JSON.stringify({ hook_event_name: 'Stop' }));
+  });
+
   it('opens the popover if the system has been idle for the whole delay', () => {
     vi.useFakeTimers();
     mocks.win.isVisible.mockReturnValue(false);

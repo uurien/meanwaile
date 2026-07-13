@@ -46,4 +46,20 @@ describe('StateMachine', () => {
     m.handle(event('task_finished'));
     expect(onChange).toHaveBeenCalledTimes(2);
   });
+
+  it('does not call onChange when the event resolves to the same state', () => {
+    const m = new StateMachine();
+    const onChange = vi.fn();
+    m.handle(event('prompt_submitted'));
+    m.onStateChange(onChange);
+    m.handle(event('prompt_submitted'));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('still tracks sessionId even when the state does not change', () => {
+    const m = new StateMachine();
+    m.handle(event('prompt_submitted', { sessionId: 'first' }));
+    m.handle(event('prompt_submitted', { sessionId: 'second' }));
+    expect(m.snapshot().sessionId).toBe('second');
+  });
 });

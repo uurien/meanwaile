@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { hasOnboarded, markOnboarded } from '../src/onboarding-store';
+import {
+  hasOnboarded,
+  markOnboarded,
+  hasOfferedHookBackfill,
+  markHookBackfillOffered,
+} from '../src/onboarding-store';
 
 describe('onboarding-store', () => {
   let dir: string;
@@ -41,5 +46,28 @@ describe('onboarding-store', () => {
     const nested = path.join(dir, 'nested', 'userData');
     markOnboarded(nested);
     expect(hasOnboarded(nested)).toBe(true);
+  });
+
+  it('preserves onboarded when markHookBackfillOffered runs afterwards', () => {
+    markOnboarded(dir);
+    markHookBackfillOffered(dir);
+    expect(hasOnboarded(dir)).toBe(true);
+    expect(hasOfferedHookBackfill(dir)).toBe(true);
+  });
+
+  it('preserves hookBackfillOffered when markOnboarded runs afterwards', () => {
+    markHookBackfillOffered(dir);
+    markOnboarded(dir);
+    expect(hasOfferedHookBackfill(dir)).toBe(true);
+    expect(hasOnboarded(dir)).toBe(true);
+  });
+
+  it('returns false for hasOfferedHookBackfill when no file exists', () => {
+    expect(hasOfferedHookBackfill(dir)).toBe(false);
+  });
+
+  it('returns false for hasOfferedHookBackfill on malformed JSON', () => {
+    fs.writeFileSync(path.join(dir, 'onboarding.json'), 'not-json');
+    expect(hasOfferedHookBackfill(dir)).toBe(false);
   });
 });

@@ -41,8 +41,10 @@ describe('ClaudeCodeAdapter.parseHookPayload', () => {
     expect(parse({ hook_event_name: 'UserPromptSubmit' })?.type).toBe('prompt_submitted');
   });
 
-  it('PreToolUse → null', () => {
-    expect(parse({ hook_event_name: 'PreToolUse', tool_name: 'bash' })).toBeNull();
+  it('PreToolUse → prompt_submitted', () => {
+    const e = parse({ hook_event_name: 'PreToolUse', tool_name: 'bash', session_id: 's1' });
+    expect(e?.type).toBe('prompt_submitted');
+    expect(e?.sessionId).toBe('s1');
   });
 
   it('PostToolUse → null', () => {
