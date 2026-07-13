@@ -31,6 +31,7 @@ function updateOverlayText() {
 function showOverlay() {
   updateOverlayText();
   overlay.style.display = 'flex';
+  continueBtn.focus();
 }
 
 function hideOverlay() {
@@ -48,6 +49,16 @@ document.addEventListener('visibilitychange', () => {
   } else {
     showOverlay();
   }
+});
+
+// main.ts calls win.focus() every time the popover is shown, and Chromium
+// resets keyboard focus to the first focusable element (the gear icon) when
+// a window regains OS focus - overriding whatever showOverlay() already
+// focused. Re-asserting focus here, right as that reset happens, is what
+// actually keeps it pinned on Start regardless of where focus was before
+// the popover was last closed.
+window.addEventListener('focus', () => {
+  if (overlay.style.display === 'flex') continueBtn.focus();
 });
 
 continueBtn.addEventListener('click', () => {

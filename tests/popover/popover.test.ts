@@ -87,6 +87,41 @@ describe('visibilitychange', () => {
     expect(overlayMsg.textContent).toBe('Ready to play?');
     expect(continueBtn.textContent).toBe('Start');
   });
+
+  it('focuses the Start button when reopening, not the settings gear icon', () => {
+    const overlay = document.getElementById('overlay')!;
+    overlay.style.display = 'none';
+    settingsBtn.focus();
+    Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(document.activeElement).toBe(continueBtn);
+  });
+});
+
+describe('window focus', () => {
+  // main.ts calls win.focus() on every showPopover(), and Chromium resets
+  // keyboard focus to the first focusable element (the gear icon) whenever
+  // the window regains OS focus - even if the overlay already focused Start
+  // earlier. This must be re-asserted on the window's native focus event,
+  // not just when the overlay is first shown.
+  it('re-focuses Start if focus had moved elsewhere before the popover regains OS focus', () => {
+    const overlay = document.getElementById('overlay')!;
+    overlay.style.display = 'flex';
+    settingsBtn.focus();
+    expect(document.activeElement).toBe(settingsBtn);
+
+    window.dispatchEvent(new Event('focus'));
+    expect(document.activeElement).toBe(continueBtn);
+  });
+
+  it('does not steal focus on window focus when the overlay is hidden', () => {
+    const overlay = document.getElementById('overlay')!;
+    overlay.style.display = 'none';
+    settingsBtn.focus();
+
+    window.dispatchEvent(new Event('focus'));
+    expect(document.activeElement).toBe(settingsBtn);
+  });
 });
 
 describe('before the first start', () => {
