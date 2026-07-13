@@ -4,7 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { ClaudeCodeAdapter } from './adapters/claude-code';
 import { StateMachine } from './state-machine';
-import { hasOnboarded, markOnboarded } from './onboarding-store';
+import { hasOnboarded, markOnboarded, hasOfferedHookBackfill, markHookBackfillOffered } from './onboarding-store';
 import { installClaudeHooks, hasManagedHooks, renameClaudeHookUrl } from './claude-settings';
 import { AppSettings, DEFAULT_SETTINGS, readSettings, writeSettings, validateSettings } from './settings-store';
 
@@ -239,21 +239,42 @@ async function runOnboardingIfNeeded(): Promise<void> {
   }
 
   markOnboarded(userDataDir);
+  // A fresh onboarding always installs (or explicitly declines) every
+  // currently managed event, so there's never anything to backfill for it.
+  markHookBackfillOffered(userDataDir);
+}
+
+// Users who opted into hooks on an earlier version won't have events added
+// to MANAGED_HOOK_EVENTS since then (e.g. PreToolUse) in their settings.json.
+// Asks once, explicitly — like the port-rename confirmation in applySettings,
+// this file is only ever touched with the user's say-so, never silently.
+async function offerHookBackfillIfNeeded(): Promise<void> {
+  const userDataDir = app.getPath('userData');
+  if (hasOfferedHookBackfill(userDataDir)) return;
+
+  const settingsPath = claudeSettingsPath();
+  const hookUrl = hookUrlFor(currentSettings.httpPort);
+  if (hasManagedHooks(settingsPath, hookUrl)) {
+    const { response } = await dialog.showMessageBox({
+      type: 'question',
+      buttons: ['Yes', 'No'],
+      defaultId: 0,
+      cancelId: 1,
+      message: `Meanwaile added a new Claude Code hook event since you last configured it. Add it to ${settingsPath}?`,
+    });
+    if (response === 0) {
+      installClaudeHooks(settingsPath, hookUrl);
+    }
+  }
+
+  markHookBackfillOffered(userDataDir);
 }
 
 app.on('ready', async () => {
   currentSettings = readSettings(app.getPath('userData'));
 
   await runOnboardingIfNeeded();
-
-  // Users who opted into hooks on an earlier version won't have newly added
-  // managed events (e.g. PreToolUse) in their settings.json — installClaudeHooks
-  // is idempotent per-event, so re-running it here just backfills what's missing.
-  // Skipped entirely if the user never opted in (hasManagedHooks is false).
-  const currentHookUrl = hookUrlFor(currentSettings.httpPort);
-  if (hasManagedHooks(claudeSettingsPath(), currentHookUrl)) {
-    installClaudeHooks(claudeSettingsPath(), currentHookUrl);
-  }
+  await offerHookBackfillIfNeeded();
 
   const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
   const icon = nativeImage.createFromPath(iconPath);

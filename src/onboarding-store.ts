@@ -2,24 +2,42 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 interface OnboardingState {
-  onboarded: boolean;
+  onboarded?: boolean;
+  hookBackfillOffered?: boolean;
 }
 
 function filePath(userDataDir: string): string {
   return path.join(userDataDir, 'onboarding.json');
 }
 
-export function hasOnboarded(userDataDir: string): boolean {
+function readState(userDataDir: string): OnboardingState {
   try {
-    const raw = fs.readFileSync(filePath(userDataDir), 'utf8');
-    const parsed = JSON.parse(raw) as Partial<OnboardingState>;
-    return parsed.onboarded === true;
+    return JSON.parse(fs.readFileSync(filePath(userDataDir), 'utf8')) as OnboardingState;
   } catch {
-    return false;
+    return {};
   }
 }
 
-export function markOnboarded(userDataDir: string): void {
+function writeState(userDataDir: string, patch: OnboardingState): void {
   fs.mkdirSync(userDataDir, { recursive: true });
-  fs.writeFileSync(filePath(userDataDir), JSON.stringify({ onboarded: true }, null, 2));
+  fs.writeFileSync(filePath(userDataDir), JSON.stringify({ ...readState(userDataDir), ...patch }, null, 2));
+}
+
+export function hasOnboarded(userDataDir: string): boolean {
+  return readState(userDataDir).onboarded === true;
+}
+
+export function markOnboarded(userDataDir: string): void {
+  writeState(userDataDir, { onboarded: true });
+}
+
+// Tracks whether we've already asked the user once about backfilling a
+// newly managed hook event into an existing install. Persisted regardless
+// of their answer so we never nag on every subsequent launch.
+export function hasOfferedHookBackfill(userDataDir: string): boolean {
+  return readState(userDataDir).hookBackfillOffered === true;
+}
+
+export function markHookBackfillOffered(userDataDir: string): void {
+  writeState(userDataDir, { hookBackfillOffered: true });
 }
