@@ -3,7 +3,10 @@
 // this reproduces.
 const CARD_WIDTH = 280;
 const CARD_GAP = 16;
-const TRACK_LEFT_PADDING = 50;
+// #root is a fixed 440px (see popover.css) — center the card in it rather
+// than guessing at a left inset, which used to leave more room on the right.
+const VIEWPORT_WIDTH = 440;
+const TRACK_LEFT_PADDING = (VIEWPORT_WIDTH - CARD_WIDTH) / 2;
 const DRAG_THRESHOLD = 60;
 const SLIDE_STEP = CARD_WIDTH + CARD_GAP;
 const LAST_GAME_KEY = 'hub-last-game';
