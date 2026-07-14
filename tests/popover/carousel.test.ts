@@ -61,14 +61,14 @@ describe('carousel cards', () => {
     const cards = carouselCards();
     expect(cards).toHaveLength(2);
 
-    expect(cards[0].querySelector('.game-card__eyebrow')!.textContent).toBe('Juego 1 de 2');
+    expect(cards[0].querySelector('.game-card__eyebrow')!.textContent).toBe('Game 1 of 2');
     expect(cards[0].querySelector('.game-card__title')!.textContent).toBe('CircleTap');
     expect(cards[0].querySelector('.game-card__tagline')!.textContent).toBe('Toca los círculos');
     const preview = cards[0].querySelector('.game-card__preview') as HTMLImageElement;
     expect(preview.tagName).toBe('IMG');
     expect(preview.getAttribute('src')).toBe('circle-tap/preview.png');
 
-    expect(cards[1].querySelector('.game-card__eyebrow')!.textContent).toBe('Juego 2 de 2');
+    expect(cards[1].querySelector('.game-card__eyebrow')!.textContent).toBe('Game 2 of 2');
     expect(cards[1].querySelector('.game-card__title')!.textContent).toBe('Juego 2');
   });
 
@@ -94,7 +94,7 @@ describe('arrow navigation', () => {
 
   it('advances to the next card and updates the track position', () => {
     nextBtn().click();
-    expect(track().style.transform).toBe('translateX(-246px)');
+    expect(track().style.transform).toBe('translateX(-216px)');
     expect(prevBtn().disabled).toBe(false);
     expect(nextBtn().disabled).toBe(true);
   });
@@ -102,13 +102,13 @@ describe('arrow navigation', () => {
   it('does not advance past the last card', () => {
     nextBtn().click();
     nextBtn().click();
-    expect(track().style.transform).toBe('translateX(-246px)');
+    expect(track().style.transform).toBe('translateX(-216px)');
   });
 
   it('goes back to the first card with prev', () => {
     nextBtn().click();
     prevBtn().click();
-    expect(track().style.transform).toBe('translateX(50px)');
+    expect(track().style.transform).toBe('translateX(80px)');
     expect(prevBtn().disabled).toBe(true);
   });
 });
@@ -123,7 +123,7 @@ describe('dot pagination', () => {
 
   it('clicking a dot jumps directly to that game', () => {
     dots()[1].click();
-    expect(track().style.transform).toBe('translateX(-246px)');
+    expect(track().style.transform).toBe('translateX(-216px)');
     expect(dots()[1].classList.contains('dot--active')).toBe(true);
     expect(dots()[0].classList.contains('dot--active')).toBe(false);
   });
@@ -132,18 +132,18 @@ describe('dot pagination', () => {
 describe('drag to swipe', () => {
   it('advances to the next card when dragged past the 60px threshold to the left', () => {
     fireDrag(-61);
-    expect(track().style.transform).toBe('translateX(-246px)');
+    expect(track().style.transform).toBe('translateX(-216px)');
   });
 
   it('goes to the previous card when dragged past the 60px threshold to the right', () => {
     nextBtn().click();
     fireDrag(61);
-    expect(track().style.transform).toBe('translateX(50px)');
+    expect(track().style.transform).toBe('translateX(80px)');
   });
 
   it('snaps back without changing card when the drag stays under the threshold', () => {
     fireDrag(59);
-    expect(track().style.transform).toBe('translateX(50px)');
+    expect(track().style.transform).toBe('translateX(80px)');
   });
 
   it('ignores pointermove when there is no active drag (no prior pointerdown)', () => {
@@ -173,7 +173,7 @@ describe('remembering the last played game', () => {
     localStorage.setItem('hub-last-game', 'game-2');
     build();
 
-    expect(track().style.transform).toBe('translateX(-246px)');
+    expect(track().style.transform).toBe('translateX(-216px)');
     expect(dots()[1].classList.contains('dot--active')).toBe(true);
     expect(prevBtn().disabled).toBe(false);
     expect(nextBtn().disabled).toBe(true);
@@ -198,7 +198,7 @@ describe('remembering the last played game', () => {
     localStorage.setItem('hub-last-game', 'no-longer-in-registry');
     build();
 
-    expect(track().style.transform).toBe('translateX(50px)');
+    expect(track().style.transform).toBe('translateX(80px)');
     expect(dots()[0].classList.contains('dot--active')).toBe(true);
   });
 });
