@@ -5,7 +5,7 @@ export const GAMES = [
   {
     id: 'circle-tap',
     name: 'CircleTap',
-    tagline: 'Toca los círculos',
+    tagline: 'Tap the circles',
     entry: '../games/circle-tap/index.html',
     preview: '../games/circle-tap/preview.png',
     implemented: true,
@@ -13,7 +13,7 @@ export const GAMES = [
   {
     id: 'meanwaile-runner',
     name: 'Meanwaile Runner',
-    tagline: 'Corre y salta',
+    tagline: 'Run and jump',
     entry: '../games/meanwaile-runner/index.html',
     preview: '../games/meanwaile-runner/preview.png',
     implemented: true,

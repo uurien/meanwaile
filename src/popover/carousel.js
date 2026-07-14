@@ -25,7 +25,7 @@ function preview(game) {
 function buildCard(game, index, total, onOpenGame) {
   const card = el('div', 'game-card');
 
-  card.appendChild(el('div', 'game-card__eyebrow', `Juego ${index + 1} de ${total}`));
+  card.appendChild(el('div', 'game-card__eyebrow', `Game ${index + 1} of ${total}`));
   card.appendChild(preview(game));
 
   const info = el('div', 'game-card__info');
@@ -43,8 +43,8 @@ function buildCard(game, index, total, onOpenGame) {
 export function createHub({ container, games, onOpenGame }) {
   container.innerHTML = `
     <div id="carousel">
-      <button id="prev-btn" class="arrow-btn" aria-label="Juego anterior">‹</button>
-      <button id="next-btn" class="arrow-btn" aria-label="Siguiente juego">›</button>
+      <button id="prev-btn" class="arrow-btn" aria-label="Previous game">‹</button>
+      <button id="next-btn" class="arrow-btn" aria-label="Next game">›</button>
       <div id="carousel-viewport">
         <div id="carousel-track"></div>
       </div>
