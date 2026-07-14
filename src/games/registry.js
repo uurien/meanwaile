@@ -11,11 +11,11 @@ export const GAMES = [
     implemented: true,
   },
   {
-    id: 'begitxo-runner',
-    name: 'Begitxo Runner',
+    id: 'meanwaile-runner',
+    name: 'Meanwaile Runner',
     tagline: 'Corre y salta',
-    entry: '../games/begitxo-runner/index.html',
-    preview: '../games/begitxo-runner/preview.png',
+    entry: '../games/meanwaile-runner/index.html',
+    preview: '../games/meanwaile-runner/preview.png',
     implemented: true,
   },
 ];

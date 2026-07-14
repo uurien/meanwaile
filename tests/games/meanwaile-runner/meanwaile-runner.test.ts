@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-// begitxo-runner.js only touches a small, fixed slice of the Phaser API
+// meanwaile-runner.js only touches a small, fixed slice of the Phaser API
 // (arcade sprites/colliders, tileSprites, keyboard, pointer, anims, and
 // game pause/resume/destroy). Real Phaser needs a canvas/WebGL context
 // happy-dom doesn't provide, so this fake reproduces just that slice
@@ -180,7 +180,7 @@ let pointsSummaryEl: HTMLElement;
 let retryBtn: HTMLElement;
 
 beforeAll(async () => {
-  const html = readFileSync(join(__dirname, '../../../src/games/begitxo-runner/index.html'), 'utf-8');
+  const html = readFileSync(join(__dirname, '../../../src/games/meanwaile-runner/index.html'), 'utf-8');
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   document.body.innerHTML = bodyMatch ? bodyMatch[1] : '';
 
@@ -198,7 +198,7 @@ beforeAll(async () => {
     Game: FakeGame,
   };
 
-  await import('../../../src/games/begitxo-runner/begitxo-runner.js');
+  await import('../../../src/games/meanwaile-runner/meanwaile-runner.js');
 
   pointsEl = document.getElementById('points')!;
   gameOverEl = document.getElementById('game-over')!;

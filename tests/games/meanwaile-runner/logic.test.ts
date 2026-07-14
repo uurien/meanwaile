@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MAX_LEVEL, nextLevel, shouldAddSpikes, shouldAddAlien, nextSpeed } from '../../../src/games/begitxo-runner/logic.js';
+import { MAX_LEVEL, nextLevel, shouldAddSpikes, shouldAddAlien, nextSpeed } from '../../../src/games/meanwaile-runner/logic.js';
 
 describe('nextLevel', () => {
   it('from level 1 (or lower), stays put below the 0.5 roll', () => {

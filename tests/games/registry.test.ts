@@ -17,14 +17,14 @@ describe('games registry', () => {
     expect(circleTap.preview).toBe('../games/circle-tap/preview.png');
   });
 
-  it('lists Begitxo Runner second, implemented, with its entry and preview paths', () => {
-    const begitxoRunner = GAMES[1];
-    expect(begitxoRunner).toMatchObject({
-      id: 'begitxo-runner',
+  it('lists Meanwaile Runner second, implemented, with its entry and preview paths', () => {
+    const meanwaileRunner = GAMES[1];
+    expect(meanwaileRunner).toMatchObject({
+      id: 'meanwaile-runner',
       implemented: true,
     });
-    expect(begitxoRunner.entry).toBe('../games/begitxo-runner/index.html');
-    expect(begitxoRunner.preview).toBe('../games/begitxo-runner/preview.png');
+    expect(meanwaileRunner.entry).toBe('../games/meanwaile-runner/index.html');
+    expect(meanwaileRunner.preview).toBe('../games/meanwaile-runner/preview.png');
   });
 
   it('every game has a non-empty id, name, and tagline', () => {
