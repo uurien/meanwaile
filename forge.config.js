@@ -8,6 +8,14 @@ module.exports = {
       // identity that CI runners don't have.
       identity: '-',
       identityValidation: false,
+      // @electron/osx-sign's default entitlements omit
+      // disable-library-validation, which Electron needs to load its own
+      // (ad-hoc signed) Electron Framework under hardened runtime. Without
+      // it the app crashes on launch with a "different Team IDs" dyld error.
+      /* v8 ignore next 3 -- only invoked by electron-forge's native signing step */
+      optionsForFile: () => ({
+        entitlements: './build/entitlements.mac.plist',
+      }),
     },
   },
   makers: [
