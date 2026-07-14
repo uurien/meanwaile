@@ -581,8 +581,27 @@ describe('auto-open popover after idle timeout', () => {
     mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
 
     postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit' }));
-    vi.advanceTimersByTime(17000);
+    vi.advanceTimersByTime(15500);
 
+    expect(mocks.win.show).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  // Keeping this buffer small (500ms, not several seconds) matters: a large
+  // buffer widens the window in which a fast app-switch right after
+  // submitting the prompt still reads as "idle" at check time, popping the
+  // game open over whatever app the user switched to.
+  it('does not fire before the delay plus the small clock-skew buffer', () => {
+    vi.useFakeTimers();
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+    mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
+
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit' }));
+    vi.advanceTimersByTime(15499);
+    expect(mocks.win.show).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
     expect(mocks.win.show).toHaveBeenCalled();
     vi.useRealTimers();
   });
@@ -594,7 +613,7 @@ describe('auto-open popover after idle timeout', () => {
     mocks.powerMonitor.getSystemIdleTime.mockReturnValue(2);
 
     postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit' }));
-    vi.advanceTimersByTime(15000);
+    vi.advanceTimersByTime(15500);
 
     expect(mocks.win.show).not.toHaveBeenCalled();
     vi.useRealTimers();
@@ -622,7 +641,7 @@ describe('auto-open popover after idle timeout', () => {
     mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
 
     postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit' }));
-    vi.advanceTimersByTime(17000);
+    vi.advanceTimersByTime(15500);
 
     expect(mocks.win.show).not.toHaveBeenCalled();
     mocks.win.isVisible.mockReturnValue(false);

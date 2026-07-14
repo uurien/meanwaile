@@ -337,11 +337,12 @@ app.on('ready', async () => {
     if (snapshot.state === 'agent_working') {
       // setTimeout's clock and the OS's HID-idle clock don't share an origin:
       // by the time this fires at exactly the configured delay, getSystemIdleTime()
-      // often reads a second short (e.g. 14 instead of 15) because of the delay
-      // between the last real input and when the hook reached us and we armed
-      // this timer. The extra buffer absorbs that gap so we don't miss the
-      // threshold on every near-exact hit.
-      autoOpenTimer = setTimeout(maybeAutoOpenPopover, currentSettings.autoOpenDelaySeconds * 1000 + 2000);
+      // can read a fraction of a second short because of the delay between the
+      // last real input and when the hook reached us and we armed this timer.
+      // Kept small (vs. a larger buffer) so a fast app-switch right after
+      // submitting the prompt doesn't get counted as idle time and trigger a
+      // false auto-open over whatever app the user switched to.
+      autoOpenTimer = setTimeout(maybeAutoOpenPopover, currentSettings.autoOpenDelaySeconds * 1000 + 500);
     }
   });
 
