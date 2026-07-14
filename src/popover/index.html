@@ -9,17 +9,31 @@
 <body>
   <div id="root">
     <div id="header">
-      <span id="brand">meanwaile</span>
+      <div id="header-left">
+        <button id="back-btn" title="Volver al inicio" hidden>‹</button>
+        <span id="brand">meanwaile</span>
+        <span id="game-name" hidden></span>
+      </div>
       <button id="settings-btn" title="Settings">⚙</button>
     </div>
-    <div id="game-area">
-      <iframe id="game" src="../games/circle-tap/index.html"></iframe>
-      <div id="overlay">
-        <p id="overlay-msg">Ready to play?</p>
-        <button id="continue-btn">Start</button>
+
+    <div id="hub-screen"></div>
+
+    <div id="game-screen" hidden>
+      <div id="game-area">
+        <iframe id="game"></iframe>
+        <div id="overlay">
+          <p id="overlay-msg">Ready to play?</p>
+          <button id="continue-btn">Start</button>
+        </div>
+      </div>
+      <div id="placeholder" hidden>
+        <div id="placeholder-icon"></div>
+        <p id="placeholder-title">Próximamente</p>
+        <p id="placeholder-text"></p>
       </div>
     </div>
   </div>
-  <script src="popover.js"></script>
+  <script type="module" src="popover.js"></script>
 </body>
 </html>

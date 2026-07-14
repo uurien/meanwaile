@@ -1,3 +1,14 @@
+import { GAMES } from '../games/registry.js';
+import { createHub } from './carousel.js';
+
+const backBtn = document.getElementById('back-btn');
+const brand = document.getElementById('brand');
+const gameName = document.getElementById('game-name');
+const hubScreen = document.getElementById('hub-screen');
+const gameScreen = document.getElementById('game-screen');
+const gameArea = document.getElementById('game-area');
+const placeholder = document.getElementById('placeholder');
+const placeholderText = document.getElementById('placeholder-text');
 const iframe = document.getElementById('game');
 const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
@@ -7,6 +18,7 @@ const settingsBtn = document.getElementById('settings-btn');
 let currentState = 'idle';
 let currentSessionId = null;
 let started = false;
+let activeGame = null;
 
 function updateOverlayText() {
   if (!started) {
@@ -29,6 +41,7 @@ function updateOverlayText() {
 }
 
 function showOverlay() {
+  if (!activeGame?.implemented) return;
   updateOverlayText();
   overlay.style.display = 'flex';
   continueBtn.focus();
@@ -38,6 +51,48 @@ function hideOverlay() {
   overlay.style.display = 'none';
 }
 
+function openGame(game) {
+  activeGame = game;
+  started = false;
+
+  backBtn.hidden = false;
+  brand.hidden = true;
+  gameName.hidden = false;
+  gameName.textContent = game.name;
+
+  hubScreen.hidden = true;
+  gameScreen.hidden = false;
+
+  if (game.implemented) {
+    placeholder.hidden = true;
+    gameArea.hidden = false;
+    iframe.src = game.entry;
+    showOverlay();
+  } else {
+    gameArea.hidden = true;
+    hideOverlay();
+    placeholder.hidden = false;
+    placeholderText.textContent = `${game.name} todavía no tiene mecánica — conecta aquí la lógica cuando esté lista.`;
+  }
+}
+
+function goHome() {
+  activeGame = null;
+  iframe.src = 'about:blank';
+  hideOverlay();
+
+  backBtn.hidden = true;
+  brand.hidden = false;
+  gameName.hidden = true;
+
+  gameScreen.hidden = true;
+  hubScreen.hidden = false;
+}
+
+backBtn.addEventListener('click', goHome);
+
+createHub({ container: hubScreen, games: GAMES, onOpenGame: openGame });
+
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') window.meanwaile.close();
 });
@@ -45,7 +100,7 @@ document.addEventListener('keydown', (e) => {
 // Pause on close, show overlay on reopen
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    iframe.contentWindow?.postMessage({ type: 'game:pause' }, '*');
+    if (activeGame?.implemented) iframe.contentWindow?.postMessage({ type: 'game:pause' }, '*');
   } else {
     showOverlay();
   }
@@ -77,6 +132,8 @@ window.meanwaile.onStateChange((snapshot) => {
   currentState = snapshot.state;
   currentSessionId = snapshot.sessionId;
 
+  if (!activeGame?.implemented) return;
+
   if (snapshot.state === 'agent_working') {
     // Never auto-start: until the player has clicked Start at least once,
     // keep showing the "Ready to play?" prompt regardless of agent state.
@@ -87,15 +144,7 @@ window.meanwaile.onStateChange((snapshot) => {
       }
     }
   } else {
-    iframe.contentWindow.postMessage({ type: 'game:pause' }, '*');
+    iframe.contentWindow?.postMessage({ type: 'game:pause' }, '*');
     showOverlay();
   }
 });
-
-// The popover BrowserWindow is created with show:false and loads this page
-// long before it's ever shown. Chromium doesn't reliably fire the first
-// hidden -> visible `visibilitychange` for a window that starts hidden, so
-// waiting for that event to show the overlay left the very first open with
-// no overlay and no way to start the game. Showing it eagerly here means
-// it's already correct by the time main.ts actually calls win.show().
-showOverlay();
