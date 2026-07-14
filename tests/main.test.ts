@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => {
       winHandlers[event] = handler;
     }),
     loadFile: vi.fn(),
-    webContents: { send: vi.fn() },
+    webContents: { send: vi.fn(), openDevTools: vi.fn() },
     handlers: winHandlers,
   };
 

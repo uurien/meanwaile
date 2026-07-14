@@ -11,6 +11,14 @@ import { AppSettings, DEFAULT_SETTINGS, readSettings, writeSettings, validateSet
 // Prevent Dock icon on macOS — this is a menu-bar-only app
 app.dock?.hide();
 
+// `npm run dev` sets this so every window opens with its DevTools attached
+// (detached, so it doesn't cover the window it's inspecting).
+const isDev = Boolean(process.env.MEANWAILE_DEV);
+
+// The widget's own size (matches popover.css's #root).
+const POPOVER_WIDTH = 440;
+const POPOVER_HEIGHT = 540;
+
 let tray: Tray | null = null;
 let popover: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
@@ -23,14 +31,18 @@ const machine = new StateMachine();
 
 function createPopover(): BrowserWindow {
   const win = new BrowserWindow({
-    width: 320,
-    height: 370,
+    width: POPOVER_WIDTH,
+    height: POPOVER_HEIGHT,
     show: false,
     frame: false,
     resizable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
-    transparent: false,
+    transparent: true,
+    // Fully transparent ARGB - without this a transparent window still
+    // falls back to an opaque black fill, which showed through popover.css's
+    // rounded body as a solid black ring (the "double border" bug).
+    backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -39,11 +51,21 @@ function createPopover(): BrowserWindow {
   });
 
   win.loadFile(path.join(__dirname, '..', 'src', 'popover', 'index.html'));
+  if (isDev) {
+    // Show it immediately instead of waiting for a tray click, and skip the
+    // blur-hide below - otherwise focusing the detached DevTools window would
+    // instantly hide the very popover it's inspecting.
+    win.webContents.once('did-finish-load', () => {
+      win.show();
+      win.webContents.openDevTools({ mode: 'detach' });
+    });
+  }
 
   // Debounce blur: the tray-icon click triggers a momentary blur right after
   // show(), which would instantly close the popover without this guard.
   let blurTimer: ReturnType<typeof setTimeout> | null = null;
   win.on('blur', () => {
+    if (isDev) return;
     blurTimer = setTimeout(() => {
       if (!win.isDestroyed()) win.hide();
     }, 150);
@@ -206,6 +228,7 @@ function showSettingsWindow(): void {
   });
   settingsWindow.setMenuBarVisibility(false);
   settingsWindow.loadFile(path.join(__dirname, '..', 'src', 'settings', 'index.html'));
+  if (isDev) settingsWindow.webContents.openDevTools({ mode: 'detach' });
   settingsWindow.on('closed', () => { settingsWindow = null; });
 }
 
