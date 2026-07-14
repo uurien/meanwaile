@@ -11,11 +11,11 @@ export const GAMES = [
     implemented: true,
   },
   {
-    id: 'game-2',
-    name: 'Juego 2',
-    tagline: 'Próximamente',
-    entry: null,
-    preview: null,
-    implemented: false,
+    id: 'begitxo-runner',
+    name: 'Begitxo Runner',
+    tagline: 'Corre y salta',
+    entry: '../games/begitxo-runner/index.html',
+    preview: '../games/begitxo-runner/preview.png',
+    implemented: true,
   },
 ];

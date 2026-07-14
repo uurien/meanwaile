@@ -120,6 +120,9 @@ continueBtn.addEventListener('click', () => {
   started = true;
   hideOverlay();
   iframe.contentWindow.postMessage({ type: 'game:resume' }, '*');
+  // Without this, keyboard focus stays on the Start button and keys like
+  // Space trigger it again instead of reaching the game's own listeners.
+  iframe.contentWindow.focus();
 });
 
 settingsBtn.addEventListener('click', (e) => {
@@ -141,6 +144,7 @@ window.meanwaile.onStateChange((snapshot) => {
       hideOverlay();
       if (!document.hidden) {
         iframe.contentWindow.postMessage({ type: 'game:resume' }, '*');
+        iframe.contentWindow.focus();
       }
     }
   } else {

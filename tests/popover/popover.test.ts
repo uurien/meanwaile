@@ -3,7 +3,32 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
+// Hub-mechanics tests shouldn't depend on which games are currently
+// implemented in the real registry - stub it with one implemented and one
+// not-yet-built game so both code paths stay covered regardless of roster.
+vi.mock('../../src/games/registry.js', () => ({
+  GAMES: [
+    {
+      id: 'circle-tap',
+      name: 'CircleTap',
+      tagline: 'Toca los círculos',
+      entry: '../games/circle-tap/index.html',
+      preview: '../games/circle-tap/preview.png',
+      implemented: true,
+    },
+    {
+      id: 'placeholder-game',
+      name: 'Placeholder',
+      tagline: 'Próximamente',
+      entry: null,
+      preview: null,
+      implemented: false,
+    },
+  ],
+}));
+
 let iframePostMessage: ReturnType<typeof vi.fn>;
+let iframeFocus: ReturnType<typeof vi.fn>;
 let meanwaileClose: ReturnType<typeof vi.fn>;
 let triggerStateChange: (snapshot: { state: string; sessionId?: string | null }) => void;
 let overlay: HTMLElement;
@@ -37,9 +62,10 @@ beforeAll(async () => {
   document.body.innerHTML = bodyMatch ? bodyMatch[1] : '';
 
   iframePostMessage = vi.fn();
+  iframeFocus = vi.fn();
   iframe = document.getElementById('game') as HTMLIFrameElement;
   Object.defineProperty(iframe, 'contentWindow', {
-    get: () => ({ postMessage: iframePostMessage }),
+    get: () => ({ postMessage: iframePostMessage, focus: iframeFocus }),
     configurable: true,
   });
 
@@ -128,10 +154,10 @@ describe('opening the not-yet-built second game', () => {
     openGameViaCarousel(1);
 
     expect(gameScreen.hidden).toBe(false);
-    expect(gameName.textContent).toBe('Juego 2');
+    expect(gameName.textContent).toBe('Placeholder');
     expect(gameArea.hidden).toBe(true);
     expect(placeholder.hidden).toBe(false);
-    expect(placeholderText.textContent).toContain('Juego 2');
+    expect(placeholderText.textContent).toContain('Placeholder');
   });
 
   it('goes back to the hub from the placeholder too', () => {
@@ -237,9 +263,17 @@ describe('inside a game: agent-driven pause/resume', () => {
     it('hides the overlay and sends game:resume on click, marking the game as started', () => {
       overlay.style.display = 'flex';
       iframePostMessage.mockClear();
+      iframeFocus.mockClear();
       continueBtn.click();
       expect(overlay.style.display).toBe('none');
       expect(iframePostMessage).toHaveBeenCalledWith({ type: 'game:resume' }, '*');
+    });
+
+    it('moves focus into the iframe so keyboard input (e.g. Space) reaches the game', () => {
+      overlay.style.display = 'flex';
+      iframeFocus.mockClear();
+      continueBtn.click();
+      expect(iframeFocus).toHaveBeenCalledOnce();
     });
 
     it('shows "Paused" / Continue from now on, even after reopening', () => {
@@ -256,18 +290,22 @@ describe('inside a game: agent-driven pause/resume', () => {
     it('agent_working hides overlay and resumes game when visible', () => {
       overlay.style.display = 'flex';
       iframePostMessage.mockClear();
+      iframeFocus.mockClear();
       Object.defineProperty(document, 'hidden', { value: false, configurable: true });
       triggerStateChange({ state: 'agent_working' });
       expect(overlay.style.display).toBe('none');
       expect(iframePostMessage).toHaveBeenCalledWith({ type: 'game:resume' }, '*');
+      expect(iframeFocus).toHaveBeenCalledOnce();
     });
 
     it('agent_working does not resume game when document is hidden', () => {
       iframePostMessage.mockClear();
+      iframeFocus.mockClear();
       Object.defineProperty(document, 'hidden', { value: true, configurable: true });
       triggerStateChange({ state: 'idle' });
       triggerStateChange({ state: 'agent_working' });
       expect(iframePostMessage).not.toHaveBeenCalledWith({ type: 'game:resume' }, '*');
+      expect(iframeFocus).not.toHaveBeenCalled();
       Object.defineProperty(document, 'hidden', { value: false, configurable: true });
     });
 

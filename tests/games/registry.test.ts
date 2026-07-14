@@ -17,12 +17,14 @@ describe('games registry', () => {
     expect(circleTap.preview).toBe('../games/circle-tap/preview.png');
   });
 
-  it('lists a generic, not-yet-built second game with no entry or preview', () => {
-    const gameTwo = GAMES[1];
-    expect(gameTwo.implemented).toBe(false);
-    expect(gameTwo.entry).toBeNull();
-    expect(gameTwo.preview).toBeNull();
-    expect(gameTwo.id).not.toBe('circle-tap');
+  it('lists Begitxo Runner second, implemented, with its entry and preview paths', () => {
+    const begitxoRunner = GAMES[1];
+    expect(begitxoRunner).toMatchObject({
+      id: 'begitxo-runner',
+      implemented: true,
+    });
+    expect(begitxoRunner.entry).toBe('../games/begitxo-runner/index.html');
+    expect(begitxoRunner.preview).toBe('../games/begitxo-runner/preview.png');
   });
 
   it('every game has a non-empty id, name, and tagline', () => {
