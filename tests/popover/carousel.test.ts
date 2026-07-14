@@ -52,6 +52,7 @@ function fireDrag(deltaX: number) {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   build();
 });
 
@@ -158,5 +159,46 @@ describe('drag to swipe', () => {
     viewport.dispatchEvent(new PointerEvent('pointerup', { clientX: 50, bubbles: true }));
     viewport.dispatchEvent(new PointerEvent('pointerleave', { clientX: 50, bubbles: true }));
     expect(track().style.transform).toBe(before);
+  });
+});
+
+describe('remembering the last played game', () => {
+  it('stores the game id when its Start button is clicked', () => {
+    const cards = carouselCards();
+    (cards[1].querySelector('.game-card__start') as HTMLButtonElement).click();
+    expect(localStorage.getItem('hub-last-game')).toBe('game-2');
+  });
+
+  it('reopens on the last played game instead of resetting to the first card', () => {
+    localStorage.setItem('hub-last-game', 'game-2');
+    build();
+
+    expect(track().style.transform).toBe('translateX(-246px)');
+    expect(dots()[1].classList.contains('dot--active')).toBe(true);
+    expect(prevBtn().disabled).toBe(false);
+    expect(nextBtn().disabled).toBe(true);
+  });
+
+  it('does not animate the jump to the restored card on mount', () => {
+    localStorage.setItem('hub-last-game', 'game-2');
+    build();
+
+    expect(track().style.transition).toBe('none');
+  });
+
+  it('still animates normal navigation after mounting on a restored card', () => {
+    localStorage.setItem('hub-last-game', 'game-2');
+    build();
+
+    prevBtn().click();
+    expect(track().style.transition).toBe('transform 0.35s cubic-bezier(0.2,0.8,0.2,1)');
+  });
+
+  it('falls back to the first card when the stored id no longer matches a game', () => {
+    localStorage.setItem('hub-last-game', 'no-longer-in-registry');
+    build();
+
+    expect(track().style.transform).toBe('translateX(50px)');
+    expect(dots()[0].classList.contains('dot--active')).toBe(true);
   });
 });

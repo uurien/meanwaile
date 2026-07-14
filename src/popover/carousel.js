@@ -6,6 +6,15 @@ const CARD_GAP = 16;
 const TRACK_LEFT_PADDING = 50;
 const DRAG_THRESHOLD = 60;
 const SLIDE_STEP = CARD_WIDTH + CARD_GAP;
+const LAST_GAME_KEY = 'hub-last-game';
+
+function getLastGameId() {
+  return localStorage.getItem(LAST_GAME_KEY);
+}
+
+function setLastGameId(id) {
+  localStorage.setItem(LAST_GAME_KEY, id);
+}
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -58,15 +67,23 @@ export function createHub({ container, games, onOpenGame }) {
   const nextBtn = container.querySelector('#next-btn');
   const dotsEl = container.querySelector('#dots');
 
-  let activeIndex = 0;
+  const lastGameIndex = games.findIndex((game) => game.id === getLastGameId());
+
+  let activeIndex = Math.max(0, lastGameIndex);
   let dragging = false;
   let dragStartX = 0;
   let dragDeltaX = 0;
+  let mounting = true;
+
+  function handleOpenGame(game) {
+    setLastGameId(game.id);
+    onOpenGame(game);
+  }
 
   games.forEach((game, i) => {
-    track.appendChild(buildCard(game, i, games.length, onOpenGame));
+    track.appendChild(buildCard(game, i, games.length, handleOpenGame));
 
-    const dot = el('div', i === 0 ? 'dot dot--active' : 'dot');
+    const dot = el('div', i === activeIndex ? 'dot dot--active' : 'dot');
     dot.addEventListener('click', () => goTo(i));
     dotsEl.appendChild(dot);
   });
@@ -81,7 +98,7 @@ export function createHub({ container, games, onOpenGame }) {
 
   function render() {
     const baseX = TRACK_LEFT_PADDING - activeIndex * SLIDE_STEP;
-    track.style.transition = dragging ? 'none' : 'transform 0.35s cubic-bezier(0.2,0.8,0.2,1)';
+    track.style.transition = dragging || mounting ? 'none' : 'transform 0.35s cubic-bezier(0.2,0.8,0.2,1)';
     track.style.transform = `translateX(${baseX + dragDeltaX}px)`;
 
     prevBtn.disabled = atStart();
@@ -123,4 +140,5 @@ export function createHub({ container, games, onOpenGame }) {
   viewport.addEventListener('pointerleave', endDrag);
 
   render();
+  mounting = false;
 }
