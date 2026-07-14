@@ -144,4 +144,19 @@ describe('drag to swipe', () => {
     fireDrag(59);
     expect(track().style.transform).toBe('translateX(50px)');
   });
+
+  it('ignores pointermove when there is no active drag (no prior pointerdown)', () => {
+    const viewport = container.querySelector('#carousel-viewport')!;
+    const before = track().style.transform;
+    viewport.dispatchEvent(new PointerEvent('pointermove', { clientX: 50, bubbles: true }));
+    expect(track().style.transform).toBe(before);
+  });
+
+  it('ignores pointerup/pointerleave when there is no active drag (no prior pointerdown)', () => {
+    const viewport = container.querySelector('#carousel-viewport')!;
+    const before = track().style.transform;
+    viewport.dispatchEvent(new PointerEvent('pointerup', { clientX: 50, bubbles: true }));
+    viewport.dispatchEvent(new PointerEvent('pointerleave', { clientX: 50, bubbles: true }));
+    expect(track().style.transform).toBe(before);
+  });
 });

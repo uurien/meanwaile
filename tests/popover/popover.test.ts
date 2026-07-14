@@ -355,3 +355,27 @@ describe('inside a game: agent-driven pause/resume', () => {
     });
   });
 });
+
+// Both the visibilitychange listener and the onStateChange callback run
+// unconditionally, whether or not a game is open - they guard themselves on
+// activeGame?.implemented. These exercise that guard's "nothing is open"
+// path, which the tests above (always run with a game open) never hit.
+describe('guards when no game is active (hub screen)', () => {
+  beforeAll(() => {
+    backBtn.click();
+  });
+
+  it('visibilitychange does not show the overlay while on the hub', () => {
+    overlay.style.display = 'none';
+    Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(overlay.style.display).toBe('none');
+  });
+
+  it('onStateChange does nothing while on the hub', () => {
+    expect(() => triggerStateChange({ state: 'needs_user', sessionId: 'xyz' })).not.toThrow();
+    expect(overlay.style.display).toBe('none');
+  });
+});
