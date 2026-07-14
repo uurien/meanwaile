@@ -342,7 +342,7 @@ app.on('ready', async () => {
       // Kept small (vs. a larger buffer) so a fast app-switch right after
       // submitting the prompt doesn't get counted as idle time and trigger a
       // false auto-open over whatever app the user switched to.
-      autoOpenTimer = setTimeout(maybeAutoOpenPopover, currentSettings.autoOpenDelaySeconds * 1000 + 200);
+      autoOpenTimer = setTimeout(maybeAutoOpenPopover, currentSettings.autoOpenDelaySeconds * 1000 + 500);
     }
   });
 
