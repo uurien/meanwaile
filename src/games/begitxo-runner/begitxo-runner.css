@@ -64,11 +64,17 @@ body {
 
 #game-over button.play {
   cursor: pointer;
-  background: #343064;
-  border: 2px solid #2e2467;
-  color: #fff;
+  background: transparent;
+  border: 2px solid oklch(0.72 0.19 150);
+  color: #f5f5f3;
   font-size: 16px;
+  font-weight: 600;
   padding: 8px 24px;
-  border-radius: 8px;
+  border-radius: 11px;
   margin-top: 12px;
+  font-family: inherit;
+}
+
+#game-over button.play:hover {
+  background: oklch(0.72 0.19 150 / 0.12);
 }
