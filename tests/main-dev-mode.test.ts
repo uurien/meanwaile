@@ -111,12 +111,21 @@ vi.mock('../src/onboarding-store', () => ({
   markOnboarded: vi.fn(),
   hasOfferedHookBackfill: vi.fn(() => true),
   markHookBackfillOffered: vi.fn(),
+  hasOfferedCodexHookBackfill: vi.fn(() => true),
+  markCodexHookBackfillOffered: vi.fn(),
 }));
 
 vi.mock('../src/claude-settings', () => ({
   installClaudeHooks: vi.fn(),
   hasManagedHooks: vi.fn(() => false),
   renameClaudeHookUrl: vi.fn(),
+}));
+
+vi.mock('../src/codex-settings', () => ({
+  installCodexHooks: vi.fn(),
+  hasManagedHooks: vi.fn(() => false),
+  renameCodexHookUrl: vi.fn(),
+  hasCodexInstalled: vi.fn(() => false),
 }));
 
 vi.mock('../src/settings-store', () => ({

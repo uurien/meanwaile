@@ -10,9 +10,7 @@ No notifications. No integrations. One trick, done well.
 
 ## Status
 
-Working end to end: the hook server, agent adapter, state machine, first-run onboarding (login item + Claude Code hooks), and the first minigame (circle-tap) are all in place. The popup opens automatically once the agent has been working and the system has been idle past a threshold, and on demand any time via the tray icon.
-
-Not yet built: checking that the terminal/agent app is frontmost before auto-opening (so right now it can open even if you've switched to another app), and discreet mode.
+Working end to end: the hook server, agent adapters for Claude Code and Codex, state machine, first-run onboarding (login item + agent hooks), settings (HTTP port, idle threshold), and two minigames (circle-tap, Meanwaile Runner) are all in place. The popup opens automatically once an agent has been working and the system has been idle past the configured threshold, pauses when the agent needs input or finishes, and opens on demand any time via the tray icon.
 
 ---
 
@@ -62,6 +60,34 @@ This merges the following into `~/.claude/settings.json`:
 }
 ```
 
+## Configure Codex hooks
+
+If Codex appears to be installed (`~/.codex` exists), onboarding asks a third
+question — whether to wire up Codex's hooks. Answering "Yes" merges the hook
+config below into `~/.codex/hooks.json`. Codex only executes `command`-type
+hooks (it has no `http` hook type like Claude Code), so each installed hook
+just shells out to `curl` and forwards its stdin payload to the daemon.
+
+Two manual steps Meanwaile cannot do for you:
+1. Inside a Codex session, run `/hooks` once to trust the newly installed hook.
+2. If hooks stay silent afterwards, run `codex features enable hooks` — some
+   Codex versions gate hooks behind this feature flag; Meanwaile never edits
+   `~/.codex/config.toml` itself to avoid clobbering your existing config.
+
+To install manually, merge this into `~/.codex/hooks.json`:
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "curl -s -X POST -H \"Content-Type: application/json\" -d @- http://localhost:3821/hook/codex", "timeout": 30}]}],
+    "Stop":             [{"hooks": [{"type": "command", "command": "curl -s -X POST -H \"Content-Type: application/json\" -d @- http://localhost:3821/hook/codex", "timeout": 30}]}],
+    "SubagentStop":     [{"hooks": [{"type": "command", "command": "curl -s -X POST -H \"Content-Type: application/json\" -d @- http://localhost:3821/hook/codex", "timeout": 30}]}],
+    "PreToolUse":       [{"hooks": [{"type": "command", "command": "curl -s -X POST -H \"Content-Type: application/json\" -d @- http://localhost:3821/hook/codex", "timeout": 30}]}],
+    "PermissionRequest": [{"matcher": "*", "hooks": [{"type": "command", "command": "curl -s -X POST -H \"Content-Type: application/json\" -d @- http://localhost:3821/hook/codex", "timeout": 30}]}]
+  }
+}
+```
+
 ## Test without Claude Code
 
 Send fake hook payloads directly to verify the daemon is running:
@@ -84,6 +110,23 @@ curl -s -X POST http://localhost:3821/hook \
 
 # Agent finishes
 curl -s -X POST http://localhost:3821/hook \
+  -H 'Content-Type: application/json' \
+  -d '{"hook_event_name":"Stop","session_id":"test"}'
+```
+
+The Codex adapter listens on `/hook/codex` instead, with the same
+`hook_event_name` field but `PermissionRequest` in place of `Notification`:
+
+```bash
+curl -s -X POST http://localhost:3821/hook/codex \
+  -H 'Content-Type: application/json' \
+  -d '{"hook_event_name":"UserPromptSubmit","session_id":"test"}'
+
+curl -s -X POST http://localhost:3821/hook/codex \
+  -H 'Content-Type: application/json' \
+  -d '{"hook_event_name":"PermissionRequest","session_id":"test"}'
+
+curl -s -X POST http://localhost:3821/hook/codex \
   -H 'Content-Type: application/json' \
   -d '{"hook_event_name":"Stop","session_id":"test"}'
 ```

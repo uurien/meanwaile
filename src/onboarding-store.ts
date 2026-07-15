@@ -4,6 +4,7 @@ import * as path from 'path';
 interface OnboardingState {
   onboarded?: boolean;
   hookBackfillOffered?: boolean;
+  codexHookBackfillOffered?: boolean;
 }
 
 function filePath(userDataDir: string): string {
@@ -40,4 +41,16 @@ export function hasOfferedHookBackfill(userDataDir: string): boolean {
 
 export function markHookBackfillOffered(userDataDir: string): void {
   writeState(userDataDir, { hookBackfillOffered: true });
+}
+
+// Tracked separately from hookBackfillOffered: users who already went through
+// the Claude-only backfill before Codex support existed must still be asked
+// about Codex once, rather than being silently skipped by a flag that was
+// set for an unrelated reason.
+export function hasOfferedCodexHookBackfill(userDataDir: string): boolean {
+  return readState(userDataDir).codexHookBackfillOffered === true;
+}
+
+export function markCodexHookBackfillOffered(userDataDir: string): void {
+  writeState(userDataDir, { codexHookBackfillOffered: true });
 }

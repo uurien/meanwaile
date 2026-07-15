@@ -7,6 +7,8 @@ import {
   markOnboarded,
   hasOfferedHookBackfill,
   markHookBackfillOffered,
+  hasOfferedCodexHookBackfill,
+  markCodexHookBackfillOffered,
 } from '../src/onboarding-store';
 
 describe('onboarding-store', () => {
@@ -69,5 +71,23 @@ describe('onboarding-store', () => {
   it('returns false for hasOfferedHookBackfill on malformed JSON', () => {
     fs.writeFileSync(path.join(dir, 'onboarding.json'), 'not-json');
     expect(hasOfferedHookBackfill(dir)).toBe(false);
+  });
+
+  it('tracks the Codex backfill flag independently from the Claude one', () => {
+    markHookBackfillOffered(dir);
+    expect(hasOfferedCodexHookBackfill(dir)).toBe(false);
+
+    markCodexHookBackfillOffered(dir);
+    expect(hasOfferedCodexHookBackfill(dir)).toBe(true);
+    expect(hasOfferedHookBackfill(dir)).toBe(true);
+  });
+
+  it('returns false for hasOfferedCodexHookBackfill when no file exists', () => {
+    expect(hasOfferedCodexHookBackfill(dir)).toBe(false);
+  });
+
+  it('returns false for hasOfferedCodexHookBackfill on malformed JSON', () => {
+    fs.writeFileSync(path.join(dir, 'onboarding.json'), 'not-json');
+    expect(hasOfferedCodexHookBackfill(dir)).toBe(false);
   });
 });
