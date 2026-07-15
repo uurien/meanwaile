@@ -175,6 +175,24 @@ describe('renameCodexHookUrl', () => {
     }
   });
 
+  it('only renames the matching hook within an entry that has several, leaving the rest untouched', () => {
+    const otherHook = { type: 'command', command: 'some-other-tool' };
+    fs.writeFileSync(
+      hooksPath,
+      JSON.stringify({
+        hooks: { Stop: [{ hooks: [{ type: 'command', command: codexCommandFor(URL) }, otherHook] }] },
+      }),
+    );
+
+    const newUrl = 'http://localhost:4000/hook/codex';
+    renameCodexHookUrl(hooksPath, URL, newUrl);
+    const hooksFile = readHooks(hooksPath);
+
+    expect(hooksFile.hooks.Stop).toEqual([
+      { hooks: [{ type: 'command', command: codexCommandFor(newUrl) }, otherHook] },
+    ]);
+  });
+
   it("does not touch another tool's hook that happens to share the same command shape", () => {
     const otherUrl = 'http://localhost:5000/hook/codex';
     fs.writeFileSync(hooksPath, JSON.stringify({ hooks: { Stop: [entryFor(otherUrl)] } }));
