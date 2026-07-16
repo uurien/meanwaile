@@ -23,7 +23,7 @@ Working end to end: the hook server, agent adapters for Claude Code and Codex, s
 
 Download the latest `.dmg` from [Releases](https://github.com/uurien/meanwaile/releases) — no Node.js required.
 
-### "Apple no ha podido verificar..." / Gatekeeper warning
+### Gatekeeper warning
 
 There's no Apple Developer account behind this project, so the app is signed
 ad-hoc instead of notarized (see `forge.config.js`). macOS will refuse to open
