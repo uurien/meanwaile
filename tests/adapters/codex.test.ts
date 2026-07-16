@@ -18,10 +18,13 @@ describe('CodexAdapter.parseHookPayload', () => {
     const e = parse({ hook_event_name: 'PermissionRequest', tool_name: 'exec', session_id: 's1' });
     expect(e?.type).toBe('needs_user');
     expect(e?.sessionId).toBe('s1');
+    expect(e?.agentName).toBe('Codex');
   });
 
   it('Stop → task_finished', () => {
-    expect(parse({ hook_event_name: 'Stop', session_id: 'x' })?.type).toBe('task_finished');
+    const e = parse({ hook_event_name: 'Stop', session_id: 'x' });
+    expect(e?.type).toBe('task_finished');
+    expect(e?.agentName).toBe('Codex');
   });
 
   it('SubagentStop → task_finished', () => {

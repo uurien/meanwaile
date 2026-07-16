@@ -15,20 +15,22 @@ export class CodexAdapter implements AgentAdapter {
     const sessionId = payload['session_id'] as string | undefined;
     const ts = Date.now();
 
+    const agentName = 'Codex';
+
     switch (hookName) {
       case 'PermissionRequest':
-        return { type: 'needs_user', sessionId, timestamp: ts };
+        return { type: 'needs_user', sessionId, agentName, timestamp: ts };
       case 'Stop':
       case 'SubagentStop':
-        return { type: 'task_finished', sessionId, timestamp: ts };
+        return { type: 'task_finished', sessionId, agentName, timestamp: ts };
       case 'UserPromptSubmit':
-        return { type: 'prompt_submitted', sessionId, timestamp: ts };
+        return { type: 'prompt_submitted', sessionId, agentName, timestamp: ts };
       case 'PreToolUse':
         // Same rationale as the Claude Code adapter: a tool call retrying
         // after an approval prompt (or any tool call at all) means the agent
         // is actively working again, so it re-arms the auto-open timer and
         // clears a stale needs_user state.
-        return { type: 'prompt_submitted', sessionId, timestamp: ts };
+        return { type: 'prompt_submitted', sessionId, agentName, timestamp: ts };
       default:
         return null;
     }

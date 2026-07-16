@@ -18,6 +18,7 @@ describe('ClaudeCodeAdapter.parseHookPayload', () => {
     const e = parse({ hook_event_name: 'Notification', notification_type: 'permission_prompt', session_id: 's1' });
     expect(e?.type).toBe('needs_user');
     expect(e?.sessionId).toBe('s1');
+    expect(e?.agentName).toBe('Claude');
   });
 
   it('Notification idle_prompt → needs_user', () => {
@@ -30,7 +31,9 @@ describe('ClaudeCodeAdapter.parseHookPayload', () => {
   });
 
   it('Stop → task_finished', () => {
-    expect(parse({ hook_event_name: 'Stop', session_id: 'x' })?.type).toBe('task_finished');
+    const e = parse({ hook_event_name: 'Stop', session_id: 'x' });
+    expect(e?.type).toBe('task_finished');
+    expect(e?.agentName).toBe('Claude');
   });
 
   it('SubagentStop → task_finished', () => {

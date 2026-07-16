@@ -38,6 +38,12 @@ describe('StateMachine', () => {
     expect(m.snapshot().sessionId).toBe('abc123');
   });
 
+  it('tracks agentName from events', () => {
+    const m = new StateMachine();
+    m.handle(event('prompt_submitted', { agentName: 'Codex' }));
+    expect(m.snapshot().agentName).toBe('Codex');
+  });
+
   it('calls onChange on each transition', () => {
     const m = new StateMachine();
     const onChange = vi.fn();
@@ -61,5 +67,12 @@ describe('StateMachine', () => {
     m.handle(event('prompt_submitted', { sessionId: 'first' }));
     m.handle(event('prompt_submitted', { sessionId: 'second' }));
     expect(m.snapshot().sessionId).toBe('second');
+  });
+
+  it('still tracks agentName even when the state does not change', () => {
+    const m = new StateMachine();
+    m.handle(event('prompt_submitted', { agentName: 'Claude' }));
+    m.handle(event('prompt_submitted', { agentName: 'Codex' }));
+    expect(m.snapshot().agentName).toBe('Codex');
   });
 });

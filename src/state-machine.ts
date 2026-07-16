@@ -5,6 +5,7 @@ export type AppState = 'idle' | 'agent_working' | 'needs_user';
 export interface StateSnapshot {
   state: AppState;
   sessionId: string | null;
+  agentName: string | null;
 }
 
 export type StateChangeHandler = (snapshot: StateSnapshot) => void;
@@ -12,6 +13,7 @@ export type StateChangeHandler = (snapshot: StateSnapshot) => void;
 export class StateMachine {
   private state: AppState = 'idle';
   private sessionId: string | null = null;
+  private agentName: string | null = null;
   private onChange: StateChangeHandler | null = null;
 
   onStateChange(handler: StateChangeHandler): void {
@@ -20,6 +22,7 @@ export class StateMachine {
 
   handle(event: AgentEvent): void {
     if (event.sessionId) this.sessionId = event.sessionId;
+    if (event.agentName) this.agentName = event.agentName;
 
     switch (event.type) {
       case 'prompt_submitted':
@@ -41,6 +44,6 @@ export class StateMachine {
   }
 
   snapshot(): StateSnapshot {
-    return { state: this.state, sessionId: this.sessionId };
+    return { state: this.state, sessionId: this.sessionId, agentName: this.agentName };
   }
 }

@@ -15,26 +15,28 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     const sessionId = payload['session_id'] as string | undefined;
     const ts = Date.now();
 
+    const agentName = 'Claude';
+
     switch (hookName) {
       case 'Notification': {
         const subtype = payload['notification_type'] as string | undefined;
         if (subtype === 'permission_prompt' || subtype === 'idle_prompt') {
-          return { type: 'needs_user', sessionId, timestamp: ts };
+          return { type: 'needs_user', sessionId, agentName, timestamp: ts };
         }
         return null;
       }
       case 'Stop':
       case 'SubagentStop':
-        return { type: 'task_finished', sessionId, timestamp: ts };
+        return { type: 'task_finished', sessionId, agentName, timestamp: ts };
       case 'UserPromptSubmit':
-        return { type: 'prompt_submitted', sessionId, timestamp: ts };
+        return { type: 'prompt_submitted', sessionId, agentName, timestamp: ts };
       case 'PreToolUse':
         // A tool call retrying after a permission prompt (or any tool call at
         // all) means the agent is actively working again — same transition
         // as UserPromptSubmit, so it re-arms the auto-open timer and clears
         // a stale needs_user state instead of leaving the popover stuck on
         // "needs attention" for the rest of the turn.
-        return { type: 'prompt_submitted', sessionId, timestamp: ts };
+        return { type: 'prompt_submitted', sessionId, agentName, timestamp: ts };
       default:
         return null;
     }

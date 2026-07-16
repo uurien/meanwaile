@@ -30,7 +30,7 @@ vi.mock('../../src/games/registry.js', () => ({
 let iframePostMessage: ReturnType<typeof vi.fn>;
 let iframeFocus: ReturnType<typeof vi.fn>;
 let meanwaileClose: ReturnType<typeof vi.fn>;
-let triggerStateChange: (snapshot: { state: string; sessionId?: string | null }) => void;
+let triggerStateChange: (snapshot: { state: string; sessionId?: string | null; agentName?: string | null }) => void;
 let overlay: HTMLElement;
 let overlayMsg: HTMLElement;
 let continueBtn: HTMLElement;
@@ -342,16 +342,34 @@ describe('inside a game: agent-driven pause/resume', () => {
       expect(overlayMsg.textContent).toBe('Paused');
     });
 
-    it('shows "Claude needs input" once a real session reports needs_user', () => {
-      triggerStateChange({ state: 'agent_working', sessionId: 'abc' });
-      triggerStateChange({ state: 'needs_user', sessionId: 'abc' });
+    it('shows "Claude needs input" once a real Claude session reports needs_user', () => {
+      triggerStateChange({ state: 'agent_working', sessionId: 'abc', agentName: 'Claude' });
+      triggerStateChange({ state: 'needs_user', sessionId: 'abc', agentName: 'Claude' });
       expect(overlayMsg.textContent).toBe('Claude needs input');
     });
 
-    it('shows "Claude finished" once a real session reports idle', () => {
-      triggerStateChange({ state: 'agent_working', sessionId: 'abc' });
-      triggerStateChange({ state: 'idle', sessionId: 'abc' });
+    it('shows "Claude finished" once a real Claude session reports idle', () => {
+      triggerStateChange({ state: 'agent_working', sessionId: 'abc', agentName: 'Claude' });
+      triggerStateChange({ state: 'idle', sessionId: 'abc', agentName: 'Claude' });
       expect(overlayMsg.textContent).toBe('Claude finished');
+    });
+
+    it('shows "Codex needs input" once a real Codex session reports needs_user', () => {
+      triggerStateChange({ state: 'agent_working', sessionId: 'xyz', agentName: 'Codex' });
+      triggerStateChange({ state: 'needs_user', sessionId: 'xyz', agentName: 'Codex' });
+      expect(overlayMsg.textContent).toBe('Codex needs input');
+    });
+
+    it('shows "Codex finished" once a real Codex session reports idle', () => {
+      triggerStateChange({ state: 'agent_working', sessionId: 'xyz', agentName: 'Codex' });
+      triggerStateChange({ state: 'idle', sessionId: 'xyz', agentName: 'Codex' });
+      expect(overlayMsg.textContent).toBe('Codex finished');
+    });
+
+    it('falls back to generic "Agent" wording if a session is reported without an agentName', () => {
+      triggerStateChange({ state: 'agent_working', sessionId: 'abc', agentName: null });
+      triggerStateChange({ state: 'idle', sessionId: 'abc', agentName: null });
+      expect(overlayMsg.textContent).toBe('Agent finished');
     });
   });
 });

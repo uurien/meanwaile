@@ -17,6 +17,7 @@ const settingsBtn = document.getElementById('settings-btn');
 
 let currentState = 'idle';
 let currentSessionId = null;
+let currentAgentName = null;
 let started = false;
 let activeGame = null;
 
@@ -28,13 +29,16 @@ function updateOverlayText() {
   }
 
   continueBtn.textContent = 'Continue';
-  // Only attribute the pause to Claude once a real session has reported a
-  // state (sessionId set) - otherwise the default 'idle' state would
-  // misleadingly claim "Claude finished" before Claude has done anything.
+  // Only attribute the pause to a specific agent once a real session has
+  // reported a state (sessionId set) - otherwise the default 'idle' state
+  // would misleadingly claim "<agent> finished" before it has done anything.
+  // agentName comes from whichever adapter (Claude, Codex, ...) reported the
+  // event, falling back to a generic "Agent" label if it's ever missing.
+  const label = currentAgentName || 'Agent';
   if (currentSessionId && currentState === 'needs_user') {
-    overlayMsg.textContent = 'Claude needs input';
+    overlayMsg.textContent = `${label} needs input`;
   } else if (currentSessionId && currentState === 'idle') {
-    overlayMsg.textContent = 'Claude finished';
+    overlayMsg.textContent = `${label} finished`;
   } else {
     overlayMsg.textContent = 'Paused';
   }
@@ -134,6 +138,7 @@ window.meanwaile.onStateChange((snapshot) => {
   if (snapshot.state === currentState) return;
   currentState = snapshot.state;
   currentSessionId = snapshot.sessionId;
+  currentAgentName = snapshot.agentName;
 
   if (!activeGame?.implemented) return;
 
