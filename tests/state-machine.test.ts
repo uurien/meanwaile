@@ -75,4 +75,53 @@ describe('StateMachine', () => {
     m.handle(event('prompt_submitted', { agentName: 'Codex' }));
     expect(m.snapshot().agentName).toBe('Codex');
   });
+
+  describe('multiple concurrent agents', () => {
+    it('notifies again when a second agent finishes, even though the aggregate state was already idle', () => {
+      const m = new StateMachine();
+      const onChange = vi.fn();
+
+      m.handle(event('prompt_submitted', { sessionId: 'agent-a' }));
+      m.handle(event('prompt_submitted', { sessionId: 'agent-b' }));
+      m.onStateChange(onChange);
+
+      m.handle(event('task_finished', { sessionId: 'agent-a' }));
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(m.snapshot()).toMatchObject({ state: 'idle', sessionId: 'agent-a' });
+
+      // Agent B is still working; the player resumes and keeps playing.
+      // Agent B finishing later must still surface, not get swallowed
+      // because the machine's state string is already 'idle'.
+      m.handle(event('task_finished', { sessionId: 'agent-b' }));
+      expect(onChange).toHaveBeenCalledTimes(2);
+      expect(m.snapshot()).toMatchObject({ state: 'idle', sessionId: 'agent-b' });
+    });
+
+    it('notifies again when a second agent needs input, even though the aggregate state was already needs_user', () => {
+      const m = new StateMachine();
+      const onChange = vi.fn();
+
+      m.handle(event('prompt_submitted', { sessionId: 'agent-a' }));
+      m.handle(event('needs_user', { sessionId: 'agent-a' }));
+      m.onStateChange(onChange);
+
+      m.handle(event('needs_user', { sessionId: 'agent-b' }));
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(m.snapshot()).toMatchObject({ state: 'needs_user', sessionId: 'agent-b' });
+    });
+
+    it('does not force a duplicate notification for a repeated prompt_submitted', () => {
+      // Sanity check that the fix is scoped to the pause-side transitions -
+      // prompt_submitted from a second agent while the first is still
+      // working should stay a real no-op (avoids flooding the popover with
+      // resume/focus side effects on every tool call).
+      const m = new StateMachine();
+      m.handle(event('prompt_submitted', { sessionId: 'agent-a' }));
+      const onChange = vi.fn();
+      m.onStateChange(onChange);
+
+      m.handle(event('prompt_submitted', { sessionId: 'agent-b' }));
+      expect(onChange).not.toHaveBeenCalled();
+    });
+  });
 });

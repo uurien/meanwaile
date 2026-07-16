@@ -333,6 +333,24 @@ describe('inside a game: agent-driven pause/resume', () => {
       expect(iframePostMessage).not.toHaveBeenCalled();
       expect(overlay.style.display).toBe(displayBefore);
     });
+
+    it('re-pauses when a second agent reaches the same state the first one already reported', () => {
+      // Reproduces the two-concurrent-agents bug: agent A finishing pauses
+      // the game, the player resumes, then agent B finishes too. Both
+      // reports look identical at the state-string level ('idle'), but they
+      // carry different sessionIds and must not be deduped against each
+      // other.
+      triggerStateChange({ state: 'agent_working', sessionId: 'agent-a' });
+      overlay.style.display = 'none';
+      triggerStateChange({ state: 'idle', sessionId: 'agent-a' });
+      expect(overlay.style.display).toBe('flex');
+
+      overlay.style.display = 'none'; // player clicks Continue
+      iframePostMessage.mockClear();
+      triggerStateChange({ state: 'idle', sessionId: 'agent-b' });
+      expect(overlay.style.display).toBe('flex');
+      expect(iframePostMessage).toHaveBeenCalledWith({ type: 'game:pause' }, '*');
+    });
   });
 
   describe('pause reason text', () => {

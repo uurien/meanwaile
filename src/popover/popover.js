@@ -135,7 +135,12 @@ settingsBtn.addEventListener('click', (e) => {
 });
 
 window.meanwaile.onStateChange((snapshot) => {
-  if (snapshot.state === currentState) return;
+  // Keyed on (state, sessionId), not state alone: with several agents
+  // running, a different agent reaching the same aggregate state (e.g. a
+  // second agent finishing while the state is already 'idle' from the
+  // first) must still re-pause and update the overlay, while a genuine
+  // duplicate hook from the *same* session stays a no-op.
+  if (snapshot.state === currentState && snapshot.sessionId === currentSessionId) return;
   currentState = snapshot.state;
   currentSessionId = snapshot.sessionId;
   currentAgentName = snapshot.agentName;

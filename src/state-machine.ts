@@ -29,16 +29,26 @@ export class StateMachine {
         this.transition('agent_working');
         break;
       case 'needs_user':
-        this.transition('needs_user');
+        // Forced: with several agents running concurrently, one agent's
+        // needs_user can arrive while the aggregate state is already
+        // needs_user/idle from a different agent. Suppressing it as a same-
+        // state no-op would silently drop the sessionId change and leave the
+        // popover pointed at the wrong (or a now-finished) agent.
+        this.transition('needs_user', true);
         break;
       case 'task_finished':
-        this.transition('idle');
+        // Forced for the same reason: agent A finishing pauses the game; if
+        // the player resumes and agent B later finishes too, that second
+        // task_finished must still notify even though the aggregate state
+        // string ("idle") didn't change - otherwise the popover never learns
+        // B is done and the game keeps running.
+        this.transition('idle', true);
         break;
     }
   }
 
-  private transition(next: AppState): void {
-    if (this.state === next) return;
+  private transition(next: AppState, force = false): void {
+    if (!force && this.state === next) return;
     this.state = next;
     this.onChange?.(this.snapshot());
   }
