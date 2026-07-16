@@ -37,5 +37,8 @@
   },
   "engines": {
     "node": ">=24"
+  },
+  "dependencies": {
+    "smol-toml": "^1.7.0"
   }
 }

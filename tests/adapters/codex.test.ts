@@ -1,39 +1,30 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ClaudeCodeAdapter } from '../../src/adapters/claude-code';
+import { CodexAdapter } from '../../src/adapters/codex';
 
 function parse(body: object) {
-  return new ClaudeCodeAdapter().parseHookPayload(body);
+  return new CodexAdapter().parseHookPayload(body);
 }
 
-describe('ClaudeCodeAdapter.parseHookPayload', () => {
+describe('CodexAdapter.parseHookPayload', () => {
   it('returns null for unknown hook', () => {
     expect(parse({ hook_event_name: 'Unknown' })).toBeNull();
   });
 
   it('returns null for non-object input', () => {
-    expect(new ClaudeCodeAdapter().parseHookPayload('bad')).toBeNull();
+    expect(new CodexAdapter().parseHookPayload('bad')).toBeNull();
   });
 
-  it('Notification permission_prompt → needs_user', () => {
-    const e = parse({ hook_event_name: 'Notification', notification_type: 'permission_prompt', session_id: 's1' });
+  it('PermissionRequest → needs_user', () => {
+    const e = parse({ hook_event_name: 'PermissionRequest', tool_name: 'exec', session_id: 's1' });
     expect(e?.type).toBe('needs_user');
     expect(e?.sessionId).toBe('s1');
-    expect(e?.agentName).toBe('Claude');
-  });
-
-  it('Notification idle_prompt → needs_user', () => {
-    const e = parse({ hook_event_name: 'Notification', notification_type: 'idle_prompt' });
-    expect(e?.type).toBe('needs_user');
-  });
-
-  it('Notification with unknown subtype → null', () => {
-    expect(parse({ hook_event_name: 'Notification', notification_type: 'other' })).toBeNull();
+    expect(e?.agentName).toBe('Codex');
   });
 
   it('Stop → task_finished', () => {
     const e = parse({ hook_event_name: 'Stop', session_id: 'x' });
     expect(e?.type).toBe('task_finished');
-    expect(e?.agentName).toBe('Claude');
+    expect(e?.agentName).toBe('Codex');
   });
 
   it('SubagentStop → task_finished', () => {
@@ -45,18 +36,22 @@ describe('ClaudeCodeAdapter.parseHookPayload', () => {
   });
 
   it('PreToolUse → prompt_submitted', () => {
-    const e = parse({ hook_event_name: 'PreToolUse', tool_name: 'bash', session_id: 's1' });
+    const e = parse({ hook_event_name: 'PreToolUse', tool_name: 'exec', session_id: 's1' });
     expect(e?.type).toBe('prompt_submitted');
     expect(e?.sessionId).toBe('s1');
   });
 
   it('PostToolUse → null', () => {
-    expect(parse({ hook_event_name: 'PostToolUse', tool_name: 'read' })).toBeNull();
+    expect(parse({ hook_event_name: 'PostToolUse', tool_name: 'exec' })).toBeNull();
+  });
+
+  it('SessionStart → null', () => {
+    expect(parse({ hook_event_name: 'SessionStart', source: 'startup' })).toBeNull();
   });
 
   describe('onEvent / emit', () => {
     it('emit calls registered handler with parsed event', () => {
-      const adapter = new ClaudeCodeAdapter();
+      const adapter = new CodexAdapter();
       const handler = vi.fn();
       adapter.onEvent(handler);
       adapter.emit({ hook_event_name: 'Stop' });
@@ -65,12 +60,12 @@ describe('ClaudeCodeAdapter.parseHookPayload', () => {
     });
 
     it('emit does nothing when no handler registered', () => {
-      const adapter = new ClaudeCodeAdapter();
+      const adapter = new CodexAdapter();
       expect(() => adapter.emit({ hook_event_name: 'Stop' })).not.toThrow();
     });
 
     it('emit does nothing when event parses to null', () => {
-      const adapter = new ClaudeCodeAdapter();
+      const adapter = new CodexAdapter();
       const handler = vi.fn();
       adapter.onEvent(handler);
       adapter.emit({ hook_event_name: 'Unknown' });

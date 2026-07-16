@@ -75,9 +75,16 @@ const mocks = vi.hoisted(() => {
   const markOnboarded = vi.fn();
   const hasOfferedHookBackfill = vi.fn(() => true);
   const markHookBackfillOffered = vi.fn();
+  const hasOfferedCodexHookBackfill = vi.fn(() => true);
+  const markCodexHookBackfillOffered = vi.fn();
   const installClaudeHooks = vi.fn();
   const hasManagedHooks = vi.fn(() => false);
   const renameClaudeHookUrl = vi.fn();
+  const installCodexHooks = vi.fn();
+  const hasManagedCodexHooks = vi.fn(() => false);
+  const renameCodexHookUrl = vi.fn();
+  const hasCodexInstalled = vi.fn(() => false);
+  const ensureCodexHooksFeatureEnabled = vi.fn();
 
   const DEFAULT_SETTINGS = { httpPort: 3821, autoOpenDelaySeconds: 15 };
   const readSettings = vi.fn(() => ({ ...DEFAULT_SETTINGS }));
@@ -106,9 +113,16 @@ const mocks = vi.hoisted(() => {
     markOnboarded,
     hasOfferedHookBackfill,
     markHookBackfillOffered,
+    hasOfferedCodexHookBackfill,
+    markCodexHookBackfillOffered,
     installClaudeHooks,
     hasManagedHooks,
     renameClaudeHookUrl,
+    installCodexHooks,
+    hasManagedCodexHooks,
+    renameCodexHookUrl,
+    hasCodexInstalled,
+    ensureCodexHooksFeatureEnabled,
     DEFAULT_SETTINGS,
     readSettings,
     writeSettings,
@@ -140,12 +154,25 @@ vi.mock('../src/onboarding-store', () => ({
   markOnboarded: mocks.markOnboarded,
   hasOfferedHookBackfill: mocks.hasOfferedHookBackfill,
   markHookBackfillOffered: mocks.markHookBackfillOffered,
+  hasOfferedCodexHookBackfill: mocks.hasOfferedCodexHookBackfill,
+  markCodexHookBackfillOffered: mocks.markCodexHookBackfillOffered,
 }));
 
 vi.mock('../src/claude-settings', () => ({
   installClaudeHooks: mocks.installClaudeHooks,
   hasManagedHooks: mocks.hasManagedHooks,
   renameClaudeHookUrl: mocks.renameClaudeHookUrl,
+}));
+
+vi.mock('../src/codex-settings', () => ({
+  installCodexHooks: mocks.installCodexHooks,
+  hasManagedHooks: mocks.hasManagedCodexHooks,
+  renameCodexHookUrl: mocks.renameCodexHookUrl,
+  hasCodexInstalled: mocks.hasCodexInstalled,
+}));
+
+vi.mock('../src/codex-config', () => ({
+  ensureCodexHooksFeatureEnabled: mocks.ensureCodexHooksFeatureEnabled,
 }));
 
 vi.mock('../src/settings-store', () => ({
@@ -170,7 +197,7 @@ function triggerTray(event: string) {
   mocks.tray.handlers[event]?.();
 }
 
-function postHook(body: string) {
+function postHook(body: string, url = '/hook') {
   const handler = mocks.httpHandler();
   if (!handler) throw new Error('HTTP server not started');
 
@@ -178,7 +205,7 @@ function postHook(body: string) {
   const endHandlers: (() => void)[] = [];
   const req = {
     method: 'POST',
-    url: '/hook',
+    url,
     on: vi.fn((event: string, cb: (...a: unknown[]) => void) => {
       if (event === 'data') dataHandlers.push(cb as (c: string) => void);
       if (event === 'end') endHandlers.push(cb as () => void);
@@ -212,7 +239,10 @@ describe('first-run onboarding', () => {
     mocks.dialog.showMessageBox.mockReset();
     mocks.app.setLoginItemSettings.mockClear();
     mocks.installClaudeHooks.mockClear();
+    mocks.installCodexHooks.mockClear();
+    mocks.ensureCodexHooksFeatureEnabled.mockClear();
     mocks.markOnboarded.mockClear();
+    mocks.hasCodexInstalled.mockReturnValue(false);
   });
 
   it('shows the login-item dialog before the Claude Code hooks dialog, in order', async () => {
@@ -284,6 +314,46 @@ describe('first-run onboarding', () => {
     expect(mocks.installClaudeHooks).not.toHaveBeenCalled();
   });
 
+  it('does not show a Codex dialog when Codex is not installed', async () => {
+    mocks.dialog.showMessageBox
+      .mockResolvedValueOnce({ response: 1 })
+      .mockResolvedValueOnce({ response: 1 });
+
+    await triggerApp('ready');
+
+    expect(mocks.dialog.showMessageBox).toHaveBeenCalledTimes(2);
+    expect(mocks.installCodexHooks).not.toHaveBeenCalled();
+  });
+
+  it('shows a third dialog for Codex hooks when Codex is installed, and installs on "Yes"', async () => {
+    mocks.hasCodexInstalled.mockReturnValue(true);
+    mocks.dialog.showMessageBox
+      .mockResolvedValueOnce({ response: 1 })
+      .mockResolvedValueOnce({ response: 1 })
+      .mockResolvedValueOnce({ response: 0 });
+
+    await triggerApp('ready');
+
+    expect(mocks.dialog.showMessageBox).toHaveBeenCalledTimes(3);
+    expect(mocks.dialog.showMessageBox.mock.calls[2][0].message).toMatch(/codex/i);
+    expect(mocks.installCodexHooks).toHaveBeenCalledTimes(1);
+    expect(mocks.installCodexHooks.mock.calls[0][1]).toContain('3821');
+    expect(mocks.ensureCodexHooksFeatureEnabled).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not install Codex hooks when the user answers "No" to the Codex dialog', async () => {
+    mocks.hasCodexInstalled.mockReturnValue(true);
+    mocks.dialog.showMessageBox
+      .mockResolvedValueOnce({ response: 1 })
+      .mockResolvedValueOnce({ response: 1 })
+      .mockResolvedValueOnce({ response: 1 });
+
+    await triggerApp('ready');
+
+    expect(mocks.installCodexHooks).not.toHaveBeenCalled();
+    expect(mocks.ensureCodexHooksFeatureEnabled).not.toHaveBeenCalled();
+  });
+
   it('marks onboarding complete once both dialogs are answered', async () => {
     mocks.dialog.showMessageBox
       .mockResolvedValueOnce({ response: 1 })
@@ -313,10 +383,15 @@ describe('hook backfill for already-onboarded users', () => {
     mocks.dialog.showMessageBox.mockReset();
     mocks.installClaudeHooks.mockClear();
     mocks.markHookBackfillOffered.mockClear();
+    mocks.installCodexHooks.mockClear();
+    mocks.ensureCodexHooksFeatureEnabled.mockClear();
+    mocks.markCodexHookBackfillOffered.mockClear();
+    mocks.hasCodexInstalled.mockReturnValue(false);
   });
 
   afterEach(() => {
     mocks.hasOfferedHookBackfill.mockReturnValue(true);
+    mocks.hasOfferedCodexHookBackfill.mockReturnValue(true);
   });
 
   it('asks for confirmation and installs when the user confirms', async () => {
@@ -361,6 +436,52 @@ describe('hook backfill for already-onboarded users', () => {
 
     expect(mocks.dialog.showMessageBox).not.toHaveBeenCalled();
     expect(mocks.installClaudeHooks).not.toHaveBeenCalled();
+  });
+
+  it('asks for confirmation and installs Codex hooks when the user confirms', async () => {
+    mocks.hasOfferedCodexHookBackfill.mockReturnValueOnce(false);
+    mocks.hasCodexInstalled.mockReturnValueOnce(true);
+    mocks.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 });
+
+    await triggerApp('ready');
+
+    expect(mocks.dialog.showMessageBox).toHaveBeenCalledTimes(1);
+    expect(mocks.installCodexHooks).toHaveBeenCalledTimes(1);
+    expect(mocks.installCodexHooks.mock.calls[0][1]).toContain('3821');
+    expect(mocks.ensureCodexHooksFeatureEnabled).toHaveBeenCalledTimes(1);
+    expect(mocks.markCodexHookBackfillOffered).toHaveBeenCalledWith('/fake/userData');
+  });
+
+  it('does not install Codex hooks when the user declines the Codex offer', async () => {
+    mocks.hasOfferedCodexHookBackfill.mockReturnValueOnce(false);
+    mocks.hasCodexInstalled.mockReturnValueOnce(true);
+    mocks.dialog.showMessageBox.mockResolvedValueOnce({ response: 1 });
+
+    await triggerApp('ready');
+
+    expect(mocks.installCodexHooks).not.toHaveBeenCalled();
+    expect(mocks.ensureCodexHooksFeatureEnabled).not.toHaveBeenCalled();
+    expect(mocks.markCodexHookBackfillOffered).toHaveBeenCalledWith('/fake/userData');
+  });
+
+  it('does not ask about Codex at all for users who do not have Codex installed', async () => {
+    mocks.hasOfferedCodexHookBackfill.mockReturnValueOnce(false);
+    mocks.hasCodexInstalled.mockReturnValueOnce(false);
+
+    await triggerApp('ready');
+
+    expect(mocks.dialog.showMessageBox).not.toHaveBeenCalled();
+    expect(mocks.installCodexHooks).not.toHaveBeenCalled();
+  });
+
+  it('does not ask again once the Codex offer was already made', async () => {
+    mocks.hasOfferedCodexHookBackfill.mockReturnValueOnce(true);
+    mocks.hasCodexInstalled.mockReturnValueOnce(true);
+
+    await triggerApp('ready');
+
+    expect(mocks.dialog.showMessageBox).not.toHaveBeenCalled();
+    expect(mocks.installCodexHooks).not.toHaveBeenCalled();
   });
 });
 
@@ -543,6 +664,12 @@ describe('HTTP server request handler', () => {
     spy.mockRestore();
   });
 
+  it('returns 200 and routes /hook/codex to the Codex adapter', () => {
+    const res = postHook(JSON.stringify({ hook_event_name: 'Stop' }), '/hook/codex');
+    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+    expect(res.end).toHaveBeenCalledWith('{}');
+  });
+
 });
 
 describe('popover-close IPC', () => {
@@ -557,6 +684,16 @@ describe('state change IPC', () => {
   it('sends state-change to popover webContents when state transitions', () => {
     mocks.win.webContents.send.mockClear();
     postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 's1' }));
+    expect(mocks.win.webContents.send).toHaveBeenCalledWith(
+      'state-change',
+      expect.objectContaining({ state: 'agent_working' }),
+    );
+  });
+
+  it('routes Codex hook events into the same shared state machine', () => {
+    postHook(JSON.stringify({ hook_event_name: 'Stop' })); // reset to idle first
+    mocks.win.webContents.send.mockClear();
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 's2' }), '/hook/codex');
     expect(mocks.win.webContents.send).toHaveBeenCalledWith(
       'state-change',
       expect.objectContaining({ state: 'agent_working' }),
@@ -748,6 +885,42 @@ describe('settings window IPC', () => {
     expect(result.ok).toBe(true);
     expect(mocks.server.close).not.toHaveBeenCalled();
     expect(mocks.httpCreateServer).not.toHaveBeenCalled();
+  });
+
+  it('asks for confirmation before renaming the Codex hook, and renames it when confirmed', async () => {
+    // Picks up from the 4700 port left by the tests above.
+    mocks.hasManagedCodexHooks.mockReturnValueOnce(true);
+    mocks.renameCodexHookUrl.mockClear();
+    mocks.dialog.showMessageBox.mockClear();
+    mocks.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 });
+
+    await mocks.ipcMain.handlers['settings-save']?.({}, { httpPort: 4800, autoOpenDelaySeconds: 20 });
+
+    expect(mocks.dialog.showMessageBox).toHaveBeenCalledTimes(1);
+    expect(mocks.renameCodexHookUrl).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining('4700'),
+      expect.stringContaining('4800'),
+    );
+  });
+
+  it('does not rename the Codex hook when the confirmation is declined', async () => {
+    mocks.hasManagedCodexHooks.mockReturnValueOnce(true);
+    mocks.renameCodexHookUrl.mockClear();
+    mocks.dialog.showMessageBox.mockResolvedValueOnce({ response: 1 });
+
+    await mocks.ipcMain.handlers['settings-save']?.({}, { httpPort: 4900, autoOpenDelaySeconds: 20 });
+
+    expect(mocks.renameCodexHookUrl).not.toHaveBeenCalled();
+  });
+
+  it('does not ask for Codex confirmation when Codex hooks were never configured', async () => {
+    mocks.hasManagedCodexHooks.mockReturnValueOnce(false);
+    mocks.dialog.showMessageBox.mockClear();
+
+    await mocks.ipcMain.handlers['settings-save']?.({}, { httpPort: 5000, autoOpenDelaySeconds: 20 });
+
+    expect(mocks.dialog.showMessageBox).not.toHaveBeenCalled();
   });
 });
 

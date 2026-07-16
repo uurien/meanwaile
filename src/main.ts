@@ -3,9 +3,24 @@ import * as http from 'http';
 import * as os from 'os';
 import * as path from 'path';
 import { ClaudeCodeAdapter } from './adapters/claude-code';
+import { CodexAdapter } from './adapters/codex';
 import { StateMachine } from './state-machine';
-import { hasOnboarded, markOnboarded, hasOfferedHookBackfill, markHookBackfillOffered } from './onboarding-store';
+import {
+  hasOnboarded,
+  markOnboarded,
+  hasOfferedHookBackfill,
+  markHookBackfillOffered,
+  hasOfferedCodexHookBackfill,
+  markCodexHookBackfillOffered,
+} from './onboarding-store';
 import { installClaudeHooks, hasManagedHooks, renameClaudeHookUrl } from './claude-settings';
+import {
+  installCodexHooks,
+  hasManagedHooks as hasManagedCodexHooks,
+  renameCodexHookUrl,
+  hasCodexInstalled,
+} from './codex-settings';
+import { ensureCodexHooksFeatureEnabled } from './codex-config';
 import { AppSettings, DEFAULT_SETTINGS, readSettings, writeSettings, validateSettings } from './settings-store';
 
 // Prevent Dock icon on macOS — this is a menu-bar-only app
@@ -27,6 +42,7 @@ let autoOpenTimer: ReturnType<typeof setTimeout> | null = null;
 let currentSettings: AppSettings = { ...DEFAULT_SETTINGS };
 
 const adapter = new ClaudeCodeAdapter();
+const codexAdapter = new CodexAdapter();
 const machine = new StateMachine();
 
 function createPopover(): BrowserWindow {
@@ -136,13 +152,26 @@ function hookUrlFor(port: number): string {
   return `http://localhost:${port}/hook`;
 }
 
+function codexHookUrlFor(port: number): string {
+  return `http://localhost:${port}/hook/codex`;
+}
+
 function claudeSettingsPath(): string {
   return path.join(os.homedir(), '.claude', 'settings.json');
 }
 
+function codexHooksJsonPath(): string {
+  return path.join(os.homedir(), '.codex', 'hooks.json');
+}
+
+function codexConfigTomlPath(): string {
+  return path.join(os.homedir(), '.codex', 'config.toml');
+}
+
 function startHttpServer(port: number): void {
   httpServer = http.createServer((req, res) => {
-    if (req.method !== 'POST' || req.url !== '/hook') {
+    const targetAdapter = req.url === '/hook' ? adapter : req.url === '/hook/codex' ? codexAdapter : null;
+    if (req.method !== 'POST' || !targetAdapter) {
       res.writeHead(404);
       res.end();
       return;
@@ -156,7 +185,7 @@ function startHttpServer(port: number): void {
 
       try {
         const body = JSON.parse(raw);
-        adapter.emit(body);
+        targetAdapter.emit(body);
       } catch {
         console.warn('[hook] could not parse body:', raw);
       }
@@ -164,7 +193,7 @@ function startHttpServer(port: number): void {
   });
 
   httpServer.listen(port, '127.0.0.1', () => {
-    console.log(`[meanwaile] HTTP server listening on http://127.0.0.1:${port}/hook`);
+    console.log(`[meanwaile] HTTP server listening on http://127.0.0.1:${port}/hook (and /hook/codex)`);
   });
 }
 
@@ -183,6 +212,7 @@ function stopHttpServer(): void {
 async function applySettings(newSettings: AppSettings): Promise<void> {
   const portChanged = newSettings.httpPort !== currentSettings.httpPort;
   const previousHookUrl = hookUrlFor(currentSettings.httpPort);
+  const previousCodexHookUrl = codexHookUrlFor(currentSettings.httpPort);
 
   currentSettings = newSettings;
   writeSettings(app.getPath('userData'), newSettings);
@@ -202,6 +232,20 @@ async function applySettings(newSettings: AppSettings): Promise<void> {
       });
       if (response === 0) {
         renameClaudeHookUrl(settingsPath, previousHookUrl, hookUrlFor(currentSettings.httpPort));
+      }
+    }
+
+    const hooksJsonPath = codexHooksJsonPath();
+    if (hasManagedCodexHooks(hooksJsonPath, previousCodexHookUrl)) {
+      const { response } = await dialog.showMessageBox({
+        type: 'question',
+        buttons: ['Yes', 'No'],
+        defaultId: 0,
+        cancelId: 1,
+        message: `Update the Codex hook in ${hooksJsonPath} to use port ${currentSettings.httpPort}?`,
+      });
+      if (response === 0) {
+        renameCodexHookUrl(hooksJsonPath, previousCodexHookUrl, codexHookUrlFor(currentSettings.httpPort));
       }
     }
   }
@@ -261,10 +305,29 @@ async function runOnboardingIfNeeded(): Promise<void> {
     installClaudeHooks(claudeSettingsPath(), hookUrlFor(currentSettings.httpPort));
   }
 
+  // Only offer Codex at all if it looks installed — most users won't have
+  // it, and there's no reason to interrupt them with an irrelevant dialog.
+  if (hasCodexInstalled()) {
+    const codexHooksResult = await dialog.showMessageBox({
+      type: 'question',
+      buttons: ['Yes', 'No'],
+      defaultId: 0,
+      cancelId: 1,
+      message:
+        'Automatically configure Codex hooks for Meanwaile? ' +
+        'After this, start the Codex CLI and run /hooks once to trust the installed hook.',
+    });
+    if (codexHooksResult.response === 0) {
+      installCodexHooks(codexHooksJsonPath(), codexHookUrlFor(currentSettings.httpPort));
+      ensureCodexHooksFeatureEnabled(codexConfigTomlPath());
+    }
+  }
+
   markOnboarded(userDataDir);
   // A fresh onboarding always installs (or explicitly declines) every
   // currently managed event, so there's never anything to backfill for it.
   markHookBackfillOffered(userDataDir);
+  markCodexHookBackfillOffered(userDataDir);
 }
 
 // Users who opted into hooks on an earlier version won't have events added
@@ -293,11 +356,49 @@ async function offerHookBackfillIfNeeded(): Promise<void> {
   markHookBackfillOffered(userDataDir);
 }
 
+// Tracked with its own flag (hasOfferedCodexHookBackfill), separate from the
+// Claude one above — users who were already backfilled for Claude before
+// Codex support existed must still be asked about Codex once, rather than
+// being skipped by a flag that was set for an unrelated reason.
+//
+// Unlike offerHookBackfillIfNeeded above (which backfills newly *added*
+// managed events into an existing Claude install), this is the *first* offer
+// of Codex support to a user who already finished onboarding before Codex
+// existed — so it must gate on "is Codex installed at all"
+// (hasCodexInstalled), not on "did we already install Codex hooks"
+// (hasManagedCodexHooks would always be false the first time and this would
+// never fire).
+async function offerCodexHookBackfillIfNeeded(): Promise<void> {
+  const userDataDir = app.getPath('userData');
+  if (hasOfferedCodexHookBackfill(userDataDir)) return;
+
+  if (hasCodexInstalled()) {
+    const hooksJsonPath = codexHooksJsonPath();
+    const hookUrl = codexHookUrlFor(currentSettings.httpPort);
+    const { response } = await dialog.showMessageBox({
+      type: 'question',
+      buttons: ['Yes', 'No'],
+      defaultId: 0,
+      cancelId: 1,
+      message:
+        'Meanwaile now supports Codex. Automatically configure Codex hooks for Meanwaile? ' +
+        'After this, start the Codex CLI and run /hooks once to trust the installed hook.',
+    });
+    if (response === 0) {
+      installCodexHooks(hooksJsonPath, hookUrl);
+      ensureCodexHooksFeatureEnabled(codexConfigTomlPath());
+    }
+  }
+
+  markCodexHookBackfillOffered(userDataDir);
+}
+
 app.on('ready', async () => {
   currentSettings = readSettings(app.getPath('userData'));
 
   await runOnboardingIfNeeded();
   await offerHookBackfillIfNeeded();
+  await offerCodexHookBackfillIfNeeded();
 
   const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
   const icon = nativeImage.createFromPath(iconPath);
@@ -327,6 +428,7 @@ app.on('ready', async () => {
   });
 
   adapter.onEvent((event) => machine.handle(event));
+  codexAdapter.onEvent((event) => machine.handle(event));
   machine.onStateChange((snapshot) => {
     popover?.webContents.send('state-change', snapshot);
 
