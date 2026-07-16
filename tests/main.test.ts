@@ -784,6 +784,40 @@ describe('auto-open popover after idle timeout', () => {
     mocks.win.isVisible.mockReturnValue(false);
     vi.useRealTimers();
   });
+
+  // Characterization test, not a spec: this documents current behavior,
+  // which is arguably not what a user would want, but changing it was
+  // explicitly deferred rather than fixed here. PreToolUse only re-arms this
+  // timer through one specific path - a needs_user -> agent_working retry
+  // after a permission prompt (see the PreToolUse case in
+  // claude-code.ts/codex.ts) - and maybeAutoOpenPopover() only checks
+  // isVisible(), with no memory of "the user just closed this by hand". So a
+  // tool call that merely resumes an already-open task can still pop the
+  // window back open after the idle delay, even right after the user
+  // dismissed it for that same task.
+  it('a PreToolUse retry after needs_user can still reopen the popover even though the user just closed it by hand', () => {
+    vi.useFakeTimers();
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+    mocks.win.hide.mockClear();
+    mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
+
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit' }));
+    postHook(JSON.stringify({ hook_event_name: 'Notification', notification_type: 'permission_prompt' }));
+
+    // User manually closes the popover while waiting on the permission prompt.
+    mocks.ipcMain.handlers['popover-close']?.();
+    expect(mocks.win.hide).toHaveBeenCalled();
+
+    // Agent's next tool call (e.g. after the permission is approved in the
+    // terminal) flips needs_user -> agent_working, re-arming the timer
+    // exactly as a fresh UserPromptSubmit would.
+    postHook(JSON.stringify({ hook_event_name: 'PreToolUse' }));
+    vi.advanceTimersByTime(15500);
+
+    expect(mocks.win.show).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
 });
 
 describe('settings window IPC', () => {
