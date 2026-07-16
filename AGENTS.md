@@ -6,13 +6,12 @@ Meanwaile is a macOS menu-bar app (Electron) that detects when your AI coding ag
 
 No notifications. No integrations. One trick, done well.
 
-The game popup appears when, and only when, all three signals hold simultaneously:
+The game popup appears when, and only when, both signals hold simultaneously:
 
 1. **The agent is working** — between `UserPromptSubmit` and `Stop`, with no pending `Notification` (`permission_prompt` / `idle_prompt`). If the agent is waiting on the user, that's terminal time, not game time.
-2. **The frontmost app is the terminal or the agent's app** — checked via `NSWorkspace.frontmostApplication` bundle id against a configurable allowlist (Terminal, iTerm, Ghostty, Warp, VS Code, Cursor, Claude desktop, …). If the user has already switched apps, Meanwaile stays out of it.
-3. **No user activity for the configured idle threshold** — keyboard/mouse idle time via `powerMonitor.getSystemIdleTime()`, user-configurable (default 15–30 s range, tuned in phase 0).
+2. **No user activity for the configured idle threshold** — keyboard/mouse idle time via `powerMonitor.getSystemIdleTime()`, user-configurable (default 15–30 s range, tuned in phase 0).
 
-When all three signals hold, the popup opens directly — no intermediate hint, no confirmation step. Dismissing costs nothing (Esc or switching apps).
+When both signals hold, the popup opens directly — no intermediate hint, no confirmation step. Dismissing costs nothing (Esc or switching apps).
 
 When the agent finishes or needs the user, the game **pauses** and prompts: "looks like the task is done, you should get back to work" — with **Close** and **It can wait a bit more**. The user always has the final say.
 
@@ -70,7 +69,7 @@ Three states: `idle` → `agent-working` → `needs-user`. Transitions are drive
 
 ### Wait detector
 
-Runs on top of the state machine. Combines three signals — agent state, frontmost app (via native helper or AppleScript, **no Accessibility permission needed**), and `powerMonitor.getSystemIdleTime()` — to decide when to trigger stage 1. Only fires when all three conditions hold.
+Runs on top of the state machine. Combines two signals — agent state and `powerMonitor.getSystemIdleTime()` — to decide when to trigger stage 1. Only fires when both conditions hold.
 
 ### Game bundles
 
@@ -92,5 +91,4 @@ Third-party games run in a sandboxed view (`nodeIntegration: false`, no network/
 - **Wait detection must be conservative.** A false positive (game appears when the user is still reading output) is the primary failure mode. The idle threshold is the sole mitigation — tune with phase-0 data, don't add UX layers to compensate for a threshold that's too low.
 - **Games must be mild.** If the game is too good, users start wishing agents were slower. No deep progression, no streaks, no dailies. Rounds of 30–90 s.
 - **Agent events always take precedence.** When `onNeedsUser` or `onTaskFinished` arrives mid-game, the game pauses immediately and prompts — continuing to play is always a deliberate act, never the default.
-- **Discreet mode is first-class.** A toggle replaces the game with a neutral status view for office contexts.
 - **macOS only for MVP.** No Linux/Windows code paths yet.
