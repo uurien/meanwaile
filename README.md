@@ -64,15 +64,20 @@ This merges the following into `~/.claude/settings.json`:
 
 If Codex appears to be installed (`~/.codex` exists), onboarding asks a third
 question — whether to wire up Codex's hooks. Answering "Yes" merges the hook
-config below into `~/.codex/hooks.json`. Codex only executes `command`-type
-hooks (it has no `http` hook type like Claude Code), so each installed hook
-just shells out to `curl` and forwards its stdin payload to the daemon.
+config below into `~/.codex/hooks.json`, and also makes sure `[features].hooks`
+is set to `true` in `~/.codex/config.toml` (some Codex versions gate hooks
+behind this flag). Codex only executes `command`-type hooks (it has no `http`
+hook type like Claude Code), so each installed hook just shells out to `curl`
+and forwards its stdin payload to the daemon.
 
-Two manual steps Meanwaile cannot do for you:
-1. Inside a Codex session, run `/hooks` once to trust the newly installed hook.
-2. If hooks stay silent afterwards, run `codex features enable hooks` — some
-   Codex versions gate hooks behind this feature flag; Meanwaile never edits
-   `~/.codex/config.toml` itself to avoid clobbering your existing config.
+The `config.toml` edit is done with [`smol-toml`](https://www.npmjs.com/package/smol-toml)
+purely to *read* the file safely — the actual write is a targeted insertion
+of a single `hooks = true` line into your existing `[features]` table (or a
+new one if you don't have it yet), never a full rewrite. Every other table,
+key, and piece of formatting in your `config.toml` is left untouched.
+
+One manual step Meanwaile still cannot do for you: inside a Codex session,
+run `/hooks` once to trust the newly installed hook.
 
 To install manually, merge this into `~/.codex/hooks.json`:
 
@@ -86,6 +91,13 @@ To install manually, merge this into `~/.codex/hooks.json`:
     "PermissionRequest": [{"matcher": "*", "hooks": [{"type": "command", "command": "curl -s -X POST -H \"Content-Type: application/json\" -d @- http://localhost:3821/hook/codex", "timeout": 30}]}]
   }
 }
+```
+
+And make sure `~/.codex/config.toml` has, inside its `[features]` table:
+
+```toml
+[features]
+hooks = true
 ```
 
 ## Test without Claude Code

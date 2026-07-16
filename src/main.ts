@@ -20,6 +20,7 @@ import {
   renameCodexHookUrl,
   hasCodexInstalled,
 } from './codex-settings';
+import { ensureCodexHooksFeatureEnabled } from './codex-config';
 import { AppSettings, DEFAULT_SETTINGS, readSettings, writeSettings, validateSettings } from './settings-store';
 
 // Prevent Dock icon on macOS — this is a menu-bar-only app
@@ -161,6 +162,10 @@ function claudeSettingsPath(): string {
 
 function codexHooksJsonPath(): string {
   return path.join(os.homedir(), '.codex', 'hooks.json');
+}
+
+function codexConfigTomlPath(): string {
+  return path.join(os.homedir(), '.codex', 'config.toml');
 }
 
 function startHttpServer(port: number): void {
@@ -310,10 +315,11 @@ async function runOnboardingIfNeeded(): Promise<void> {
       cancelId: 1,
       message:
         'Automatically configure Codex hooks for Meanwaile? ' +
-        "After this, run /hooks inside Codex once to trust it (and codex features enable hooks if hooks stay silent).",
+        'After this, run /hooks inside Codex once to trust it.',
     });
     if (codexHooksResult.response === 0) {
       installCodexHooks(codexHooksJsonPath(), codexHookUrlFor(currentSettings.httpPort));
+      ensureCodexHooksFeatureEnabled(codexConfigTomlPath());
     }
   }
 
@@ -376,10 +382,11 @@ async function offerCodexHookBackfillIfNeeded(): Promise<void> {
       cancelId: 1,
       message:
         'Meanwaile now supports Codex. Automatically configure Codex hooks for Meanwaile? ' +
-        "After this, run /hooks inside Codex once to trust it (and codex features enable hooks if hooks stay silent).",
+        'After this, run /hooks inside Codex once to trust it.',
     });
     if (response === 0) {
       installCodexHooks(hooksJsonPath, hookUrl);
+      ensureCodexHooksFeatureEnabled(codexConfigTomlPath());
     }
   }
 

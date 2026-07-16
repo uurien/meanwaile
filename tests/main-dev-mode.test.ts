@@ -128,6 +128,10 @@ vi.mock('../src/codex-settings', () => ({
   hasCodexInstalled: vi.fn(() => false),
 }));
 
+vi.mock('../src/codex-config', () => ({
+  ensureCodexHooksFeatureEnabled: vi.fn(),
+}));
+
 vi.mock('../src/settings-store', () => ({
   DEFAULT_SETTINGS: mocks.DEFAULT_SETTINGS,
   readSettings: vi.fn(() => ({ ...mocks.DEFAULT_SETTINGS })),

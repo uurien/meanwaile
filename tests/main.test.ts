@@ -84,6 +84,7 @@ const mocks = vi.hoisted(() => {
   const hasManagedCodexHooks = vi.fn(() => false);
   const renameCodexHookUrl = vi.fn();
   const hasCodexInstalled = vi.fn(() => false);
+  const ensureCodexHooksFeatureEnabled = vi.fn();
 
   const DEFAULT_SETTINGS = { httpPort: 3821, autoOpenDelaySeconds: 15 };
   const readSettings = vi.fn(() => ({ ...DEFAULT_SETTINGS }));
@@ -121,6 +122,7 @@ const mocks = vi.hoisted(() => {
     hasManagedCodexHooks,
     renameCodexHookUrl,
     hasCodexInstalled,
+    ensureCodexHooksFeatureEnabled,
     DEFAULT_SETTINGS,
     readSettings,
     writeSettings,
@@ -167,6 +169,10 @@ vi.mock('../src/codex-settings', () => ({
   hasManagedHooks: mocks.hasManagedCodexHooks,
   renameCodexHookUrl: mocks.renameCodexHookUrl,
   hasCodexInstalled: mocks.hasCodexInstalled,
+}));
+
+vi.mock('../src/codex-config', () => ({
+  ensureCodexHooksFeatureEnabled: mocks.ensureCodexHooksFeatureEnabled,
 }));
 
 vi.mock('../src/settings-store', () => ({
@@ -234,6 +240,7 @@ describe('first-run onboarding', () => {
     mocks.app.setLoginItemSettings.mockClear();
     mocks.installClaudeHooks.mockClear();
     mocks.installCodexHooks.mockClear();
+    mocks.ensureCodexHooksFeatureEnabled.mockClear();
     mocks.markOnboarded.mockClear();
     mocks.hasCodexInstalled.mockReturnValue(false);
   });
@@ -331,6 +338,7 @@ describe('first-run onboarding', () => {
     expect(mocks.dialog.showMessageBox.mock.calls[2][0].message).toMatch(/codex/i);
     expect(mocks.installCodexHooks).toHaveBeenCalledTimes(1);
     expect(mocks.installCodexHooks.mock.calls[0][1]).toContain('3821');
+    expect(mocks.ensureCodexHooksFeatureEnabled).toHaveBeenCalledTimes(1);
   });
 
   it('does not install Codex hooks when the user answers "No" to the Codex dialog', async () => {
@@ -343,6 +351,7 @@ describe('first-run onboarding', () => {
     await triggerApp('ready');
 
     expect(mocks.installCodexHooks).not.toHaveBeenCalled();
+    expect(mocks.ensureCodexHooksFeatureEnabled).not.toHaveBeenCalled();
   });
 
   it('marks onboarding complete once both dialogs are answered', async () => {
@@ -375,6 +384,7 @@ describe('hook backfill for already-onboarded users', () => {
     mocks.installClaudeHooks.mockClear();
     mocks.markHookBackfillOffered.mockClear();
     mocks.installCodexHooks.mockClear();
+    mocks.ensureCodexHooksFeatureEnabled.mockClear();
     mocks.markCodexHookBackfillOffered.mockClear();
     mocks.hasCodexInstalled.mockReturnValue(false);
   });
@@ -438,6 +448,7 @@ describe('hook backfill for already-onboarded users', () => {
     expect(mocks.dialog.showMessageBox).toHaveBeenCalledTimes(1);
     expect(mocks.installCodexHooks).toHaveBeenCalledTimes(1);
     expect(mocks.installCodexHooks.mock.calls[0][1]).toContain('3821');
+    expect(mocks.ensureCodexHooksFeatureEnabled).toHaveBeenCalledTimes(1);
     expect(mocks.markCodexHookBackfillOffered).toHaveBeenCalledWith('/fake/userData');
   });
 
@@ -449,6 +460,7 @@ describe('hook backfill for already-onboarded users', () => {
     await triggerApp('ready');
 
     expect(mocks.installCodexHooks).not.toHaveBeenCalled();
+    expect(mocks.ensureCodexHooksFeatureEnabled).not.toHaveBeenCalled();
     expect(mocks.markCodexHookBackfillOffered).toHaveBeenCalledWith('/fake/userData');
   });
 
