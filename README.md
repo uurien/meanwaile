@@ -76,8 +76,8 @@ of a single `hooks = true` line into your existing `[features]` table (or a
 new one if you don't have it yet), never a full rewrite. Every other table,
 key, and piece of formatting in your `config.toml` is left untouched.
 
-One manual step Meanwaile still cannot do for you: inside a Codex session,
-run `/hooks` once to trust the newly installed hook.
+One manual step Meanwaile still cannot do for you: start the Codex CLI (open
+a session) and run `/hooks` once to trust the newly installed hook.
 
 To install manually, merge this into `~/.codex/hooks.json`:
 

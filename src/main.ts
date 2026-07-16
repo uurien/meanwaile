@@ -315,7 +315,7 @@ async function runOnboardingIfNeeded(): Promise<void> {
       cancelId: 1,
       message:
         'Automatically configure Codex hooks for Meanwaile? ' +
-        'After this, run /hooks inside Codex once to trust it.',
+        'After this, start the Codex CLI and run /hooks once to trust the installed hook.',
     });
     if (codexHooksResult.response === 0) {
       installCodexHooks(codexHooksJsonPath(), codexHookUrlFor(currentSettings.httpPort));
@@ -382,7 +382,7 @@ async function offerCodexHookBackfillIfNeeded(): Promise<void> {
       cancelId: 1,
       message:
         'Meanwaile now supports Codex. Automatically configure Codex hooks for Meanwaile? ' +
-        'After this, run /hooks inside Codex once to trust it.',
+        'After this, start the Codex CLI and run /hooks once to trust the installed hook.',
     });
     if (response === 0) {
       installCodexHooks(hooksJsonPath, hookUrl);
