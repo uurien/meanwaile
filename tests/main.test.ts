@@ -681,6 +681,14 @@ describe('popover-close IPC', () => {
 });
 
 describe('state change IPC', () => {
+  // The state machine now tracks each session independently (see
+  // state-machine.ts) and only drops to idle once every tracked session has
+  // finished - so, since it's a module-level singleton shared across this
+  // whole file, each test here must finish its own session with a matching
+  // session_id afterwards. A bare Stop with no session_id only ever clears
+  // the default/no-session key, and would otherwise leave s1/s2 stuck
+  // "working" forever, breaking every later describe block's assumption
+  // that a Stop resets the shared machine to idle.
   it('sends state-change to popover webContents when state transitions', () => {
     mocks.win.webContents.send.mockClear();
     postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 's1' }));
@@ -688,16 +696,17 @@ describe('state change IPC', () => {
       'state-change',
       expect.objectContaining({ state: 'agent_working' }),
     );
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 's1' }));
   });
 
   it('routes Codex hook events into the same shared state machine', () => {
-    postHook(JSON.stringify({ hook_event_name: 'Stop' })); // reset to idle first
     mocks.win.webContents.send.mockClear();
     postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 's2' }), '/hook/codex');
     expect(mocks.win.webContents.send).toHaveBeenCalledWith(
       'state-change',
       expect.objectContaining({ state: 'agent_working' }),
     );
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 's2' }), '/hook/codex');
   });
 });
 
@@ -783,6 +792,80 @@ describe('auto-open popover after idle timeout', () => {
     expect(mocks.win.show).not.toHaveBeenCalled();
     mocks.win.isVisible.mockReturnValue(false);
     vi.useRealTimers();
+  });
+
+  // Characterization test, not a spec: this documents current behavior,
+  // which is arguably not what a user would want, but changing it was
+  // explicitly deferred rather than fixed here. PreToolUse only re-arms this
+  // timer through one specific path - a needs_user -> agent_working retry
+  // after a permission prompt (see the PreToolUse case in
+  // claude-code.ts/codex.ts) - and maybeAutoOpenPopover() only checks
+  // isVisible(), with no memory of "the user just closed this by hand". So a
+  // tool call that merely resumes an already-open task can still pop the
+  // window back open after the idle delay, even right after the user
+  // dismissed it for that same task.
+  it('a PreToolUse retry after needs_user can still reopen the popover even though the user just closed it by hand', () => {
+    vi.useFakeTimers();
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+    mocks.win.hide.mockClear();
+    mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
+
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit' }));
+    postHook(JSON.stringify({ hook_event_name: 'Notification', notification_type: 'permission_prompt' }));
+
+    // User manually closes the popover while waiting on the permission prompt.
+    mocks.ipcMain.handlers['popover-close']?.();
+    expect(mocks.win.hide).toHaveBeenCalled();
+
+    // Agent's next tool call (e.g. after the permission is approved in the
+    // terminal) flips needs_user -> agent_working, re-arming the timer
+    // exactly as a fresh UserPromptSubmit would.
+    postHook(JSON.stringify({ hook_event_name: 'PreToolUse' }));
+    vi.advanceTimersByTime(15500);
+
+    expect(mocks.win.show).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  // Two-agent variant of the reported bug: the state machine now tracks
+  // each session independently (see state-machine.ts), so agent 1 finishing
+  // while agent 2 is still running does not change the aggregate state at
+  // all - it stays agent_working, exactly as if nothing had happened. Agent
+  // 2's later tool call is therefore a same-state no-op too, so it must not
+  // re-arm the auto-open timer or pop the window back open.
+  it('does not reopen the popover when a second still-active agent merely uses a tool, after the popover was closed once the first agent finished', () => {
+    vi.useFakeTimers();
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+    mocks.win.hide.mockClear();
+    mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
+
+    // Two agents start; after 15s idle the popover correctly auto-opens.
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 'agent-1' }));
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 'agent-2' }));
+    vi.advanceTimersByTime(15500);
+    expect(mocks.win.show).toHaveBeenCalledTimes(1);
+
+    // Agent 1 finishes. Agent 2 is still running, so the aggregate state
+    // correctly stays agent_working (no pause) - the player closes the
+    // popover anyway.
+    mocks.win.show.mockClear();
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 'agent-1' }));
+    mocks.ipcMain.handlers['popover-close']?.();
+    expect(mocks.win.hide).toHaveBeenCalled();
+
+    // Agent 2, still running, makes a tool call - a same-state no-op, so it
+    // must not re-arm the timer and pop the window back open.
+    postHook(JSON.stringify({ hook_event_name: 'PreToolUse', session_id: 'agent-2' }));
+    vi.advanceTimersByTime(15500);
+
+    expect(mocks.win.show).not.toHaveBeenCalled();
+    vi.useRealTimers();
+
+    // Clean up agent-2, which this test never finishes, so it doesn't stay
+    // stuck "working" in the shared machine for the rest of the file.
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 'agent-2' }));
   });
 });
 
