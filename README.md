@@ -23,6 +23,22 @@ Working end to end: the hook server, agent adapters for Claude Code and Codex, s
 
 Download the latest `.dmg` from [Releases](https://github.com/uurien/meanwaile/releases) — no Node.js required.
 
+### "Apple no ha podido verificar..." / Gatekeeper warning
+
+There's no Apple Developer account behind this project, so the app is signed
+ad-hoc instead of notarized (see `forge.config.js`). macOS will refuse to open
+it the first time with a warning like "Apple could not verify Meanwaile is
+free of malware". To run it anyway:
+
+```bash
+xattr -cr /Applications/Meanwaile.app
+```
+
+(adjust the path if you installed it elsewhere). This clears the quarantine
+attribute macOS attaches to anything downloaded from the internet. Right-click
+→ Open is the usual workaround for unsigned apps, but it doesn't always
+bypass this dialog — the `xattr` command is the reliable fix.
+
 ## Build & run from source
 
 ```bash
