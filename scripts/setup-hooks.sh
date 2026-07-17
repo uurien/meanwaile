@@ -28,7 +28,6 @@ jq \
    .hooks.Stop = $h |
    .hooks.SubagentStop = $h |
    .hooks.PreToolUse = $h |
-   .hooks.PostToolUse = $h |
    .hooks.UserPromptSubmit = $h' \
   "$SETTINGS" > "$tmp"
 

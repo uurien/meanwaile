@@ -48,6 +48,10 @@ npm start
 
 `npm start` compiles TypeScript and launches Electron. An icon appears in your menu bar. The app hides from the Dock intentionally. Click the icon to open the popup.
 
+## Settings
+
+Click the ⚙ icon inside the popup to open the settings window, where you can change the HTTP port the hook server listens on and the idle threshold before the popup auto-opens. If you change the port and already had hooks installed, Meanwaile asks whether to update the hook URL in `~/.claude/settings.json` for you.
+
 ## Configure Claude Code hooks
 
 On first launch, Meanwaile asks two separate questions: whether to launch
@@ -56,7 +60,7 @@ automatically at login, and whether to wire up Claude Code's hooks. Answering
 for you — no manual step needed. Restart Claude Code afterwards for the hooks
 to take effect.
 
-If you answered "No", or need to re-apply/repair the hooks manually, run:
+If you answered "No", or need to re-apply/repair the hooks manually, run (requires [`jq`](https://jqlang.org/), install with `brew install jq`):
 
 ```bash
 ./scripts/setup-hooks.sh
