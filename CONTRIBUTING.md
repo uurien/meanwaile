@@ -21,6 +21,22 @@ npm test -- --coverage
 
 Run this locally before opening a PR.
 
+## Commit / PR title convention
+
+`main` only accepts squash merges, so your **PR title becomes the commit message on `main`** — a required check blocks merging if it doesn't match:
+
+```
+fix|feat|chore|docs: message
+```
+
+- Type must be one of `fix`, `feat`, `chore`, `docs`.
+- Message is required and the whole title (type + message) must be 72 characters or less — keep it short and specific.
+- Examples: `fix: prevent double game launch on fast idle toggling`, `docs: add CONTRIBUTING.md`.
+
+Edit the PR title (not just individual commit messages) to fix a failing check — CI re-runs automatically when you do.
+
+Note: GitHub lets whoever clicks "squash and merge" edit the commit message box at that moment, so this check can't force the *final* commit message — please don't rewrite it into something that breaks the pattern.
+
 ## Code style
 
 TypeScript strict mode is on. No `any` without a comment explaining why it's unavoidable.
