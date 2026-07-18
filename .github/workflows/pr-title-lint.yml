@@ -1,0 +1,24 @@
+name: PR Title Lint
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  lint-title:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Validate PR title format
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(fix|feat|chore|docs): .{1,68}$'
+          if [[ ! "$TITLE" =~ $pattern ]]; then
+            echo "::error::PR title '$TITLE' doesn't match the required pattern."
+            echo "Expected: 'fix|feat|chore|docs: message' (max 72 characters total, message non-empty)."
+            echo "This title becomes the commit message on main (squash merge), so it must follow the convention."
+            exit 1
+          fi

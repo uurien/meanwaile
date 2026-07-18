@@ -41,7 +41,15 @@ Node >= 24 required. TypeScript strict mode is on — no `any` without a comment
 
 ## Git workflow
 
-`main` is protected: no force-push, no deletion, linear history required. External contributors don't have write access, so pull requests are the only way in — fork the repo, branch, and open a PR.
+`main` is protected: no force-push, no deletion, linear history required, squash merge only. External contributors don't have write access, so pull requests are the only way in — fork the repo, branch, and open a PR.
+
+Since merges are squash-only, the **PR title becomes the commit message on `main`**. A required check (`.github/workflows/pr-title-lint.yml`) blocks merging unless the title matches:
+
+```
+fix|feat|chore|docs: message
+```
+
+Type must be one of `fix`/`feat`/`chore`/`docs`, and the full title must be 72 characters or fewer. Keep it short and specific — this is what shows up in `git log` forever.
 
 ## Architecture rules
 
