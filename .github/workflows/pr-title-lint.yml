@@ -11,7 +11,7 @@ jobs:
       contents: read
 
     steps:
-      - name: Validate title follows "type: message"
+      - name: Validate PR title format
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
