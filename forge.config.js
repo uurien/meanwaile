@@ -49,5 +49,15 @@ module.exports = {
       name: '@electron-forge/maker-zip',
       platforms: ['darwin'],
     },
+    {
+      name: '@electron-forge/maker-squirrel',
+      config: {
+        name: 'Meanwaile',
+        setupIcon: './assets/app-icon.ico',
+        // No code signing certificate yet, so the Setup.exe and installed
+        // app trigger a SmartScreen warning — see AGENTS.md for the
+        // Windows-support follow-ups (code signing, CI job).
+      },
+    },
   ],
 };

@@ -1,4 +1,5 @@
-import { app, Tray, BrowserWindow, Menu, nativeImage, ipcMain, powerMonitor, dialog } from 'electron';
+import { app, Tray, BrowserWindow, Menu, nativeImage, ipcMain, powerMonitor, dialog, screen } from 'electron';
+import started from 'electron-squirrel-startup';
 import * as http from 'http';
 import * as os from 'os';
 import * as path from 'path';
@@ -22,6 +23,16 @@ import {
 } from './codex-settings';
 import { ensureCodexHooksFeatureEnabled } from './codex-config';
 import { AppSettings, DEFAULT_SETTINGS, readSettings, writeSettings, validateSettings } from './settings-store';
+
+// Squirrel.Windows relaunches the app with --squirrel-install/-updated/
+// -uninstall/-obsolete during install/update/uninstall so it can create or
+// remove the Start Menu shortcut; the package below spawns Update.exe for
+// that and returns true. Calling app.quit() this early means Electron never
+// fires 'ready', so none of the app.on('ready', ...) setup below (tray icon,
+// HTTP server, onboarding dialogs) runs for that launch.
+if (started) {
+  app.quit();
+}
 
 // Prevent Dock icon on macOS — this is a menu-bar-only app
 app.dock?.hide();
@@ -94,6 +105,30 @@ function createPopover(): BrowserWindow {
   return win;
 }
 
+// macOS's menu bar sits at the top of the screen, so opening the popover
+// downward (the default this was written for) always clears it. Windows'
+// (and most Linux) tray sits at the bottom of the screen instead — opening
+// downward there pushes the popover under the taskbar, clipping it. Detect
+// which half of the display's work area the tray icon is in and flip the
+// open direction accordingly. Horizontal position is clamped to the work
+// area so a tray icon near either edge never pushes the popover off-screen.
+function popoverPosition(
+  trayBounds: { x: number; y: number; width: number; height: number },
+  winBounds: { width: number; height: number },
+): { x: number; y: number } {
+  const { workArea } = screen.getDisplayMatching(trayBounds);
+
+  const rawX = trayBounds.x + trayBounds.width / 2 - winBounds.width / 2;
+  const x = Math.round(Math.min(Math.max(rawX, workArea.x), workArea.x + workArea.width - winBounds.width));
+
+  const trayIsInLowerHalf = trayBounds.y > workArea.y + workArea.height / 2;
+  const y = Math.round(
+    trayIsInLowerHalf ? trayBounds.y - winBounds.height - 4 : trayBounds.y + trayBounds.height + 4,
+  );
+
+  return { x, y };
+}
+
 function showPopover(): void {
   /* v8 ignore next */
   if (!tray) return;
@@ -105,8 +140,7 @@ function showPopover(): void {
   const trayBounds = tray.getBounds();
   const winBounds = popover.getBounds();
 
-  const x = Math.round(trayBounds.x + trayBounds.width / 2 - winBounds.width / 2);
-  const y = Math.round(trayBounds.y + trayBounds.height + 4);
+  const { x, y } = popoverPosition(trayBounds, winBounds);
 
   popover.setPosition(x, y);
   // Toggle visibleOnAllWorkspaces on just for the show() call so macOS places
