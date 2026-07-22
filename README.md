@@ -27,7 +27,7 @@ Download the latest `.dmg` from [Releases](https://github.com/uurien/meanwaile/r
 
 ### Windows
 
-Download the latest `Setup.exe` from [Releases](https://github.com/uurien/meanwaile/releases). The Windows build isn't code-signed yet, so Windows SmartScreen and/or your antivirus may flag it as an unrecognized app and block or hold it back for analysis before you can run it. This is expected for now, not a sign anything is wrong.
+Download the latest `Meanwaile-X.Y.Z Setup.exe` from [Releases](https://github.com/uurien/meanwaile/releases). The Windows build isn't code-signed yet, so Windows SmartScreen and/or your antivirus may flag it as an unrecognized app and block or hold it back for analysis before you can run it. This is expected for now, not a sign anything is wrong.
 
 If it gets blocked:
 
