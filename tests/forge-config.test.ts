@@ -25,6 +25,15 @@ describe('forge.config', () => {
     expect(config.makers.length).toBeGreaterThan(0);
   });
 
+  it('builds a Squirrel.Windows installer with the app icon', async () => {
+    const mod = await import('../forge.config.js');
+    const config = mod.default ?? mod;
+    const squirrelMaker = config.makers.find((m) => m.name === '@electron-forge/maker-squirrel');
+    expect(squirrelMaker).toBeTruthy();
+    expect(squirrelMaker.config.name).toBe('Meanwaile');
+    expect(squirrelMaker.config.setupIcon).toBeTruthy();
+  });
+
   it('signs ad-hoc and skips notarization without Apple credentials', async () => {
     delete process.env.APPLE_TEAM_ID;
     const mod = await import('../forge.config.js');

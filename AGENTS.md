@@ -99,4 +99,4 @@ Third-party games run in a sandboxed view (`nodeIntegration: false`, no network/
 - **Wait detection must be conservative.** A false positive (game appears when the user is still reading output) is the primary failure mode. The idle threshold is the sole mitigation — tune with phase-0 data, don't add UX layers to compensate for a threshold that's too low.
 - **Games must be mild.** If the game is too good, users start wishing agents were slower. No deep progression, no streaks, no dailies. Rounds of 30–90 s.
 - **Agent events always take precedence.** When `onNeedsUser` or `onTaskFinished` arrives mid-game, the game pauses immediately and prompts — continuing to play is always a deliberate act, never the default.
-- **macOS only for MVP.** No Linux/Windows code paths yet.
+- **macOS and Windows only for MVP.** No Linux code paths yet.

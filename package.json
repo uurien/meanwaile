@@ -4,6 +4,7 @@
   "version": "0.5.0",
   "description": "Menu-bar app that turns AI coding agent dead time and confirmations into the right moment to notify",
   "main": "dist/main.js",
+  "author": "Ugaitz Urien",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@electron-forge/cli": "^7.0.0",
     "@electron-forge/maker-dmg": "^7.0.0",
+    "@electron-forge/maker-squirrel": "^7.11.2",
     "@electron-forge/maker-zip": "^7.0.0",
     "@types/node": "^24.13.2",
     "@vitest/coverage-v8": "^3.2.7",
@@ -39,6 +41,7 @@
     "node": ">=24"
   },
   "dependencies": {
+    "electron-squirrel-startup": "^1.0.1",
     "smol-toml": "^1.7.0"
   }
 }

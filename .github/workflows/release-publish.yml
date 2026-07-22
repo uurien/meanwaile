@@ -6,11 +6,13 @@ on:
     branches: [main]
 
 jobs:
-  publish:
+  prepare:
     if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/v')
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Extract version from branch name
@@ -22,7 +24,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 0
 
       - name: Sanity-check package.json matches the release branch
         run: |
@@ -31,6 +32,17 @@ jobs:
             echo "::error::package.json version ($pkg_version) doesn't match release branch (v${{ steps.version.outputs.version }})"
             exit 1
           fi
+
+  build-macos:
+    needs: prepare
+    runs-on: macos-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -77,32 +89,104 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: npm run forge:make
 
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: |
+            out/make/*.dmg
+            out/make/zip/darwin/arm64/*.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  build-windows:
+    needs: prepare
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Package app
+        run: npm run forge:make
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: out/make/squirrel.windows/x64/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: [prepare, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-macos
+          path: out/make
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-windows
+          path: out/make/squirrel.windows/x64
+
       - name: Package games artifact
-        run: |
-          mkdir -p out/make
-          (cd src/games && zip -r ../../out/make/games.zip . -x '.*')
+        run: (cd src/games && zip -r ../../out/make/games.zip . -x '.*')
 
       - name: Checksums
         working-directory: out/make
         run: |
-          find . -type f \( -name "*.dmg" -o -name "*.zip" \) -exec shasum -a 256 {} \; > SHA256SUMS.txt
+          find . -type f \( -name "*.dmg" -o -name "*.zip" -o -name "*.exe" -o -name "*.nupkg" -o -name "RELEASES" \) -exec sha256sum {} \; > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Tag release
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "v${{ steps.version.outputs.version }}"
-          git push origin "v${{ steps.version.outputs.version }}"
+          git tag "v${{ needs.prepare.outputs.version }}"
+          git push origin "v${{ needs.prepare.outputs.version }}"
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ steps.version.outputs.version }}" \
+          gh release create "v${{ needs.prepare.outputs.version }}" \
             out/make/*.dmg \
             out/make/zip/darwin/arm64/*.zip \
+            out/make/squirrel.windows/x64/*.exe \
+            out/make/squirrel.windows/x64/*.nupkg \
+            out/make/squirrel.windows/x64/RELEASES \
             out/make/games.zip \
             out/make/SHA256SUMS.txt \
-            --title "v${{ steps.version.outputs.version }}" \
+            --title "v${{ needs.prepare.outputs.version }}" \
             --generate-notes

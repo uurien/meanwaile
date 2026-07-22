@@ -16,12 +16,23 @@ Working end to end: the hook server, agent adapters for Claude Code and Codex, s
 
 ## Requirements
 
-- macOS 13+
-- To build from source or contribute: Node.js 24+ (only needed for `npm install` / `npm start` / running tests — the packaged app bundles its own Node/Electron runtime, so an installed `.dmg` doesn't need Node at all)
+- macOS 13+ or Windows 10/11
+- To build from source or contribute: Node.js 24+ (only needed for `npm install` / `npm start` / running tests — the packaged app bundles its own Node/Electron runtime, so an installed build doesn't need Node at all)
 
 ## Install
 
+### macOS
+
 Download the latest `.dmg` from [Releases](https://github.com/uurien/meanwaile/releases) — no Node.js required. The app is signed with a Developer ID and notarized by Apple, so macOS only shows the standard "downloaded from the internet" confirmation on first launch, same as any other signed app.
+
+### Windows
+
+Download the latest `Meanwaile-X.Y.Z Setup.exe` from [Releases](https://github.com/uurien/meanwaile/releases). The Windows build isn't code-signed yet, so Windows SmartScreen and/or your antivirus may flag it as an unrecognized app and block or hold it back for analysis before you can run it. This is expected for now, not a sign anything is wrong.
+
+If it gets blocked:
+
+- **SmartScreen**: click "More info", then "Run anyway".
+- **Antivirus / other security software**: you may need to explicitly allow it, restore it from quarantine, or add an exclusion — check your security software's blocked/quarantine history for the installer and mark it as trusted.
 
 ## Build & run from source
 
