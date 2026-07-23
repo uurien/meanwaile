@@ -62,7 +62,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "release/v${{ steps.bump.outputs.version }}"
           git add package.json package-lock.json
-          git commit -m "chore(release): v${{ steps.bump.outputs.version }}"
+          git commit -m "chore: v${{ steps.bump.outputs.version }}"
           git push origin "release/v${{ steps.bump.outputs.version }}"
 
       - name: Open release PR
@@ -72,5 +72,5 @@ jobs:
           gh pr create \
             --base "${{ github.ref_name }}" \
             --head "release/v${{ steps.bump.outputs.version }}" \
-            --title "chore(release): v${{ steps.bump.outputs.version }}" \
+            --title "chore: v${{ steps.bump.outputs.version }}" \
             --body "Merging this PR builds, tags v${{ steps.bump.outputs.version }}, and publishes it as a GitHub Release (see \`release-publish.yml\`)."
