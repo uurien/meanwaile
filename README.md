@@ -34,6 +34,8 @@ If it gets blocked:
 - **SmartScreen**: click "More info", then "Run anyway".
 - **Antivirus / other security software**: you may need to explicitly allow it, restore it from quarantine, or add an exclusion — check your security software's blocked/quarantine history for the installer and mark it as trusted.
 
+See [CODE_SIGNING.md](CODE_SIGNING.md) for the plan to get the Windows build signed, and how to verify a release once it is.
+
 ## Build & run from source
 
 ```bash
