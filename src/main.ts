@@ -42,12 +42,6 @@ app.dock?.hide();
 // (detached, so it doesn't cover the window it's inspecting).
 const isDev = Boolean(process.env.MEANWAILE_DEV);
 
-// TEMP: timestamped debug logging for the Linux auto-open investigation —
-// remove once the hook → state → auto-open timing is confirmed working.
-function debugLog(...args: unknown[]): void {
-  console.log(`[meanwaile:debug ${new Date().toISOString()}]`, ...args);
-}
-
 // The widget's own size (matches popover.css's #root).
 const POPOVER_WIDTH = 440;
 const POPOVER_HEIGHT = 540;
@@ -183,16 +177,9 @@ function togglePopover(): void {
 // input, which also covers window/Space switches since those require input),
 // surface the popover automatically.
 function maybeAutoOpenPopover(): void {
-  const idleMs = powerMonitor.getSystemIdleTime() * 1000;
-  const thresholdMs = currentSettings.autoOpenDelaySeconds * 1000;
-  const alreadyVisible = !!(popover && !popover.isDestroyed() && popover.isVisible());
-  debugLog('maybeAutoOpenPopover', { alreadyVisible, idleMs, thresholdMs });
-  if (alreadyVisible) return;
-  if (idleMs >= thresholdMs) {
-    debugLog('maybeAutoOpenPopover -> showPopover()');
+  if (popover && !popover.isDestroyed() && popover.isVisible()) return;
+  if (powerMonitor.getSystemIdleTime() * 1000 >= currentSettings.autoOpenDelaySeconds * 1000) {
     showPopover();
-  } else {
-    debugLog('maybeAutoOpenPopover -> not idle long enough yet');
   }
 }
 
@@ -218,7 +205,6 @@ function codexConfigTomlPath(): string {
 
 function startHttpServer(port: number): void {
   httpServer = http.createServer((req, res) => {
-    debugLog('HTTP request', req.method, req.url);
     const targetAdapter = req.url === '/hook' ? adapter : req.url === '/hook/codex' ? codexAdapter : null;
     if (req.method !== 'POST' || !targetAdapter) {
       res.writeHead(404);
@@ -234,7 +220,6 @@ function startHttpServer(port: number): void {
 
       try {
         const body = JSON.parse(raw);
-        debugLog('hook body', body);
         targetAdapter.emit(body);
       } catch {
         console.warn('[hook] could not parse body:', raw);
@@ -444,12 +429,6 @@ async function offerCodexHookBackfillIfNeeded(): Promise<void> {
 }
 
 app.on('ready', async () => {
-  // TEMP: on Linux/Wayland, the very first getSystemIdleTime() call in a
-  // session appears to read 0 regardless of actual idle time (subsequent
-  // calls read correctly) — warm it up here so the real check later isn't
-  // the first call. Remove once confirmed this is (or isn't) the fix.
-  debugLog('warm-up getSystemIdleTime() ->', powerMonitor.getSystemIdleTime());
-
   currentSettings = readSettings(app.getPath('userData'));
 
   await runOnboardingIfNeeded();
@@ -497,16 +476,9 @@ app.on('ready', async () => {
     return result;
   });
 
-  adapter.onEvent((event) => {
-    debugLog('claude-code adapter event', event);
-    machine.handle(event);
-  });
-  codexAdapter.onEvent((event) => {
-    debugLog('codex adapter event', event);
-    machine.handle(event);
-  });
+  adapter.onEvent((event) => machine.handle(event));
+  codexAdapter.onEvent((event) => machine.handle(event));
   machine.onStateChange((snapshot) => {
-    debugLog('state change ->', snapshot.state);
     popover?.webContents.send('state-change', snapshot);
 
     if (autoOpenTimer) {
@@ -514,7 +486,6 @@ app.on('ready', async () => {
       autoOpenTimer = null;
     }
     if (snapshot.state === 'agent_working') {
-      debugLog('arming auto-open timer for', currentSettings.autoOpenDelaySeconds * 1000 + 500, 'ms');
       // setTimeout's clock and the OS's HID-idle clock don't share an origin:
       // by the time this fires at exactly the configured delay, getSystemIdleTime()
       // can read a fraction of a second short because of the delay between the
