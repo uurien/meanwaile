@@ -55,6 +55,11 @@ body {
      no native title bar. Buttons inside it opt back out below so they stay
      clickable instead of starting a drag. */
   -webkit-app-region: drag;
+  cursor: grab;
+}
+
+#header:active {
+  cursor: grabbing;
 }
 
 #header-left {
