@@ -44,6 +44,7 @@ const mocks = vi.hoisted(() => {
     }),
     getBounds: vi.fn(() => ({ x: 100, y: 50, width: 22, height: 22 })),
     popUpContextMenu: vi.fn(),
+    setContextMenu: vi.fn(),
     handlers: trayHandlers,
   };
 

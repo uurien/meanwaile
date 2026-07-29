@@ -8,6 +8,7 @@ This page describes how Meanwaile's release binaries are built, signed, and veri
 |---|---|---|
 | macOS | Yes | Apple Developer ID (notarized) |
 | Windows | Not yet | TBD |
+| Linux | N/A | `.deb` packages aren't code-signed in this project |
 
 Windows installers (`Meanwaile-X.Y.Z Setup.exe`) are unsigned for now; see the [README](README.md#windows) for what that means at install time.
 
@@ -24,7 +25,7 @@ Meanwaile is maintained by a single person. All roles below are currently held b
 ## Build & release process
 
 - Releases are built exclusively from the `main` branch by GitHub Actions (`.github/workflows/release-publish.yml`), triggered only when a `release/vX.Y.Z` branch is merged.
-- macOS and Windows artifacts are built in isolated, ephemeral GitHub-hosted runners — no locally-built binary is ever published as a release asset.
+- macOS, Windows, and Linux artifacts are built in isolated, ephemeral GitHub-hosted runners — no locally-built binary is ever published as a release asset.
 - The release tag and GitHub Release are produced by that same automated pipeline, from the same commit that was built — nothing is re-packaged or modified afterwards.
 
 ### macOS — already signed and notarized
@@ -36,6 +37,10 @@ Meanwaile is maintained by a single person. All roles below are currently held b
 ### Windows — not signed yet
 
 The current `build-windows` job just runs `electron-forge make` and uploads the resulting Squirrel installer unsigned, as-is — that's why the Status table above says "Not yet." No signing provider is set up or planned at this time.
+
+### Linux — not applicable
+
+The `build-linux` job runs `electron-forge make` and uploads the resulting `.deb` unsigned, as-is. Debian packages aren't part of an OS-level code-signing/notarization system the way macOS and Windows binaries are (there's no vendor authority to sign against for a standalone `.deb`), so this is expected to stay unsigned rather than a gap to close — unlike Windows, there's no "Not yet" here.
 
 ## Security practices
 

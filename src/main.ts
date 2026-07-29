@@ -23,6 +23,7 @@ import {
 } from './codex-settings';
 import { ensureCodexHooksFeatureEnabled } from './codex-config';
 import { AppSettings, DEFAULT_SETTINGS, readSettings, writeSettings, validateSettings } from './settings-store';
+import { trayIconFileName, shouldPersistContextMenu } from './tray-platform';
 
 // Squirrel.Windows relaunches the app with --squirrel-install/-updated/
 // -uninstall/-obsolete during install/update/uninstall so it can create or
@@ -434,7 +435,7 @@ app.on('ready', async () => {
   await offerHookBackfillIfNeeded();
   await offerCodexHookBackfillIfNeeded();
 
-  const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
+  const iconPath = path.join(__dirname, '..', 'assets', trayIconFileName(process.platform));
   const icon = nativeImage.createFromPath(iconPath);
   icon.setTemplateImage(true);
 
@@ -442,10 +443,24 @@ app.on('ready', async () => {
   tray.setToolTip('Meanwaile');
 
   const contextMenu = Menu.buildFromTemplate([
+    // AppIndicator-based Linux trays never emit 'click'/'right-click' at
+    // all — the context menu is the only way to interact with them, so
+    // give it an explicit way in.
+    { label: 'Open Meanwaile', click: togglePopover },
+    { type: 'separator' },
     { label: 'Exit', click: () => app.quit() },
   ]);
   tray.on('click', togglePopover);
   tray.on('right-click', () => tray!.popUpContextMenu(contextMenu));
+  // AppIndicator/StatusNotifierItem trays (GNOME/Ubuntu and most Linux
+  // desktops) don't emit 'click'/'right-click' JS events at all — the shell
+  // manages clicks itself and only knows how to show a menu registered via
+  // setContextMenu(). Doing this on macOS/Windows too would hijack every
+  // click into showing the menu instead of toggling the popover, so it's
+  // gated to the platforms that actually need it.
+  if (shouldPersistContextMenu(process.platform)) {
+    tray.setContextMenu(contextMenu);
+  }
 
   popover = createPopover();
 

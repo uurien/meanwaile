@@ -58,8 +58,8 @@ Meanwaile has a deliberately narrow product philosophy. PRs that work but go aga
 
 ## Scope
 
-macOS only for now — no Linux/Windows code paths yet. If you want to work on a new platform, open an issue first to coordinate before sending a PR.
+macOS, Windows, and Ubuntu (Linux) are officially supported. On Ubuntu under Wayland, the tray popover opens wherever GNOME/Mutter places it rather than near the tray icon — a known Wayland limitation, not a bug (see `AGENTS.md`). If you want to work on a new platform, open an issue first to coordinate before sending a PR.
 
 ## Reporting bugs / proposing features
 
-Open an issue. For bugs, include: macOS version, Meanwaile version, which coding agent/adapter you were using, and steps to reproduce. For features, explain the use case before jumping to implementation — see the product constraints above first, since a lot of "obvious" features (notifications, integrations, deeper game progression) are intentionally out of scope.
+Open an issue. For bugs, include: OS and version (e.g. macOS 14, Windows 11, Ubuntu 24.04), Meanwaile version, which coding agent/adapter you were using, and steps to reproduce. For features, explain the use case before jumping to implementation — see the product constraints above first, since a lot of "obvious" features (notifications, integrations, deeper game progression) are intentionally out of scope.

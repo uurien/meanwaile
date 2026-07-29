@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { shouldPersistContextMenu } from '../src/tray-platform';
 
 // ─── Hoisted mock state ────────────────────────────────────────────────────
 const mocks = vi.hoisted(() => {
@@ -30,6 +31,7 @@ const mocks = vi.hoisted(() => {
     }),
     getBounds: vi.fn(() => ({ x: 100, y: 50, width: 22, height: 22 })),
     popUpContextMenu: vi.fn(),
+    setContextMenu: vi.fn(),
     handlers: trayHandlers,
   };
 
@@ -540,10 +542,26 @@ describe('app ready handler', () => {
     expect(mocks.tray.popUpContextMenu).toHaveBeenCalled();
   });
 
+  it('persists the context menu via tray.setContextMenu() exactly when shouldPersistContextMenu(process.platform) says so (AppIndicator/Linux never emits click or right-click at all)', () => {
+    if (shouldPersistContextMenu(process.platform)) {
+      expect(mocks.tray.setContextMenu).toHaveBeenCalledWith(expect.anything());
+    } else {
+      expect(mocks.tray.setContextMenu).not.toHaveBeenCalled();
+    }
+  });
+
   it('context menu "Exit" click calls app.quit', () => {
-    const [items] = vi.mocked(mocks.Menu.buildFromTemplate).mock.calls[0] as [{ click: () => void }[]];
-    items[0].click();
+    const [items] = vi.mocked(mocks.Menu.buildFromTemplate).mock.calls[0] as [{ click?: () => void }[]];
+    items[items.length - 1].click!();
     expect(mocks.app.quit).toHaveBeenCalled();
+  });
+
+  it('context menu "Open Meanwaile" click toggles the popover — the fallback for Linux desktop environments where the tray icon does not emit a click event', () => {
+    const [items] = vi.mocked(mocks.Menu.buildFromTemplate).mock.calls[0] as [{ click?: () => void }[]];
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+    items[0].click!();
+    expect(mocks.win.show).toHaveBeenCalled();
   });
 });
 
@@ -1066,5 +1084,39 @@ describe('app lifecycle', () => {
   it('before-quit closes the HTTP server', () => {
     triggerApp('before-quit');
     expect(mocks.server.close).toHaveBeenCalled();
+  });
+});
+
+// The 'ready' handler reads process.platform at call time (not at module
+// load time), so re-triggering it with process.platform stubbed exercises
+// both sides of shouldPersistContextMenu(process.platform) regardless of
+// which OS actually runs this suite. Without this, CI running the same
+// coverage-gated tests on macOS/Windows/Linux can only ever take one branch
+// for real, permanently failing the 100% threshold on two of the three.
+// Must run last: re-triggering 'ready' recreates the tray/popover against
+// the same mocks, which would perturb call-count assertions in earlier tests.
+describe('context menu persistence across platforms (coverage safety net)', () => {
+  const originalPlatform = process.platform;
+
+  afterEach(() => {
+    Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+  });
+
+  it('calls tray.setContextMenu() when the platform is linux, independent of the host OS running this test', async () => {
+    Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+    mocks.tray.setContextMenu.mockClear();
+
+    await triggerApp('ready');
+
+    expect(mocks.tray.setContextMenu).toHaveBeenCalledWith(expect.anything());
+  });
+
+  it('does not call tray.setContextMenu() when the platform is darwin, independent of the host OS running this test', async () => {
+    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+    mocks.tray.setContextMenu.mockClear();
+
+    await triggerApp('ready');
+
+    expect(mocks.tray.setContextMenu).not.toHaveBeenCalled();
   });
 });

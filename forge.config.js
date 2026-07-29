@@ -59,5 +59,21 @@ module.exports = {
         // Windows-support follow-ups (code signing, CI job).
       },
     },
+    {
+      name: '@electron-forge/maker-deb',
+      config: {
+        options: {
+          name: 'meanwaile',
+          // The packaged executable is named after packagerConfig.name
+          // ("Meanwaile", capitalized) — electron-installer-debian defaults
+          // `bin` to the lowercase `name` above, which doesn't match and
+          // makes packaging fail looking for a binary that doesn't exist.
+          bin: 'Meanwaile',
+          productName: 'Meanwaile',
+          icon: './assets/app-icon.png',
+          categories: ['Utility'],
+        },
+      },
+    },
   ],
 };

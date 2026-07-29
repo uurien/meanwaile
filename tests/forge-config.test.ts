@@ -34,6 +34,22 @@ describe('forge.config', () => {
     expect(squirrelMaker.config.setupIcon).toBeTruthy();
   });
 
+  it('builds a Debian (.deb) installer with the app icon for Linux', async () => {
+    const mod = await import('../forge.config.js');
+    const config = mod.default ?? mod;
+    const debMaker = config.makers.find((m) => m.name === '@electron-forge/maker-deb');
+    expect(debMaker).toBeTruthy();
+    expect(debMaker.config.options.icon).toBeTruthy();
+    expect(debMaker.config.options.categories).toContain('Utility');
+  });
+
+  it('points the .deb at the actual packaged binary name ("Meanwaile", not the lowercase package name)', async () => {
+    const mod = await import('../forge.config.js');
+    const config = mod.default ?? mod;
+    const debMaker = config.makers.find((m) => m.name === '@electron-forge/maker-deb');
+    expect(debMaker.config.options.bin).toBe(config.packagerConfig.name);
+  });
+
   it('signs ad-hoc and skips notarization without Apple credentials', async () => {
     delete process.env.APPLE_TEAM_ID;
     const mod = await import('../forge.config.js');
