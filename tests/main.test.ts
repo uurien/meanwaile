@@ -1086,3 +1086,37 @@ describe('app lifecycle', () => {
     expect(mocks.server.close).toHaveBeenCalled();
   });
 });
+
+// The 'ready' handler reads process.platform at call time (not at module
+// load time), so re-triggering it with process.platform stubbed exercises
+// both sides of shouldPersistContextMenu(process.platform) regardless of
+// which OS actually runs this suite. Without this, CI running the same
+// coverage-gated tests on macOS/Windows/Linux can only ever take one branch
+// for real, permanently failing the 100% threshold on two of the three.
+// Must run last: re-triggering 'ready' recreates the tray/popover against
+// the same mocks, which would perturb call-count assertions in earlier tests.
+describe('context menu persistence across platforms (coverage safety net)', () => {
+  const originalPlatform = process.platform;
+
+  afterEach(() => {
+    Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+  });
+
+  it('calls tray.setContextMenu() when the platform is linux, independent of the host OS running this test', async () => {
+    Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+    mocks.tray.setContextMenu.mockClear();
+
+    await triggerApp('ready');
+
+    expect(mocks.tray.setContextMenu).toHaveBeenCalledWith(expect.anything());
+  });
+
+  it('does not call tray.setContextMenu() when the platform is darwin, independent of the host OS running this test', async () => {
+    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+    mocks.tray.setContextMenu.mockClear();
+
+    await triggerApp('ready');
+
+    expect(mocks.tray.setContextMenu).not.toHaveBeenCalled();
+  });
+});
