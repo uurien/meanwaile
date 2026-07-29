@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { shouldPersistContextMenu } from '../src/tray-platform';
 
 // ─── Hoisted mock state ────────────────────────────────────────────────────
 const mocks = vi.hoisted(() => {
@@ -30,6 +31,7 @@ const mocks = vi.hoisted(() => {
     }),
     getBounds: vi.fn(() => ({ x: 100, y: 50, width: 22, height: 22 })),
     popUpContextMenu: vi.fn(),
+    setContextMenu: vi.fn(),
     handlers: trayHandlers,
   };
 
@@ -540,10 +542,26 @@ describe('app ready handler', () => {
     expect(mocks.tray.popUpContextMenu).toHaveBeenCalled();
   });
 
+  it('persists the context menu via tray.setContextMenu() exactly when shouldPersistContextMenu(process.platform) says so (AppIndicator/Linux never emits click or right-click at all)', () => {
+    if (shouldPersistContextMenu(process.platform)) {
+      expect(mocks.tray.setContextMenu).toHaveBeenCalledWith(expect.anything());
+    } else {
+      expect(mocks.tray.setContextMenu).not.toHaveBeenCalled();
+    }
+  });
+
   it('context menu "Exit" click calls app.quit', () => {
-    const [items] = vi.mocked(mocks.Menu.buildFromTemplate).mock.calls[0] as [{ click: () => void }[]];
-    items[0].click();
+    const [items] = vi.mocked(mocks.Menu.buildFromTemplate).mock.calls[0] as [{ click?: () => void }[]];
+    items[items.length - 1].click!();
     expect(mocks.app.quit).toHaveBeenCalled();
+  });
+
+  it('context menu "Open Meanwaile" click toggles the popover — the fallback for Linux desktop environments where the tray icon does not emit a click event', () => {
+    const [items] = vi.mocked(mocks.Menu.buildFromTemplate).mock.calls[0] as [{ click?: () => void }[]];
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+    items[0].click!();
+    expect(mocks.win.show).toHaveBeenCalled();
   });
 });
 

@@ -23,6 +23,7 @@ import {
 } from './codex-settings';
 import { ensureCodexHooksFeatureEnabled } from './codex-config';
 import { AppSettings, DEFAULT_SETTINGS, readSettings, writeSettings, validateSettings } from './settings-store';
+import { trayIconFileName, shouldPersistContextMenu } from './tray-platform';
 
 // Squirrel.Windows relaunches the app with --squirrel-install/-updated/
 // -uninstall/-obsolete during install/update/uninstall so it can create or
@@ -40,6 +41,12 @@ app.dock?.hide();
 // `npm run dev` sets this so every window opens with its DevTools attached
 // (detached, so it doesn't cover the window it's inspecting).
 const isDev = Boolean(process.env.MEANWAILE_DEV);
+
+// TEMP: timestamped debug logging for the Linux auto-open investigation —
+// remove once the hook → state → auto-open timing is confirmed working.
+function debugLog(...args: unknown[]): void {
+  console.log(`[meanwaile:debug ${new Date().toISOString()}]`, ...args);
+}
 
 // The widget's own size (matches popover.css's #root).
 const POPOVER_WIDTH = 440;
@@ -176,9 +183,16 @@ function togglePopover(): void {
 // input, which also covers window/Space switches since those require input),
 // surface the popover automatically.
 function maybeAutoOpenPopover(): void {
-  if (popover && !popover.isDestroyed() && popover.isVisible()) return;
-  if (powerMonitor.getSystemIdleTime() * 1000 >= currentSettings.autoOpenDelaySeconds * 1000) {
+  const idleMs = powerMonitor.getSystemIdleTime() * 1000;
+  const thresholdMs = currentSettings.autoOpenDelaySeconds * 1000;
+  const alreadyVisible = !!(popover && !popover.isDestroyed() && popover.isVisible());
+  debugLog('maybeAutoOpenPopover', { alreadyVisible, idleMs, thresholdMs });
+  if (alreadyVisible) return;
+  if (idleMs >= thresholdMs) {
+    debugLog('maybeAutoOpenPopover -> showPopover()');
     showPopover();
+  } else {
+    debugLog('maybeAutoOpenPopover -> not idle long enough yet');
   }
 }
 
@@ -204,6 +218,7 @@ function codexConfigTomlPath(): string {
 
 function startHttpServer(port: number): void {
   httpServer = http.createServer((req, res) => {
+    debugLog('HTTP request', req.method, req.url);
     const targetAdapter = req.url === '/hook' ? adapter : req.url === '/hook/codex' ? codexAdapter : null;
     if (req.method !== 'POST' || !targetAdapter) {
       res.writeHead(404);
@@ -219,6 +234,7 @@ function startHttpServer(port: number): void {
 
       try {
         const body = JSON.parse(raw);
+        debugLog('hook body', body);
         targetAdapter.emit(body);
       } catch {
         console.warn('[hook] could not parse body:', raw);
@@ -428,13 +444,19 @@ async function offerCodexHookBackfillIfNeeded(): Promise<void> {
 }
 
 app.on('ready', async () => {
+  // TEMP: on Linux/Wayland, the very first getSystemIdleTime() call in a
+  // session appears to read 0 regardless of actual idle time (subsequent
+  // calls read correctly) — warm it up here so the real check later isn't
+  // the first call. Remove once confirmed this is (or isn't) the fix.
+  debugLog('warm-up getSystemIdleTime() ->', powerMonitor.getSystemIdleTime());
+
   currentSettings = readSettings(app.getPath('userData'));
 
   await runOnboardingIfNeeded();
   await offerHookBackfillIfNeeded();
   await offerCodexHookBackfillIfNeeded();
 
-  const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
+  const iconPath = path.join(__dirname, '..', 'assets', trayIconFileName(process.platform));
   const icon = nativeImage.createFromPath(iconPath);
   icon.setTemplateImage(true);
 
@@ -442,10 +464,24 @@ app.on('ready', async () => {
   tray.setToolTip('Meanwaile');
 
   const contextMenu = Menu.buildFromTemplate([
+    // AppIndicator-based Linux trays never emit 'click'/'right-click' at
+    // all — the context menu is the only way to interact with them, so
+    // give it an explicit way in.
+    { label: 'Open Meanwaile', click: togglePopover },
+    { type: 'separator' },
     { label: 'Exit', click: () => app.quit() },
   ]);
   tray.on('click', togglePopover);
   tray.on('right-click', () => tray!.popUpContextMenu(contextMenu));
+  // AppIndicator/StatusNotifierItem trays (GNOME/Ubuntu and most Linux
+  // desktops) don't emit 'click'/'right-click' JS events at all — the shell
+  // manages clicks itself and only knows how to show a menu registered via
+  // setContextMenu(). Doing this on macOS/Windows too would hijack every
+  // click into showing the menu instead of toggling the popover, so it's
+  // gated to the platforms that actually need it.
+  if (shouldPersistContextMenu(process.platform)) {
+    tray.setContextMenu(contextMenu);
+  }
 
   popover = createPopover();
 
@@ -461,9 +497,16 @@ app.on('ready', async () => {
     return result;
   });
 
-  adapter.onEvent((event) => machine.handle(event));
-  codexAdapter.onEvent((event) => machine.handle(event));
+  adapter.onEvent((event) => {
+    debugLog('claude-code adapter event', event);
+    machine.handle(event);
+  });
+  codexAdapter.onEvent((event) => {
+    debugLog('codex adapter event', event);
+    machine.handle(event);
+  });
   machine.onStateChange((snapshot) => {
+    debugLog('state change ->', snapshot.state);
     popover?.webContents.send('state-change', snapshot);
 
     if (autoOpenTimer) {
@@ -471,6 +514,7 @@ app.on('ready', async () => {
       autoOpenTimer = null;
     }
     if (snapshot.state === 'agent_working') {
+      debugLog('arming auto-open timer for', currentSettings.autoOpenDelaySeconds * 1000 + 500, 'ms');
       // setTimeout's clock and the OS's HID-idle clock don't share an origin:
       // by the time this fires at exactly the configured delay, getSystemIdleTime()
       // can read a fraction of a second short because of the delay between the
