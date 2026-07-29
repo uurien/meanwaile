@@ -53,13 +53,10 @@ body {
   padding: 22px 24px 14px 24px;
   /* Lets the frameless BrowserWindow be dragged by its header, since it has
      no native title bar. Buttons inside it opt back out below so they stay
-     clickable instead of starting a drag. */
+     clickable instead of starting a drag. app-region:drag areas ignore
+     pointer events entirely (the OS handles the drag), so `cursor` here
+     would have no effect - the default arrow is what Electron apps show. */
   -webkit-app-region: drag;
-  cursor: grab;
-}
-
-#header:active {
-  cursor: grabbing;
 }
 
 #header-left {
