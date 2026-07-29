@@ -16,7 +16,7 @@ Working end to end: the hook server, agent adapters for Claude Code and Codex, s
 
 ## Requirements
 
-- macOS 13+ or Windows 10/11
+- macOS 13+, Windows 10/11, or Ubuntu (64-bit, via the `.deb` package)
 - To build from source or contribute: Node.js 24+ (only needed for `npm install` / `npm start` / running tests — the packaged app bundles its own Node/Electron runtime, so an installed build doesn't need Node at all)
 
 ## Install
@@ -35,6 +35,16 @@ If it gets blocked:
 - **Antivirus / other security software**: you may need to explicitly allow it, restore it from quarantine, or add an exclusion — check your security software's blocked/quarantine history for the installer and mark it as trusted.
 
 See [CODE_SIGNING.md](CODE_SIGNING.md) for the plan to get the Windows build signed, and how to verify a release once it is.
+
+### Linux (Ubuntu)
+
+Download the latest `meanwaile_X.Y.Z_amd64.deb` from [Releases](https://github.com/uurien/meanwaile/releases) and install it with:
+
+```bash
+sudo dpkg -i meanwaile_X.Y.Z_amd64.deb
+```
+
+Tray support is tested on Ubuntu; other distros/desktop environments aren't verified. One known caveat: under GNOME's native Wayland backend, the popup opens wherever the compositor places it (observed top-left) rather than near the tray icon — this is a Wayland limitation, not a bug in the app.
 
 ## Build & run from source
 
