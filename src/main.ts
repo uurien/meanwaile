@@ -23,6 +23,7 @@ import {
 } from './codex-settings';
 import { ensureCodexHooksFeatureEnabled } from './codex-config';
 import { AppSettings, DEFAULT_SETTINGS, readSettings, writeSettings, validateSettings } from './settings-store';
+import { readPosition as readWindowPosition, savePosition as saveWindowPosition } from './window-position-store';
 import { trayIconFileName, shouldPersistContextMenu } from './tray-platform';
 
 // Squirrel.Windows relaunches the app with --squirrel-install/-updated/
@@ -52,6 +53,9 @@ let settingsWindow: BrowserWindow | null = null;
 let httpServer: http.Server | null = null;
 let autoOpenTimer: ReturnType<typeof setTimeout> | null = null;
 let currentSettings: AppSettings = { ...DEFAULT_SETTINGS };
+// The user's last dragged popover position, if any. Once set, showPopover()
+// reopens there instead of recomputing a position relative to the tray icon.
+let windowPosition: { x: number; y: number } | null = null;
 
 const adapter = new ClaudeCodeAdapter();
 const codexAdapter = new CodexAdapter();
@@ -103,6 +107,21 @@ function createPopover(): BrowserWindow {
   });
   win.on('closed', () => { popover = null; });
 
+  // 'move' fires continuously while the window is being dragged (on Windows
+  // and Linux; macOS fires it once). Debounce so a drag only writes to disk
+  // once it settles, not on every intermediate frame.
+  let moveTimer: ReturnType<typeof setTimeout> | null = null;
+  win.on('move', () => {
+    if (moveTimer) clearTimeout(moveTimer);
+    moveTimer = setTimeout(() => {
+      moveTimer = null;
+      if (win.isDestroyed()) return;
+      const { x, y } = win.getBounds();
+      windowPosition = { x, y };
+      saveWindowPosition(app.getPath('userData'), windowPosition);
+    }, 300);
+  });
+
   return win;
 }
 
@@ -138,12 +157,14 @@ function showPopover(): void {
     popover = createPopover();
   }
 
-  const trayBounds = tray.getBounds();
-  const winBounds = popover.getBounds();
-
-  const { x, y } = popoverPosition(trayBounds, winBounds);
-
-  popover.setPosition(x, y);
+  if (windowPosition) {
+    popover.setPosition(windowPosition.x, windowPosition.y);
+  } else {
+    const trayBounds = tray.getBounds();
+    const winBounds = popover.getBounds();
+    const { x, y } = popoverPosition(trayBounds, winBounds);
+    popover.setPosition(x, y);
+  }
   // Toggle visibleOnAllWorkspaces on just for the show() call so macOS places
   // the window on the currently active Space rather than the Space it was
   // last shown on. Leaving it permanently true stops the toggle from
@@ -430,6 +451,7 @@ async function offerCodexHookBackfillIfNeeded(): Promise<void> {
 
 app.on('ready', async () => {
   currentSettings = readSettings(app.getPath('userData'));
+  windowPosition = readWindowPosition(app.getPath('userData'));
 
   await runOnboardingIfNeeded();
   await offerHookBackfillIfNeeded();

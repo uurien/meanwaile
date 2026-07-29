@@ -51,6 +51,10 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 22px 24px 14px 24px;
+  /* Lets the frameless BrowserWindow be dragged by its header, since it has
+     no native title bar. Buttons inside it opt back out below so they stay
+     clickable instead of starting a drag. */
+  -webkit-app-region: drag;
 }
 
 #header-left {
@@ -80,6 +84,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  -webkit-app-region: no-drag;
 }
 
 #settings-btn {

@@ -95,6 +95,8 @@ const mocks = vi.hoisted(() => {
   const DEFAULT_SETTINGS = { httpPort: 3821, autoOpenDelaySeconds: 15 };
   const readSettings = vi.fn(() => ({ ...DEFAULT_SETTINGS }));
   const writeSettings = vi.fn();
+  const readWindowPosition = vi.fn(() => null as { x: number; y: number } | null);
+  const saveWindowPosition = vi.fn();
   const validateSettings = vi.fn((input: Record<string, unknown>) => {
     const httpPort = Number(input.httpPort);
     const autoOpenDelaySeconds = Number(input.autoOpenDelaySeconds);
@@ -134,6 +136,8 @@ const mocks = vi.hoisted(() => {
     readSettings,
     writeSettings,
     validateSettings,
+    readWindowPosition,
+    saveWindowPosition,
     BrowserWindow: vi.fn(() => win),
     Tray: vi.fn(() => tray),
     Menu: { buildFromTemplate: vi.fn(() => ({})) },
@@ -190,6 +194,11 @@ vi.mock('../src/settings-store', () => ({
   readSettings: mocks.readSettings,
   writeSettings: mocks.writeSettings,
   validateSettings: mocks.validateSettings,
+}));
+
+vi.mock('../src/window-position-store', () => ({
+  readPosition: mocks.readWindowPosition,
+  savePosition: mocks.saveWindowPosition,
 }));
 
 import '../src/main';
@@ -531,10 +540,15 @@ describe('app ready handler', () => {
     expect(mocks.server.listen).toHaveBeenCalled();
   });
 
-  it('registers blur/focus/closed on the window', () => {
+  it('registers blur/focus/closed/move on the window', () => {
     expect(mocks.win.handlers['blur']).toBeTypeOf('function');
     expect(mocks.win.handlers['focus']).toBeTypeOf('function');
     expect(mocks.win.handlers['closed']).toBeTypeOf('function');
+    expect(mocks.win.handlers['move']).toBeTypeOf('function');
+  });
+
+  it('loads the persisted window position on startup', () => {
+    expect(mocks.readWindowPosition).toHaveBeenCalledWith('/fake/userData');
   });
 
   it('right-click shows context menu', () => {
@@ -665,6 +679,39 @@ describe('togglePopover / showPopover', () => {
     const [x] = mocks.win.setPosition.mock.calls.at(-1)!;
     expect(x).toBeLessThanOrEqual(1440 - 440);
     expect(x).toBeGreaterThanOrEqual(0);
+  });
+
+  it('persists the window position after it settles, debouncing rapid move events from a single drag', () => {
+    vi.useFakeTimers();
+    mocks.win.getBounds.mockReturnValueOnce({ x: 250, y: 380, width: 440, height: 540 });
+    mocks.saveWindowPosition.mockClear();
+
+    triggerWin('move');
+    triggerWin('move');
+    vi.advanceTimersByTime(50);
+    expect(mocks.saveWindowPosition).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(500);
+    expect(mocks.saveWindowPosition).toHaveBeenCalledTimes(1);
+    expect(mocks.saveWindowPosition).toHaveBeenCalledWith('/fake/userData', { x: 250, y: 380 });
+
+    vi.useRealTimers();
+  });
+
+  it('opens the popover at the last dragged position instead of recomputing it from the tray icon', () => {
+    vi.useFakeTimers();
+    mocks.win.getBounds.mockReturnValueOnce({ x: 900, y: 120, width: 440, height: 540 });
+    triggerWin('move');
+    vi.advanceTimersByTime(500);
+    vi.useRealTimers();
+
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.setPosition.mockClear();
+    mocks.tray.getBounds.mockClear();
+
+    triggerTray('click');
+
+    expect(mocks.win.setPosition).toHaveBeenCalledWith(900, 120);
   });
 
   it('re-enables visibleOnAllWorkspaces on show so the next show lands on the active Space', () => {
