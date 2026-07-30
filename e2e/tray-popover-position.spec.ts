@@ -16,7 +16,11 @@ test.describe('tray click opens the popover in the right place', () => {
 
   test.beforeAll(async () => {
     electronApp = await electron.launch({
-      args: [path.join(__dirname, '..', 'dist', 'main.js')],
+      // --no-sandbox: GitHub Actions' ubuntu-latest runners restrict
+      // unprivileged user namespaces (AppArmor), which Electron's Chromium
+      // sandbox needs - without this flag the app hangs on launch under
+      // Xvfb until the test times out, instead of actually starting.
+      args: [path.join(__dirname, '..', 'dist', 'main.js'), '--no-sandbox'],
       env: { ...process.env, MEANWAILE_E2E: '1' },
     });
     popoverPage = await electronApp.firstWindow();
