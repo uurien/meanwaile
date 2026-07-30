@@ -30,17 +30,15 @@ test.describe('tray click opens the popover in the right place', () => {
     await electronApp.close();
   });
 
-  // Attaches a screenshot of the popover to the HTML report whenever the
-  // test fails, so a visual regression (wrong position, blank/black window,
-  // etc.) can be inspected without reproducing it locally - the report is
-  // uploaded as a downloadable CI artifact (see ci.yml).
+  // TEMP: attaching on every run (not just failures) so we can eyeball the
+  // popover once in CI. Revert to the failure-only check below once confirmed.
+  // if (testInfo.status === testInfo.expectedStatus) return;
   test.afterEach(async ({}, testInfo) => {
-    if (testInfo.status === testInfo.expectedStatus) return;
     try {
       const screenshot = await popoverPage.screenshot();
       await testInfo.attach('popover-screenshot', { body: screenshot, contentType: 'image/png' });
     } catch (err) {
-      console.warn('[e2e] could not capture failure screenshot:', err);
+      console.warn('[e2e] could not capture screenshot:', err);
     }
   });
 
