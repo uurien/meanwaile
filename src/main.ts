@@ -130,6 +130,22 @@ function popoverPosition(
   return { x, y };
 }
 
+// AppIndicator/StatusNotifierItem trays report zeroed-out bounds on Linux
+// regardless of X11 vs Wayland (they're managed over D-Bus, not exposed to
+// the app - see AGENTS.md), so tray-relative placement above is meaningless
+// there. Skip it and just open at the work area's top-right corner, where
+// menu-bar-style tray icons conventionally live. This only benefits X11
+// sessions - setPosition() is a no-op under GNOME's native Wayland backend
+// regardless of what position we compute (also documented in AGENTS.md).
+function topRightPosition(winBounds: { width: number; height: number }): { x: number; y: number } {
+  const { workArea } = screen.getPrimaryDisplay();
+  const margin = 8;
+  return {
+    x: Math.round(workArea.x + workArea.width - winBounds.width - margin),
+    y: Math.round(workArea.y + margin),
+  };
+}
+
 function showPopover(): void {
   /* v8 ignore next */
   if (!tray) return;
@@ -138,10 +154,8 @@ function showPopover(): void {
     popover = createPopover();
   }
 
-  const trayBounds = tray.getBounds();
   const winBounds = popover.getBounds();
-
-  const { x, y } = popoverPosition(trayBounds, winBounds);
+  const { x, y } = process.platform === 'linux' ? topRightPosition(winBounds) : popoverPosition(tray.getBounds(), winBounds);
 
   popover.setPosition(x, y);
   // Toggle visibleOnAllWorkspaces on just for the show() call so macOS places
