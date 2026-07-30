@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => {
 
   const screen = {
     getDisplayMatching: vi.fn(() => ({ workArea: { x: 0, y: 0, width: 1440, height: 900 } })),
+    getPrimaryDisplay: vi.fn(() => ({ workArea: { x: 0, y: 0, width: 1440, height: 900 } })),
   };
 
   const appHandlers: Record<string, (...a: unknown[]) => void> = {};
@@ -626,45 +627,77 @@ describe('togglePopover / showPopover', () => {
     mocks.win.isDestroyed.mockReturnValue(false);
   });
 
-  it('opens the popover above the tray icon when the tray sits in the lower half of the display (Windows-style taskbar)', () => {
-    mocks.tray.getBounds.mockReturnValueOnce({ x: 700, y: 860, width: 22, height: 22 });
-    mocks.screen.getDisplayMatching.mockReturnValueOnce({ workArea: { x: 0, y: 0, width: 1440, height: 900 } });
-    mocks.win.getBounds.mockReturnValueOnce({ width: 440, height: 540 });
-    mocks.win.isVisible.mockReturnValue(false);
-    mocks.win.setPosition.mockClear();
+  // These three exercise popoverPosition(), the tray-relative placement used
+  // on macOS/Windows - Linux takes the topRightPosition() branch instead
+  // (AppIndicator tray bounds are meaningless there, see its comment), so
+  // stub the platform to a non-Linux value regardless of the host actually
+  // running this suite.
+  describe('tray-relative placement on macOS/Windows', () => {
+    const originalPlatform = process.platform;
 
-    triggerTray('click');
+    beforeEach(() => {
+      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+    });
 
-    const [, y] = mocks.win.setPosition.mock.calls.at(-1)!;
-    expect(y).toBeLessThan(860);
-    expect(y).toBe(860 - 540 - 4);
+    afterEach(() => {
+      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+    });
+
+    it('opens the popover above the tray icon when the tray sits in the lower half of the display (Windows-style taskbar)', () => {
+      mocks.tray.getBounds.mockReturnValueOnce({ x: 700, y: 860, width: 22, height: 22 });
+      mocks.screen.getDisplayMatching.mockReturnValueOnce({ workArea: { x: 0, y: 0, width: 1440, height: 900 } });
+      mocks.win.getBounds.mockReturnValueOnce({ width: 440, height: 540 });
+      mocks.win.isVisible.mockReturnValue(false);
+      mocks.win.setPosition.mockClear();
+
+      triggerTray('click');
+
+      const [, y] = mocks.win.setPosition.mock.calls.at(-1)!;
+      expect(y).toBeLessThan(860);
+      expect(y).toBe(860 - 540 - 4);
+    });
+
+    it('opens the popover below the tray icon when the tray sits in the upper half of the display (macOS menu bar)', () => {
+      mocks.tray.getBounds.mockReturnValueOnce({ x: 700, y: 10, width: 22, height: 22 });
+      mocks.screen.getDisplayMatching.mockReturnValueOnce({ workArea: { x: 0, y: 0, width: 1440, height: 900 } });
+      mocks.win.getBounds.mockReturnValueOnce({ width: 440, height: 540 });
+      mocks.win.isVisible.mockReturnValue(false);
+      mocks.win.setPosition.mockClear();
+
+      triggerTray('click');
+
+      const [, y] = mocks.win.setPosition.mock.calls.at(-1)!;
+      expect(y).toBe(10 + 22 + 4);
+    });
+
+    it('clamps the popover horizontally so it never overflows the display work area', () => {
+      mocks.tray.getBounds.mockReturnValueOnce({ x: 1420, y: 860, width: 22, height: 22 });
+      mocks.screen.getDisplayMatching.mockReturnValueOnce({ workArea: { x: 0, y: 0, width: 1440, height: 900 } });
+      mocks.win.getBounds.mockReturnValueOnce({ width: 440, height: 540 });
+      mocks.win.isVisible.mockReturnValue(false);
+      mocks.win.setPosition.mockClear();
+
+      triggerTray('click');
+
+      const [x] = mocks.win.setPosition.mock.calls.at(-1)!;
+      expect(x).toBeLessThanOrEqual(1440 - 440);
+      expect(x).toBeGreaterThanOrEqual(0);
+    });
   });
 
-  it('opens the popover below the tray icon when the tray sits in the upper half of the display (macOS menu bar)', () => {
-    mocks.tray.getBounds.mockReturnValueOnce({ x: 700, y: 10, width: 22, height: 22 });
-    mocks.screen.getDisplayMatching.mockReturnValueOnce({ workArea: { x: 0, y: 0, width: 1440, height: 900 } });
+  it('opens the popover at the work area\'s top-right corner on Linux, ignoring the (unreliable) AppIndicator tray bounds', () => {
+    const originalPlatform = process.platform;
+    Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+
+    mocks.screen.getPrimaryDisplay.mockReturnValueOnce({ workArea: { x: 0, y: 0, width: 1440, height: 900 } });
     mocks.win.getBounds.mockReturnValueOnce({ width: 440, height: 540 });
     mocks.win.isVisible.mockReturnValue(false);
     mocks.win.setPosition.mockClear();
 
     triggerTray('click');
 
-    const [, y] = mocks.win.setPosition.mock.calls.at(-1)!;
-    expect(y).toBe(10 + 22 + 4);
-  });
-
-  it('clamps the popover horizontally so it never overflows the display work area', () => {
-    mocks.tray.getBounds.mockReturnValueOnce({ x: 1420, y: 860, width: 22, height: 22 });
-    mocks.screen.getDisplayMatching.mockReturnValueOnce({ workArea: { x: 0, y: 0, width: 1440, height: 900 } });
-    mocks.win.getBounds.mockReturnValueOnce({ width: 440, height: 540 });
-    mocks.win.isVisible.mockReturnValue(false);
-    mocks.win.setPosition.mockClear();
-
-    triggerTray('click');
-
-    const [x] = mocks.win.setPosition.mock.calls.at(-1)!;
-    expect(x).toBeLessThanOrEqual(1440 - 440);
-    expect(x).toBeGreaterThanOrEqual(0);
+    expect(mocks.win.setPosition).toHaveBeenCalledWith(1440 - 440 - 8, 8);
+    Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
   });
 
   it('re-enables visibleOnAllWorkspaces on show so the next show lands on the active Space', () => {
