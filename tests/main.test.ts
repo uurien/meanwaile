@@ -386,6 +386,18 @@ describe('first-run onboarding', () => {
     expect(mocks.markOnboarded).not.toHaveBeenCalled();
   });
 
+  it('skips onboarding entirely when MEANWAILE_E2E is set, even on a fresh userData dir', async () => {
+    process.env.MEANWAILE_E2E = '1';
+    try {
+      await triggerApp('ready');
+    } finally {
+      delete process.env.MEANWAILE_E2E;
+    }
+
+    expect(mocks.dialog.showMessageBox).not.toHaveBeenCalled();
+    expect(mocks.markOnboarded).not.toHaveBeenCalled();
+  });
+
 });
 
 describe('hook backfill for already-onboarded users', () => {
