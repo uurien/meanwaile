@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { _electron as electron, type ElectronApplication, type Page } from 'playwright-core';
+import { _electron as electron, type ElectronApplication } from 'playwright-core';
+import { execFileSync } from 'child_process';
 import * as path from 'path';
 
 // Linux-only: mirrors topRightPosition() in src/main.ts (Linux AppIndicator/
@@ -12,7 +13,6 @@ test.skip(process.platform !== 'linux', 'topRightPosition() is Linux-only');
 
 test.describe('tray click opens the popover in the right place', () => {
   let electronApp: ElectronApplication;
-  let popoverPage: Page;
 
   test.beforeAll(async () => {
     electronApp = await electron.launch({
@@ -23,7 +23,7 @@ test.describe('tray click opens the popover in the right place', () => {
       args: [path.join(__dirname, '..', 'dist', 'main.js'), '--no-sandbox'],
       env: { ...process.env, MEANWAILE_E2E: '1' },
     });
-    popoverPage = await electronApp.firstWindow();
+    await electronApp.firstWindow();
   });
 
   test.afterAll(async () => {
@@ -31,14 +31,17 @@ test.describe('tray click opens the popover in the right place', () => {
   });
 
   // TEMP: attaching on every run (not just failures) so we can eyeball the
-  // popover once in CI. Revert to the failure-only check below once confirmed.
-  // if (testInfo.status === testInfo.expectedStatus) return;
+  // whole desktop once in CI. Revert to the failure-only check afterward.
   test.afterEach(async ({}, testInfo) => {
     try {
-      const screenshot = await popoverPage.screenshot();
-      await testInfo.attach('popover-screenshot', { body: screenshot, contentType: 'image/png' });
+      const desktopPath = testInfo.outputPath('desktop.png');
+      // page.screenshot() only captures the popover's own web contents, not
+      // where it actually sits on screen - grab the whole Xvfb framebuffer
+      // instead (requires imagemagick, installed in ci.yml).
+      execFileSync('import', ['-window', 'root', desktopPath]);
+      await testInfo.attach('desktop-screenshot', { path: desktopPath, contentType: 'image/png' });
     } catch (err) {
-      console.warn('[e2e] could not capture screenshot:', err);
+      console.warn('[e2e] could not capture desktop screenshot:', err);
     }
   });
 
