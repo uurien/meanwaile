@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { _electron as electron, type ElectronApplication, type Page } from 'playwright-core';
-import { execFileSync } from 'child_process';
 import * as path from 'path';
 
 // Linux-only: mirrors topRightPosition() in src/main.ts (Linux AppIndicator/
@@ -33,26 +32,17 @@ test.describe('tray click opens the popover in the right place', () => {
     await electronApp.close();
   });
 
-  // TEMP: attaching on every run (not just failures) so we can eyeball the
-  // popover once in CI. Revert to the failure-only check afterward.
-  //
-  // Two screenshots for diagnosis: popover-cdp-screenshot comes straight
-  // from Chromium's compositor via CDP (bypasses X11 entirely), so if it
-  // shows real content but desktop-screenshot doesn't, the bug is in X11
-  // compositing, not in Chromium's rendering.
+  // Attaches a screenshot of the popover to the HTML report whenever the
+  // test fails, so a visual regression (wrong position, blank window, etc.)
+  // can be inspected without reproducing it locally - the report is
+  // uploaded as a downloadable CI artifact (see ci.yml).
   test.afterEach(async ({}, testInfo) => {
+    if (testInfo.status === testInfo.expectedStatus) return;
     try {
-      const cdpScreenshot = await popoverPage.screenshot();
-      await testInfo.attach('popover-cdp-screenshot', { body: cdpScreenshot, contentType: 'image/png' });
+      const screenshot = await popoverPage.screenshot();
+      await testInfo.attach('popover-screenshot', { body: screenshot, contentType: 'image/png' });
     } catch (err) {
-      console.warn('[e2e] could not capture CDP screenshot:', err);
-    }
-    try {
-      const desktopPath = testInfo.outputPath('desktop.png');
-      execFileSync('import', ['-window', 'root', desktopPath]);
-      await testInfo.attach('desktop-screenshot', { path: desktopPath, contentType: 'image/png' });
-    } catch (err) {
-      console.warn('[e2e] could not capture desktop screenshot:', err);
+      console.warn('[e2e] could not capture failure screenshot:', err);
     }
   });
 

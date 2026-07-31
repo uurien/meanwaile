@@ -59,22 +59,13 @@ jobs:
         run: npm run build
 
       - name: Install Xvfb
-        # picom is TEMP: without a compositor, the popover's transparent
-        # window renders blank under bare Xvfb, so the debug screenshot
-        # below shows an empty box instead of the real UI. Remove it along
-        # with the other TEMP markers once the visual check is done.
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb imagemagick picom
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
 
       - name: E2E test
-        run: |
-          xvfb-run --auto-servernum bash -c '
-            picom --backend xrender -b
-            sleep 1
-            npm run test:e2e
-          '
+        run: xvfb-run --auto-servernum npm run test:e2e
 
       - name: Upload E2E failure report
-        if: ${{ !cancelled() }} # TEMP: always upload so we can eyeball the popover screenshot; revert to if: failure()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: e2e-report
