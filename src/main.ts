@@ -446,14 +446,9 @@ async function offerCodexHookBackfillIfNeeded(): Promise<void> {
 app.on('ready', async () => {
   currentSettings = readSettings(app.getPath('userData'));
 
-  // The E2E test launches a fresh, never-onboarded userData dir - these all
-  // show native dialogs that await a real click, which would hang the app
-  // (and the test) forever with nobody there to answer them.
-  if (!process.env.MEANWAILE_E2E) {
-    await runOnboardingIfNeeded();
-    await offerHookBackfillIfNeeded();
-    await offerCodexHookBackfillIfNeeded();
-  }
+  await runOnboardingIfNeeded();
+  await offerHookBackfillIfNeeded();
+  await offerCodexHookBackfillIfNeeded();
 
   const iconPath = path.join(__dirname, '..', 'assets', trayIconFileName(process.platform));
   const icon = nativeImage.createFromPath(iconPath);
