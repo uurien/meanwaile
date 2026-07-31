@@ -477,10 +477,7 @@ app.on('ready', async () => {
     tray.setContextMenu(contextMenu);
   }
 
-  /* v8 ignore next 3 */
-  if (process.env.MEANWAILE_E2E) {
-    installE2ETestHooks(tray, () => popover);
-  }
+  installE2ETestHooks(tray, () => popover);
 
   popover = createPopover();
 

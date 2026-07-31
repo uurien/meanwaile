@@ -11,11 +11,14 @@ declare global {
   var __meanwaile_e2e__: E2ETestHooks | undefined;
 }
 
-// Only installed when MEANWAILE_E2E is set (see main.ts) - Playwright can't
-// click a real OS tray icon (on Linux the shell never even forwards the
-// click to the app, see tray-platform.ts), so this lets an E2E test trigger
-// the exact same code path a real click does via electronApp.evaluate().
+// No-op unless MEANWAILE_E2E is set, so the call site in main.ts can be a
+// plain, unconditional statement instead of a test-mode `if`. Playwright
+// can't click a real OS tray icon (on Linux the shell never even forwards
+// the click to the app, see tray-platform.ts), so this lets an E2E test
+// trigger the exact same code path a real click does via electronApp.evaluate().
 export function installE2ETestHooks(tray: Tray, getPopover: () => BrowserWindow | null): void {
+  if (!process.env.MEANWAILE_E2E) return;
+
   global.__meanwaile_e2e__ = {
     clickTray: () => tray.emit('click'),
     getPopoverBounds: () => {
