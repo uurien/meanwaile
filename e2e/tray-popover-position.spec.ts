@@ -5,15 +5,67 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-// Linux-only: mirrors topRightPosition() in src/main.ts (Linux AppIndicator/
-// StatusNotifierItem trays report zeroed-out bounds, so the popover opens at
-// the work area's top-right corner regardless of the real tray position).
-// The formula is duplicated here on purpose rather than imported, so this
-// test verifies actual runtime behavior instead of just calling back into
-// the same code it's meant to check.
-test.skip(process.platform !== 'linux', 'topRightPosition() is Linux-only');
+type Rect = { x: number; y: number; width: number; height: number };
 
-test.describe('tray click opens the popover in the right place', () => {
+// Mirrors popoverPosition()/topRightPosition() in src/main.ts, duplicated on
+// purpose rather than imported, so this test verifies actual runtime
+// behavior instead of just calling back into the code it's meant to check.
+//
+// Linux (AppIndicator/StatusNotifierItem trays report zeroed-out bounds,
+// regardless of X11 vs Wayland - tray-relative placement is meaningless
+// there) opens at the work area's top-right corner. macOS/Windows center
+// under the tray icon, flipped vertically depending on which half of the
+// work area the tray sits in.
+function expectedPosition(trayBounds: Rect, workArea: Rect, winBounds: { width: number; height: number }) {
+  if (process.platform === 'linux') {
+    const margin = 8;
+    return {
+      x: Math.round(workArea.x + workArea.width - winBounds.width - margin),
+      y: Math.round(workArea.y + margin),
+    };
+  }
+
+  const rawX = trayBounds.x + trayBounds.width / 2 - winBounds.width / 2;
+  const x = Math.round(Math.min(Math.max(rawX, workArea.x), workArea.x + workArea.width - winBounds.width));
+
+  const trayIsInLowerHalf = trayBounds.y > workArea.y + workArea.height / 2;
+  const y = Math.round(
+    trayIsInLowerHalf ? trayBounds.y - winBounds.height - 4 : trayBounds.y + trayBounds.height + 4,
+  );
+
+  return { x, y };
+}
+
+// A screenshot of just the popover's own web contents doesn't show whether
+// it landed in the right place on screen - which is the one thing this test
+// checks. Grab the whole desktop instead, composited for real so a
+// transparent window isn't just a blank box:
+// - Linux: Xvfb has no compositor of its own, so picom is started in ci.yml
+//   and ImageMagick's `import` grabs the X11 root window.
+// - macOS: screencapture is built in and composites correctly already.
+// - Windows: no built-in CLI for this, so a small PowerShell script copies
+//   the whole virtual screen via System.Drawing.
+function captureDesktop(outputPath: string): void {
+  if (process.platform === 'darwin') {
+    execFileSync('screencapture', ['-x', outputPath]);
+    return;
+  }
+  if (process.platform === 'win32') {
+    const script = [
+      'Add-Type -AssemblyName System.Windows.Forms,System.Drawing',
+      '$b = [System.Windows.Forms.SystemInformation]::VirtualScreen',
+      '$bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height',
+      '$g = [System.Drawing.Graphics]::FromImage($bmp)',
+      '$g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)',
+      `$bmp.Save('${outputPath}')`,
+    ].join('; ');
+    execFileSync('powershell', ['-NoProfile', '-Command', script]);
+    return;
+  }
+  execFileSync('import', ['-window', 'root', outputPath]);
+}
+
+test.describe('tray click opens the popover next to the tray icon', () => {
   let electronApp: ElectronApplication;
   let userDataDir: string;
 
@@ -28,21 +80,18 @@ test.describe('tray click opens the popover in the right place', () => {
       JSON.stringify({ onboarded: true, hookBackfillOffered: true, codexHookBackfillOffered: true }),
     );
 
-    electronApp = await electron.launch({
+    const args = [path.join(__dirname, '..', 'dist', 'main.js'), `--user-data-dir=${userDataDir}`];
+    if (process.platform === 'linux') {
       // --no-sandbox: GitHub Actions' ubuntu-latest runners restrict
       // unprivileged user namespaces (AppArmor), which Electron's Chromium
       // sandbox needs - without this flag the app hangs on launch under
       // Xvfb until the test times out, instead of actually starting.
       // --disable-gpu: Xvfb has no real GPU: without this the GPU process
       // fails and the window paints nothing at all.
-      args: [
-        path.join(__dirname, '..', 'dist', 'main.js'),
-        '--no-sandbox',
-        '--disable-gpu',
-        `--user-data-dir=${userDataDir}`,
-      ],
-      env: { ...process.env, MEANWAILE_E2E: '1' },
-    });
+      args.push('--no-sandbox', '--disable-gpu');
+    }
+
+    electronApp = await electron.launch({ args, env: { ...process.env, MEANWAILE_E2E: '1' } });
     await electronApp.firstWindow();
   });
 
@@ -54,23 +103,21 @@ test.describe('tray click opens the popover in the right place', () => {
   // Attaches a screenshot of the whole desktop to the HTML report whenever
   // the test fails, so a visual regression (wrong position, blank window,
   // etc.) can be inspected without reproducing it locally - the report is
-  // uploaded as a downloadable CI artifact (see ci.yml). Grabs the full X11
-  // framebuffer rather than just the popover's own web contents, so the
-  // window's actual position relative to the screen is visible too
-  // (requires imagemagick + picom compositing, set up in ci.yml).
+  // uploaded as a downloadable CI artifact (see ci.yml).
   test.afterEach(async ({}, testInfo) => {
     if (testInfo.status === testInfo.expectedStatus) return;
     try {
       const desktopPath = testInfo.outputPath('desktop.png');
-      execFileSync('import', ['-window', 'root', desktopPath]);
+      captureDesktop(desktopPath);
       await testInfo.attach('desktop-screenshot', { path: desktopPath, contentType: 'image/png' });
     } catch (err) {
       console.warn('[e2e] could not capture failure screenshot:', err);
     }
   });
 
-  test('popover opens at the work area top-right when the tray icon is clicked', async () => {
+  test('popover opens next to the tray icon', async () => {
     const workArea = await electronApp.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea);
+    const trayBounds = await electronApp.evaluate<Rect>(() => (global as any).__meanwaile_e2e__.getTrayBounds());
 
     await electronApp.evaluate(() => (global as any).__meanwaile_e2e__.clickTray());
 
@@ -78,10 +125,10 @@ test.describe('tray click opens the popover in the right place', () => {
       .poll(async () => electronApp.evaluate(() => (global as any).__meanwaile_e2e__.getPopoverBounds()))
       .not.toBeNull();
 
-    const bounds = await electronApp.evaluate(() => (global as any).__meanwaile_e2e__.getPopoverBounds());
+    const bounds = await electronApp.evaluate<Rect>(() => (global as any).__meanwaile_e2e__.getPopoverBounds());
+    const expected = expectedPosition(trayBounds, workArea, bounds);
 
-    const margin = 8;
-    expect(bounds.x).toBe(workArea.x + workArea.width - bounds.width - margin);
-    expect(bounds.y).toBe(workArea.y + margin);
+    expect(bounds.x).toBe(expected.x);
+    expect(bounds.y).toBe(expected.y);
   });
 });

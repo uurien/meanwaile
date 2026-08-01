@@ -39,7 +39,11 @@ jobs:
         uses: davelosert/vitest-coverage-report-action@v2
 
   e2e:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
 
@@ -59,12 +63,14 @@ jobs:
         run: npm run build
 
       - name: Install Xvfb
+        if: runner.os == 'Linux'
         # picom composites the popover's transparent window for real - without
         # it, a failure screenshot just shows a blank box instead of the
         # actual desktop with the popover's real content in it.
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb imagemagick picom
 
-      - name: E2E test
+      - name: E2E test (Linux)
+        if: runner.os == 'Linux'
         run: |
           xvfb-run --auto-servernum bash -c '
             picom --backend xrender -b
@@ -72,11 +78,15 @@ jobs:
             npm run test:e2e
           '
 
+      - name: E2E test
+        if: runner.os != 'Linux'
+        run: npm run test:e2e
+
       - name: Upload E2E failure report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-report
+          name: e2e-report-${{ matrix.os }}
           path: playwright-report/
           retention-days: 14
 
