@@ -59,10 +59,18 @@ jobs:
         run: npm run build
 
       - name: Install Xvfb
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
+        # picom composites the popover's transparent window for real - without
+        # it, a failure screenshot just shows a blank box instead of the
+        # actual desktop with the popover's real content in it.
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb imagemagick picom
 
       - name: E2E test
-        run: xvfb-run --auto-servernum npm run test:e2e
+        run: |
+          xvfb-run --auto-servernum bash -c '
+            picom --backend xrender -b
+            sleep 1
+            npm run test:e2e
+          '
 
       - name: Upload E2E failure report
         if: failure()

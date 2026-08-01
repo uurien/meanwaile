@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { _electron as electron, type ElectronApplication, type Page } from 'playwright-core';
+import { _electron as electron, type ElectronApplication } from 'playwright-core';
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -14,7 +15,6 @@ test.skip(process.platform !== 'linux', 'topRightPosition() is Linux-only');
 
 test.describe('tray click opens the popover in the right place', () => {
   let electronApp: ElectronApplication;
-  let popoverPage: Page;
   let userDataDir: string;
 
   test.beforeAll(async () => {
@@ -43,7 +43,7 @@ test.describe('tray click opens the popover in the right place', () => {
       ],
       env: { ...process.env, MEANWAILE_E2E: '1' },
     });
-    popoverPage = await electronApp.firstWindow();
+    await electronApp.firstWindow();
   });
 
   test.afterAll(async () => {
@@ -51,15 +51,19 @@ test.describe('tray click opens the popover in the right place', () => {
     fs.rmSync(userDataDir, { recursive: true, force: true });
   });
 
-  // Attaches a screenshot of the popover to the HTML report whenever the
-  // test fails, so a visual regression (wrong position, blank window, etc.)
-  // can be inspected without reproducing it locally - the report is
-  // uploaded as a downloadable CI artifact (see ci.yml).
+  // Attaches a screenshot of the whole desktop to the HTML report whenever
+  // the test fails, so a visual regression (wrong position, blank window,
+  // etc.) can be inspected without reproducing it locally - the report is
+  // uploaded as a downloadable CI artifact (see ci.yml). Grabs the full X11
+  // framebuffer rather than just the popover's own web contents, so the
+  // window's actual position relative to the screen is visible too
+  // (requires imagemagick + picom compositing, set up in ci.yml).
   test.afterEach(async ({}, testInfo) => {
     if (testInfo.status === testInfo.expectedStatus) return;
     try {
-      const screenshot = await popoverPage.screenshot();
-      await testInfo.attach('popover-screenshot', { body: screenshot, contentType: 'image/png' });
+      const desktopPath = testInfo.outputPath('desktop.png');
+      execFileSync('import', ['-window', 'root', desktopPath]);
+      await testInfo.attach('desktop-screenshot', { path: desktopPath, contentType: 'image/png' });
     } catch (err) {
       console.warn('[e2e] could not capture failure screenshot:', err);
     }
