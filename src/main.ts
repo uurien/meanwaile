@@ -158,7 +158,7 @@ function showPopover(): void {
   const winBounds = popover.getBounds();
   const { x, y } = process.platform === 'linux' ? topRightPosition(winBounds) : popoverPosition(tray.getBounds(), winBounds);
 
-  // popover.setPosition(x, y);
+  popover.setPosition(x, y);
   // Toggle visibleOnAllWorkspaces on just for the show() call so macOS places
   // the window on the currently active Space rather than the Space it was
   // last shown on. Leaving it permanently true stops the toggle from
