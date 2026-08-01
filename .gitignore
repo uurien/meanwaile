@@ -151,3 +151,7 @@ PRODUCT_BRIEF.md
 
 # macOS
 .DS_Store
+
+# Playwright
+playwright-report/
+test-results/

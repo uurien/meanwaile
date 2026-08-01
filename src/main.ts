@@ -24,6 +24,7 @@ import {
 import { ensureCodexHooksFeatureEnabled } from './codex-config';
 import { AppSettings, DEFAULT_SETTINGS, readSettings, writeSettings, validateSettings } from './settings-store';
 import { trayIconFileName, shouldPersistContextMenu } from './tray-platform';
+import { installE2ETestHooks } from './e2e-hooks';
 
 // Squirrel.Windows relaunches the app with --squirrel-install/-updated/
 // -uninstall/-obsolete during install/update/uninstall so it can create or
@@ -475,6 +476,8 @@ app.on('ready', async () => {
   if (shouldPersistContextMenu(process.platform)) {
     tray.setContextMenu(contextMenu);
   }
+
+  installE2ETestHooks(tray, () => popover);
 
   popover = createPopover();
 
