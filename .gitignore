@@ -151,3 +151,7 @@ PRODUCT_BRIEF.md
 
 # macOS
 .DS_Store
+
+# Game bundles downloaded from meanwaile-games at npm install time
+# (see games.json / scripts/install-games.js)
+/games/

@@ -89,6 +89,8 @@ onResume()
 onAgentDone()
 ```
 
+Game sources live in the sibling [meanwaile-games](https://github.com/uurien/meanwaile-games) repo, not in this repo's source control. `games.json` at the repo root pins which `id@version` pairs to install; `npm install`/`npm ci` runs `scripts/install-games.js` as a `postinstall` step, which downloads each game's release zip (tag `<id>@<version>`, asset `<id>-<version>.zip`) and extracts it into `games/<id>/` — a gitignored sibling of `src/`, `dist/`, and `node_modules/`, not nested under `src/`. There's no hand-maintained registry: `src/games-catalog.ts`'s `listGames()` derives the hub's roster at runtime purely from `games.json` (which ids to show, in order) plus each installed game's own `games/<id>/game.json` (name, tagline, entry, preview) — main.ts serves it to the popover over IPC (`games-list` / `window.meanwaile.listGames()`), since the popover window runs with `nodeIntegration: false` and has no direct filesystem access.
+
 Third-party games run in a sandboxed view (`nodeIntegration: false`, no network/filesystem access). This is built into the game-host from the start — far cheaper to design in than to retrofit.
 
 ## Key constraints

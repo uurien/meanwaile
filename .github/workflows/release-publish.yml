@@ -206,8 +206,19 @@ jobs:
           name: release-linux
           path: out/make/deb/x64
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        # games/ is populated by the postinstall script (scripts/install-games.js),
+        # not checked into git — needed here before it can be zipped below.
+        run: npm ci
+
       - name: Package games artifact
-        run: (cd src/games && zip -r ../../out/make/games.zip . -x '.*')
+        run: (cd games && zip -r ../out/make/games.zip . -x '.*')
 
       - name: Checksums
         working-directory: out/make

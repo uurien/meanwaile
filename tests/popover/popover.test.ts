@@ -4,28 +4,27 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 // Hub-mechanics tests shouldn't depend on which games are currently
-// implemented in the real registry - stub it with one implemented and one
-// not-yet-built game so both code paths stay covered regardless of roster.
-vi.mock('../../src/games/registry.js', () => ({
-  GAMES: [
-    {
-      id: 'circle-tap',
-      name: 'CircleTap',
-      tagline: 'Toca los círculos',
-      entry: '../games/circle-tap/index.html',
-      preview: '../games/circle-tap/preview.png',
-      implemented: true,
-    },
-    {
-      id: 'placeholder-game',
-      name: 'Placeholder',
-      tagline: 'Próximamente',
-      entry: null,
-      preview: null,
-      implemented: false,
-    },
-  ],
-}));
+// implemented in the real catalog - stub window.meanwaile.listGames() with
+// one implemented and one not-yet-built game so both code paths stay
+// covered regardless of roster.
+const STUB_GAMES = [
+  {
+    id: 'circle-tap',
+    name: 'CircleTap',
+    tagline: 'Toca los círculos',
+    entry: '../../games/circle-tap/index.html',
+    preview: '../../games/circle-tap/preview.png',
+    implemented: true,
+  },
+  {
+    id: 'placeholder-game',
+    name: 'Placeholder',
+    tagline: 'Próximamente',
+    entry: null,
+    preview: null,
+    implemented: false,
+  },
+];
 
 let iframePostMessage: ReturnType<typeof vi.fn>;
 let iframeFocus: ReturnType<typeof vi.fn>;
@@ -75,6 +74,7 @@ beforeAll(async () => {
     value: {
       close: meanwaileClose,
       openSettings: meanwaileOpenSettings,
+      listGames: () => Promise.resolve(STUB_GAMES),
       onStateChange(cb: (snapshot: unknown) => void) {
         triggerStateChange = cb as (snapshot: { state: string }) => void;
       },

@@ -1,4 +1,3 @@
-import { GAMES } from '../games/registry.js';
 import { createHub } from './carousel.js';
 
 const backBtn = document.getElementById('back-btn');
@@ -95,7 +94,7 @@ function goHome() {
 
 backBtn.addEventListener('click', goHome);
 
-createHub({ container: hubScreen, games: GAMES, onOpenGame: openGame });
+createHub({ container: hubScreen, games: await window.meanwaile.listGames(), onOpenGame: openGame });
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') window.meanwaile.close();

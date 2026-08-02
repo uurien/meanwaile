@@ -37,6 +37,7 @@ describe('preload', () => {
         onStateChange: expect.any(Function),
         close: expect.any(Function),
         openSettings: expect.any(Function),
+        listGames: expect.any(Function),
         getSettings: expect.any(Function),
         saveSettings: expect.any(Function),
       }),
@@ -69,6 +70,11 @@ describe('preload', () => {
   it('openSettings sends open-settings via ipcRenderer', () => {
     getExposedApi().openSettings();
     expect(mocks.ipcRenderer.send).toHaveBeenCalledWith('open-settings');
+  });
+
+  it('listGames invokes games-list via ipcRenderer', () => {
+    getExposedApi().listGames();
+    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('games-list');
   });
 
   it('getSettings invokes settings-get via ipcRenderer', () => {
