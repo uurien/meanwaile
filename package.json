@@ -23,7 +23,8 @@
     "forge:package": "npm run build && electron-forge package",
     "forge:make": "npm run build && electron-forge make",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.0.0",
@@ -31,6 +32,7 @@
     "@electron-forge/maker-dmg": "^7.0.0",
     "@electron-forge/maker-squirrel": "^7.11.2",
     "@electron-forge/maker-zip": "^7.0.0",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^24.13.2",
     "@vitest/coverage-v8": "^3.2.7",
     "adm-zip": "^0.6.0",

@@ -155,3 +155,7 @@ PRODUCT_BRIEF.md
 # Game bundles downloaded from meanwaile-games at npm install time
 # (see games.json / scripts/install-games.js)
 /games/
+
+# Playwright
+playwright-report/
+test-results/
