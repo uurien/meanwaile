@@ -23,6 +23,7 @@ import {
 } from './codex-settings';
 import { ensureCodexHooksFeatureEnabled } from './codex-config';
 import { AppSettings, DEFAULT_SETTINGS, readSettings, writeSettings, validateSettings } from './settings-store';
+import { listGames } from './games-catalog';
 import { trayIconFileName, shouldPersistContextMenu } from './tray-platform';
 import { installE2ETestHooks } from './e2e-hooks';
 
@@ -483,6 +484,7 @@ app.on('ready', async () => {
 
   ipcMain.on('popover-close', () => { popover?.hide(); });
   ipcMain.on('open-settings', () => { showSettingsWindow(); });
+  ipcMain.handle('games-list', () => listGames(path.join(__dirname, '..')));
   ipcMain.handle('settings-get', () => currentSettings);
   ipcMain.handle('settings-save', async (_event, incoming) => {
     const result = validateSettings(incoming);

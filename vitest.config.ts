@@ -7,7 +7,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       include: ['src/**/*.{ts,js}', 'forge.config.js'],
-      exclude: ['src/adapters/types.ts', 'src/games/meanwaile-runner/vendor/**', 'src/e2e-hooks.ts'],
+      exclude: ['src/adapters/types.ts', 'src/e2e-hooks.ts'],
       thresholds: {
         statements: 100,
         branches: 100,

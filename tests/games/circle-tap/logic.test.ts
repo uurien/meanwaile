@@ -5,7 +5,7 @@ import {
   spawnIntervalForElapsed,
   maxConcurrentForElapsed,
   CircleTapEngine,
-} from '../../../src/games/circle-tap/logic.js';
+} from '../../../games/circle-tap/logic.js';
 
 afterEach(() => {
   vi.restoreAllMocks();

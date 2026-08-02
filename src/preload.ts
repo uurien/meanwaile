@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('meanwaile', {
   openSettings(): void {
     ipcRenderer.send('open-settings');
   },
+  listGames(): Promise<unknown> {
+    return ipcRenderer.invoke('games-list');
+  },
   getSettings(): Promise<unknown> {
     return ipcRenderer.invoke('settings-get');
   },

@@ -22,7 +22,7 @@ function runFrame(now: number) {
 }
 
 beforeAll(async () => {
-  const html = readFileSync(join(__dirname, '../../../src/games/circle-tap/index.html'), 'utf-8');
+  const html = readFileSync(join(__dirname, '../../../games/circle-tap/index.html'), 'utf-8');
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   document.body.innerHTML = bodyMatch ? bodyMatch[1] : '';
 
@@ -45,7 +45,7 @@ beforeAll(async () => {
     writable: true,
   });
 
-  await import('../../../src/games/circle-tap/circle-tap.js');
+  await import('../../../games/circle-tap/circle-tap.js');
 
   cells = Array.from(document.querySelectorAll('.cell'));
   scoreEl = document.getElementById('score')!;
@@ -195,7 +195,7 @@ describe('record on a fresh load', () => {
     localStorage.setItem(RECORD_KEY, '5');
     vi.resetModules();
     document.getElementById('board')!.innerHTML = '';
-    await import('../../../src/games/circle-tap/circle-tap.js');
+    await import('../../../games/circle-tap/circle-tap.js');
     expect(document.getElementById('score')!.textContent).toBe('Score: 0 [5]');
   });
 });

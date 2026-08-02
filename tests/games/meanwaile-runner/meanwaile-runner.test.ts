@@ -180,7 +180,7 @@ let pointsSummaryEl: HTMLElement;
 let retryBtn: HTMLElement;
 
 beforeAll(async () => {
-  const html = readFileSync(join(__dirname, '../../../src/games/meanwaile-runner/index.html'), 'utf-8');
+  const html = readFileSync(join(__dirname, '../../../games/meanwaile-runner/index.html'), 'utf-8');
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   document.body.innerHTML = bodyMatch ? bodyMatch[1] : '';
 
@@ -198,7 +198,7 @@ beforeAll(async () => {
     Game: FakeGame,
   };
 
-  await import('../../../src/games/meanwaile-runner/meanwaile-runner.js');
+  await import('../../../games/meanwaile-runner/meanwaile-runner.js');
 
   pointsEl = document.getElementById('points')!;
   gameOverEl = document.getElementById('game-over')!;
