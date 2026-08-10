@@ -25,16 +25,16 @@ const GAMES = [
 
 let container: HTMLElement;
 let onOpenGame: ReturnType<typeof vi.fn>;
-let onOpenMarketplace: ReturnType<typeof vi.fn>;
+let onOpenGallery: ReturnType<typeof vi.fn>;
 let onUninstallGame: ReturnType<typeof vi.fn>;
 
 function build(games = GAMES) {
   document.body.innerHTML = '<div id="hub-screen"></div>';
   container = document.getElementById('hub-screen')!;
   onOpenGame = vi.fn();
-  onOpenMarketplace = vi.fn();
+  onOpenGallery = vi.fn();
   onUninstallGame = vi.fn();
-  createHub({ container, games, onOpenGame, onOpenMarketplace, onUninstallGame });
+  createHub({ container, games, onOpenGame, onOpenGallery, onUninstallGame });
 }
 
 function track(): HTMLElement {
@@ -57,8 +57,8 @@ function carouselCards(): HTMLElement[] {
   return Array.from(track().querySelectorAll('.game-card'));
 }
 
-function marketplaceCard(): HTMLElement {
-  return track().querySelector('.marketplace-card')!;
+function galleryCard(): HTMLElement {
+  return track().querySelector('.gallery-card')!;
 }
 
 function fireDrag(deltaX: number) {
@@ -125,20 +125,20 @@ describe('uninstall button on removable cards', () => {
   });
 });
 
-describe('marketplace card', () => {
+describe('gallery card', () => {
   it('renders a trailing card after the games, not counted among .game-card elements', () => {
     expect(carouselCards()).toHaveLength(2);
-    expect(marketplaceCard()).toBeTruthy();
+    expect(galleryCard()).toBeTruthy();
   });
 
-  it('calls onOpenMarketplace, not onOpenGame, when its button is clicked', () => {
-    marketplaceCard().querySelector('button')!.dispatchEvent(new Event('click', { bubbles: true }));
-    expect(onOpenMarketplace).toHaveBeenCalledTimes(1);
+  it('calls onOpenGallery, not onOpenGame, when its button is clicked', () => {
+    galleryCard().querySelector('button')!.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(onOpenGallery).toHaveBeenCalledTimes(1);
     expect(onOpenGame).not.toHaveBeenCalled();
   });
 
   it('does not persist a last-played game id when opened', () => {
-    marketplaceCard().querySelector('button')!.dispatchEvent(new Event('click', { bubbles: true }));
+    galleryCard().querySelector('button')!.dispatchEvent(new Event('click', { bubbles: true }));
     expect(localStorage.getItem('hub-last-game')).toBeNull();
   });
 
@@ -164,7 +164,7 @@ describe('arrow navigation', () => {
     expect(nextBtn().disabled).toBe(false);
   });
 
-  it('does not advance past the trailing marketplace card', () => {
+  it('does not advance past the trailing gallery card', () => {
     nextBtn().click();
     nextBtn().click();
     nextBtn().click();
@@ -181,7 +181,7 @@ describe('arrow navigation', () => {
 });
 
 describe('dot pagination', () => {
-  it('renders one dot per game plus one for the trailing marketplace card, with the first marked active', () => {
+  it('renders one dot per game plus one for the trailing gallery card, with the first marked active', () => {
     const d = dots();
     expect(d).toHaveLength(3);
     expect(d[0].classList.contains('dot--active')).toBe(true);

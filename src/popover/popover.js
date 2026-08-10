@@ -13,7 +13,7 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const continueBtn = document.getElementById('continue-btn');
 const settingsBtn = document.getElementById('settings-btn');
-const marketplaceBtn = document.getElementById('marketplace-btn');
+const galleryBtn = document.getElementById('gallery-btn');
 
 let currentState = 'idle';
 let currentSessionId = null;
@@ -95,7 +95,7 @@ function goHome() {
 
 backBtn.addEventListener('click', goHome);
 
-// Re-run whenever the games list changes too (marketplace install/remove),
+// Re-run whenever the games list changes too (gallery install/remove),
 // not just on the initial load, so the hub reflects it live without the
 // user having to reopen the popover.
 async function refreshHub() {
@@ -103,7 +103,7 @@ async function refreshHub() {
     container: hubScreen,
     games: await window.meanwaile.listGames(),
     onOpenGame: openGame,
-    onOpenMarketplace: () => window.meanwaile.openMarketplace(),
+    onOpenGallery: () => window.meanwaile.openGallery(),
     onUninstallGame: (game) => window.meanwaile.uninstallGame(game.id, game.name),
   });
 }
@@ -148,9 +148,9 @@ settingsBtn.addEventListener('click', (e) => {
   window.meanwaile.openSettings();
 });
 
-marketplaceBtn.addEventListener('click', (e) => {
+galleryBtn.addEventListener('click', (e) => {
   e.stopPropagation();
-  window.meanwaile.openMarketplace();
+  window.meanwaile.openGallery();
 });
 
 window.meanwaile.onStateChange((snapshot) => {

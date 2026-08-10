@@ -45,7 +45,7 @@ function buildCard(game, index, total, onOpenGame, onUninstallGame) {
 
   const topRow = el('div', 'game-card__top-row');
   topRow.appendChild(el('div', 'game-card__eyebrow', `Game ${index + 1} of ${total}`));
-  // Only games installed through the marketplace can be uninstalled from
+  // Only games installed through the gallery can be uninstalled from
   // here - bundled defaults live inside the read-only app bundle.
   if (game.removable) {
     const uninstallBtn = el('button', 'game-card__uninstall');
@@ -75,29 +75,29 @@ function buildCard(game, index, total, onOpenGame, onUninstallGame) {
 }
 
 // Trailing, non-game slide at the end of the carousel that opens the
-// marketplace instead of a game - deliberately its own class (not
+// gallery instead of a game - deliberately its own class (not
 // game-card), so it's never counted among the game cards/slides that use
 // that selector, while still matching their width for the shared
 // index-based SLIDE_STEP geometry.
-function buildMarketplaceCard(onOpenMarketplace) {
-  const card = el('div', 'marketplace-card');
+function buildGalleryCard(onOpenGallery) {
+  const card = el('div', 'gallery-card');
 
   card.appendChild(el('div', 'game-card__eyebrow', 'More games'));
-  card.appendChild(el('div', 'marketplace-card__icon', '+'));
+  card.appendChild(el('div', 'gallery-card__icon', '+'));
 
   const info = el('div', 'game-card__info');
   info.appendChild(el('div', 'game-card__title', 'Get more games'));
   info.appendChild(el('div', 'game-card__tagline', 'Browse the full catalog'));
   card.appendChild(info);
 
-  const browseBtn = el('button', 'marketplace-card__start', 'Browse');
-  browseBtn.addEventListener('click', () => onOpenMarketplace());
+  const browseBtn = el('button', 'gallery-card__start', 'Browse');
+  browseBtn.addEventListener('click', () => onOpenGallery());
   card.appendChild(browseBtn);
 
   return card;
 }
 
-export function createHub({ container, games, onOpenGame, onOpenMarketplace, onUninstallGame }) {
+export function createHub({ container, games, onOpenGame, onOpenGallery, onUninstallGame }) {
   container.innerHTML = `
     <div id="carousel">
       <button id="prev-btn" class="arrow-btn" aria-label="Previous game">‹</button>
@@ -139,7 +139,7 @@ export function createHub({ container, games, onOpenGame, onOpenMarketplace, onU
     track.appendChild(buildCard(game, i, games.length, handleOpenGame, onUninstallGame));
     addDot(i);
   });
-  track.appendChild(buildMarketplaceCard(onOpenMarketplace));
+  track.appendChild(buildGalleryCard(onOpenGallery));
   addDot(games.length);
 
   function atStart() {

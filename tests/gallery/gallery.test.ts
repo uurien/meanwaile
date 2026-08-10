@@ -51,7 +51,7 @@ let uninstallGame: ReturnType<typeof vi.fn>;
 
 async function mount() {
   vi.resetModules();
-  const html = readFileSync(join(__dirname, '../../src/marketplace/index.html'), 'utf-8');
+  const html = readFileSync(join(__dirname, '../../src/gallery/index.html'), 'utf-8');
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   document.body.innerHTML = bodyMatch ? bodyMatch[1] : '';
 
@@ -60,7 +60,7 @@ async function mount() {
     configurable: true,
   });
 
-  await import('../../src/marketplace/marketplace.js');
+  await import('../../src/gallery/gallery.js');
   await Promise.resolve();
   await Promise.resolve();
 }
@@ -89,11 +89,11 @@ describe('loading and error states', () => {
     listCatalog.mockReturnValue(new Promise((resolve) => { resolveCatalog = resolve; }));
 
     vi.resetModules();
-    const html = readFileSync(join(__dirname, '../../src/marketplace/index.html'), 'utf-8');
+    const html = readFileSync(join(__dirname, '../../src/gallery/index.html'), 'utf-8');
     const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
     document.body.innerHTML = bodyMatch ? bodyMatch[1] : '';
     Object.defineProperty(window, 'meanwaile', { value: { listCatalog, installGame, uninstallGame }, configurable: true });
-    const importPromise = import('../../src/marketplace/marketplace.js');
+    const importPromise = import('../../src/gallery/gallery.js');
 
     await vi.waitFor(() => expect(status().hidden).toBe(false));
     expect(status().textContent).toMatch(/loading/i);
@@ -160,7 +160,7 @@ describe('rendering catalog cards', () => {
     expect(card.querySelector('.catalog-card__remove')).toBeNull();
   });
 
-  it('shows an "Installed" badge plus a Remove button for a marketplace-installed, up-to-date game', async () => {
+  it('shows an "Installed" badge plus a Remove button for a gallery-installed, up-to-date game', async () => {
     listCatalog.mockResolvedValue({ ok: true, games: [INSTALLED_UP_TO_DATE_GAME] });
     await mount();
 
@@ -170,7 +170,7 @@ describe('rendering catalog cards', () => {
     expect(card.querySelector('.catalog-card__remove')!.textContent).toBe('Remove');
   });
 
-  it('shows an Update button plus a Remove button for a marketplace-installed game with a newer catalog version', async () => {
+  it('shows an Update button plus a Remove button for a gallery-installed game with a newer catalog version', async () => {
     listCatalog.mockResolvedValue({ ok: true, games: [UPDATE_AVAILABLE_GAME] });
     await mount();
 

@@ -7,7 +7,7 @@ import AdmZip from 'adm-zip';
 // dist/ exists, so it can't share compiled src/ code without breaking the
 // install. This module implements the same download/extract/manifest
 // conventions independently for games the user opts into at runtime via the
-// marketplace, storing them under userData (the only location guaranteed
+// gallery, storing them under userData (the only location guaranteed
 // writable across macOS/Windows/Linux installs) instead of the app bundle.
 
 export interface InstalledGame {
@@ -102,15 +102,15 @@ export async function installGame({
 }: InstallGameOptions): Promise<void> {
   const gameDir = path.join(gamesDir(userDataDir), id);
   if (installedVersion(gameDir) === version) {
-    log(`[marketplace] ${id}@${version} already installed, skipping`);
+    log(`[gallery] ${id}@${version} already installed, skipping`);
     return;
   }
   const url = assetUrl(repo, id, version);
-  log(`[marketplace] installing ${id}@${version} from ${url}`);
+  log(`[gallery] installing ${id}@${version} from ${url}`);
   const buffer = await downloadZip(url, fetchImpl);
   extractZip(buffer, gameDir);
   addInstalledGame(userDataDir, { id, version });
-  log(`[marketplace] installed ${id}@${version}`);
+  log(`[gallery] installed ${id}@${version}`);
 }
 
 export function uninstallGame(userDataDir: string, id: string): void {

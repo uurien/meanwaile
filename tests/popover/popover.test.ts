@@ -36,7 +36,7 @@ let overlay: HTMLElement;
 let overlayMsg: HTMLElement;
 let continueBtn: HTMLElement;
 let settingsBtn: HTMLElement;
-let marketplaceBtn: HTMLElement;
+let galleryBtn: HTMLElement;
 let backBtn: HTMLElement;
 let brand: HTMLElement;
 let gameName: HTMLElement;
@@ -47,7 +47,7 @@ let placeholder: HTMLElement;
 let placeholderText: HTMLElement;
 let iframe: HTMLIFrameElement;
 let meanwaileOpenSettings: ReturnType<typeof vi.fn>;
-let meanwaileOpenMarketplace: ReturnType<typeof vi.fn>;
+let meanwaileOpenGallery: ReturnType<typeof vi.fn>;
 let meanwaileUninstallGame: ReturnType<typeof vi.fn>;
 let meanwaileListGames: ReturnType<typeof vi.fn>;
 let triggerGamesChanged: () => void;
@@ -77,14 +77,14 @@ beforeAll(async () => {
 
   meanwaileClose = vi.fn();
   meanwaileOpenSettings = vi.fn();
-  meanwaileOpenMarketplace = vi.fn();
+  meanwaileOpenGallery = vi.fn();
   meanwaileUninstallGame = vi.fn();
   meanwaileListGames = vi.fn(() => Promise.resolve(STUB_GAMES));
   Object.defineProperty(window, 'meanwaile', {
     value: {
       close: meanwaileClose,
       openSettings: meanwaileOpenSettings,
-      openMarketplace: meanwaileOpenMarketplace,
+      openGallery: meanwaileOpenGallery,
       uninstallGame: meanwaileUninstallGame,
       listGames: meanwaileListGames,
       onStateChange(cb: (snapshot: unknown) => void) {
@@ -103,7 +103,7 @@ beforeAll(async () => {
   overlayMsg = document.getElementById('overlay-msg')!;
   continueBtn = document.getElementById('continue-btn')!;
   settingsBtn = document.getElementById('settings-btn')!;
-  marketplaceBtn = document.getElementById('marketplace-btn')!;
+  galleryBtn = document.getElementById('gallery-btn')!;
   backBtn = document.getElementById('back-btn')!;
   brand = document.getElementById('brand')!;
   gameName = document.getElementById('game-name')!;
@@ -275,17 +275,17 @@ describe('inside a game: agent-driven pause/resume', () => {
     });
   });
 
-  describe('marketplace button', () => {
-    it('opens the marketplace window without closing the popover', () => {
-      marketplaceBtn.click();
-      expect(meanwaileOpenMarketplace).toHaveBeenCalledOnce();
+  describe('gallery button', () => {
+    it('opens the gallery window without closing the popover', () => {
+      galleryBtn.click();
+      expect(meanwaileOpenGallery).toHaveBeenCalledOnce();
     });
 
-    it('also opens the marketplace window from the trailing "Get more games" carousel card', () => {
-      meanwaileOpenMarketplace.mockClear();
-      const browseBtn = hubScreen.querySelector('.marketplace-card__start') as HTMLButtonElement;
+    it('also opens the gallery window from the trailing "Get more games" carousel card', () => {
+      meanwaileOpenGallery.mockClear();
+      const browseBtn = hubScreen.querySelector('.gallery-card__start') as HTMLButtonElement;
       browseBtn.click();
-      expect(meanwaileOpenMarketplace).toHaveBeenCalledOnce();
+      expect(meanwaileOpenGallery).toHaveBeenCalledOnce();
     });
   });
 
@@ -454,7 +454,7 @@ describe('guards when no game is active (hub screen)', () => {
   });
 });
 
-describe('games-changed refresh (marketplace install/remove while the popover is open)', () => {
+describe('games-changed refresh (gallery install/remove while the popover is open)', () => {
   it('re-fetches the games list and re-renders the hub when games-changed fires', async () => {
     meanwaileListGames.mockClear();
     meanwaileListGames.mockResolvedValueOnce([

@@ -73,7 +73,7 @@ body {
 }
 
 #back-btn,
-#marketplace-btn,
+#gallery-btn,
 #settings-btn {
   width: 34px;
   height: 34px;
@@ -88,7 +88,7 @@ body {
   justify-content: center;
 }
 
-#marketplace-btn,
+#gallery-btn,
 #settings-btn {
   border-color: var(--border);
   background: rgba(255, 255, 255, 0.03);
@@ -97,7 +97,7 @@ body {
 }
 
 #back-btn:hover,
-#marketplace-btn:hover,
+#gallery-btn:hover,
 #settings-btn:hover {
   background: rgba(255, 255, 255, 0.09);
 }
@@ -285,7 +285,7 @@ body {
   background: var(--accent-wash);
 }
 
-.marketplace-card {
+.gallery-card {
   width: 280px;
   flex-shrink: 0;
   background: var(--bg-card);
@@ -300,7 +300,7 @@ body {
   user-select: none;
 }
 
-.marketplace-card__start {
+.gallery-card__start {
   border: 2px solid var(--accent);
   background: transparent;
   color: var(--text-primary);
@@ -312,11 +312,11 @@ body {
   font-family: inherit;
 }
 
-.marketplace-card__start:hover {
+.gallery-card__start:hover {
   background: var(--accent-wash);
 }
 
-.marketplace-card__icon {
+.gallery-card__icon {
   width: 60px;
   height: 60px;
   max-width: 150px;

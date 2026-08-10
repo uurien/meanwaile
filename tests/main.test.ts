@@ -208,7 +208,7 @@ vi.mock('../src/game-installer', () => ({
   readInstalledGames: mocks.readInstalledGames,
 }));
 
-vi.mock('../src/games-marketplace', () => ({
+vi.mock('../src/games-gallery', () => ({
   fetchCatalog: mocks.fetchCatalog,
 }));
 
@@ -1126,7 +1126,7 @@ describe('settings window IPC', () => {
   });
 });
 
-describe('marketplace window and IPC', () => {
+describe('gallery window and IPC', () => {
   beforeEach(() => {
     mocks.fetchCatalog.mockReset().mockResolvedValue({ ok: true, games: [] });
     mocks.readInstalledGames.mockReset().mockReturnValue([]);
@@ -1137,24 +1137,24 @@ describe('marketplace window and IPC', () => {
     mocks.dialog.showMessageBox.mockReset().mockResolvedValue({ response: 1 });
   });
 
-  it('open-marketplace creates a marketplace window', () => {
+  it('open-gallery creates a gallery window', () => {
     const callsBefore = mocks.BrowserWindow.mock.calls.length;
-    mocks.ipcMain.handlers['open-marketplace']?.();
+    mocks.ipcMain.handlers['open-gallery']?.();
     expect(mocks.BrowserWindow.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 
-  it('open-marketplace focuses the existing marketplace window instead of creating a new one', () => {
-    mocks.ipcMain.handlers['open-marketplace']?.();
+  it('open-gallery focuses the existing gallery window instead of creating a new one', () => {
+    mocks.ipcMain.handlers['open-gallery']?.();
     mocks.win.focus.mockClear();
     const callsBefore = mocks.BrowserWindow.mock.calls.length;
 
-    mocks.ipcMain.handlers['open-marketplace']?.();
+    mocks.ipcMain.handlers['open-gallery']?.();
 
     expect(mocks.BrowserWindow.mock.calls.length).toBe(callsBefore);
     expect(mocks.win.focus).toHaveBeenCalled();
   });
 
-  it('marketplace-list annotates catalog entries as bundled, installed, or update-available', async () => {
+  it('gallery-list annotates catalog entries as bundled, installed, or update-available', async () => {
     mocks.fetchCatalog.mockResolvedValue({
       ok: true,
       games: [
@@ -1165,7 +1165,7 @@ describe('marketplace window and IPC', () => {
     });
     mocks.readInstalledGames.mockReturnValue([{ id: 'meanwaile-maze', version: '0.1.0' }]);
 
-    const result = await mocks.ipcMain.handlers['marketplace-list']?.();
+    const result = await mocks.ipcMain.handlers['gallery-list']?.();
 
     expect(result.ok).toBe(true);
     const byId = Object.fromEntries(result.games.map((g: { id: string }) => [g.id, g]));
@@ -1174,16 +1174,16 @@ describe('marketplace window and IPC', () => {
     expect(byId['other-game']).toMatchObject({ bundled: false, installed: false, installedVersion: null, updateAvailable: false });
   });
 
-  it('marketplace-list passes through a fetch failure untouched', async () => {
+  it('gallery-list passes through a fetch failure untouched', async () => {
     mocks.fetchCatalog.mockResolvedValue({ ok: false, error: 'network unreachable' });
 
-    const result = await mocks.ipcMain.handlers['marketplace-list']?.();
+    const result = await mocks.ipcMain.handlers['gallery-list']?.();
 
     expect(result).toEqual({ ok: false, error: 'network unreachable' });
   });
 
-  it('marketplace-install installs the game and notifies the popover to refresh', async () => {
-    const result = await mocks.ipcMain.handlers['marketplace-install']?.({}, 'meanwaile-maze', '0.1.0');
+  it('gallery-install installs the game and notifies the popover to refresh', async () => {
+    const result = await mocks.ipcMain.handlers['gallery-install']?.({}, 'meanwaile-maze', '0.1.0');
 
     expect(mocks.installGame).toHaveBeenCalledWith(
       expect.objectContaining({ repo: 'uurien/meanwaile-games', id: 'meanwaile-maze', version: '0.1.0' }),
@@ -1192,43 +1192,43 @@ describe('marketplace window and IPC', () => {
     expect(result).toEqual({ ok: true });
   });
 
-  it('marketplace-install returns an error result when the install fails, without touching the popover', async () => {
+  it('gallery-install returns an error result when the install fails, without touching the popover', async () => {
     mocks.installGame.mockRejectedValueOnce(new Error('Failed to download'));
 
-    const result = await mocks.ipcMain.handlers['marketplace-install']?.({}, 'meanwaile-maze', '0.1.0');
+    const result = await mocks.ipcMain.handlers['gallery-install']?.({}, 'meanwaile-maze', '0.1.0');
 
     expect(result).toEqual({ ok: false, error: 'Failed to download' });
     expect(mocks.win.webContents.send).not.toHaveBeenCalledWith('games-changed');
   });
 
-  it('marketplace-install stringifies a non-Error rejection', async () => {
+  it('gallery-install stringifies a non-Error rejection', async () => {
     mocks.installGame.mockRejectedValueOnce('boom');
 
-    const result = await mocks.ipcMain.handlers['marketplace-install']?.({}, 'meanwaile-maze', '0.1.0');
+    const result = await mocks.ipcMain.handlers['gallery-install']?.({}, 'meanwaile-maze', '0.1.0');
 
     expect(result).toEqual({ ok: false, error: 'boom' });
   });
 
-  it('marketplace-uninstall asks for confirmation naming the game before removing it', async () => {
-    await mocks.ipcMain.handlers['marketplace-uninstall']?.({}, 'meanwaile-maze', 'Meanwaile Maze');
+  it('gallery-uninstall asks for confirmation naming the game before removing it', async () => {
+    await mocks.ipcMain.handlers['gallery-uninstall']?.({}, 'meanwaile-maze', 'Meanwaile Maze');
 
     expect(mocks.dialog.showMessageBox).toHaveBeenCalledWith(
       expect.objectContaining({ message: expect.stringContaining('Meanwaile Maze') }),
     );
   });
 
-  it('marketplace-uninstall removes the game and notifies the popover to refresh once confirmed', async () => {
-    const result = await mocks.ipcMain.handlers['marketplace-uninstall']?.({}, 'meanwaile-maze', 'Meanwaile Maze');
+  it('gallery-uninstall removes the game and notifies the popover to refresh once confirmed', async () => {
+    const result = await mocks.ipcMain.handlers['gallery-uninstall']?.({}, 'meanwaile-maze', 'Meanwaile Maze');
 
     expect(mocks.uninstallGame).toHaveBeenCalledWith('/fake/userData', 'meanwaile-maze');
     expect(mocks.win.webContents.send).toHaveBeenCalledWith('games-changed');
     expect(result).toEqual({ ok: true });
   });
 
-  it('marketplace-uninstall does nothing and reports cancelled when the confirmation is declined', async () => {
+  it('gallery-uninstall does nothing and reports cancelled when the confirmation is declined', async () => {
     mocks.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 });
 
-    const result = await mocks.ipcMain.handlers['marketplace-uninstall']?.({}, 'meanwaile-maze', 'Meanwaile Maze');
+    const result = await mocks.ipcMain.handlers['gallery-uninstall']?.({}, 'meanwaile-maze', 'Meanwaile Maze');
 
     expect(mocks.uninstallGame).not.toHaveBeenCalled();
     expect(mocks.win.webContents.send).not.toHaveBeenCalledWith('games-changed');

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fetchCatalog } from '../src/games-marketplace';
+import { fetchCatalog } from '../src/games-gallery';
 
 const REPO = 'uurien/meanwaile-games';
 const RAW = `https://raw.githubusercontent.com/${REPO}/main`;

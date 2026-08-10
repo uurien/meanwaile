@@ -40,7 +40,7 @@ describe('preload', () => {
         listGames: expect.any(Function),
         getSettings: expect.any(Function),
         saveSettings: expect.any(Function),
-        openMarketplace: expect.any(Function),
+        openGallery: expect.any(Function),
         listCatalog: expect.any(Function),
         installGame: expect.any(Function),
         uninstallGame: expect.any(Function),
@@ -93,24 +93,24 @@ describe('preload', () => {
     expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('settings-save', payload);
   });
 
-  it('openMarketplace sends open-marketplace via ipcRenderer', () => {
-    getExposedApi().openMarketplace();
-    expect(mocks.ipcRenderer.send).toHaveBeenCalledWith('open-marketplace');
+  it('openGallery sends open-gallery via ipcRenderer', () => {
+    getExposedApi().openGallery();
+    expect(mocks.ipcRenderer.send).toHaveBeenCalledWith('open-gallery');
   });
 
-  it('listCatalog invokes marketplace-list via ipcRenderer', () => {
+  it('listCatalog invokes gallery-list via ipcRenderer', () => {
     getExposedApi().listCatalog();
-    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('marketplace-list');
+    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('gallery-list');
   });
 
-  it('installGame invokes marketplace-install with the given id and version', () => {
+  it('installGame invokes gallery-install with the given id and version', () => {
     getExposedApi().installGame('meanwaile-maze', '0.1.0');
-    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('marketplace-install', 'meanwaile-maze', '0.1.0');
+    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('gallery-install', 'meanwaile-maze', '0.1.0');
   });
 
-  it('uninstallGame invokes marketplace-uninstall with the given id and name', () => {
+  it('uninstallGame invokes gallery-uninstall with the given id and name', () => {
     getExposedApi().uninstallGame('meanwaile-maze', 'Meanwaile Maze');
-    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('marketplace-uninstall', 'meanwaile-maze', 'Meanwaile Maze');
+    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('gallery-uninstall', 'meanwaile-maze', 'Meanwaile Maze');
   });
 
   it('onGamesChanged registers an IPC listener on games-changed', () => {

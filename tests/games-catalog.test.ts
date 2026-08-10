@@ -89,12 +89,12 @@ describe('games-catalog', () => {
     expect(game.preview).toBe(fileUrl(rootDir, 'circle-tap', 'thumb.jpg'));
   });
 
-  it('returns an empty list when games.json lists no games and nothing is installed via the marketplace', () => {
+  it('returns an empty list when games.json lists no games and nothing is installed via the gallery', () => {
     fs.writeFileSync(path.join(rootDir, 'games.json'), JSON.stringify({ repo: 'uurien/meanwaile-games', games: [] }));
     expect(listGames(rootDir, userDataDir)).toEqual([]);
   });
 
-  it('appends marketplace-installed games after the bundled defaults', () => {
+  it('appends gallery-installed games after the bundled defaults', () => {
     fs.writeFileSync(
       path.join(rootDir, 'games.json'),
       JSON.stringify({ repo: 'uurien/meanwaile-games', games: [{ id: 'circle-tap', version: '1.0.0' }] }),
@@ -126,7 +126,7 @@ describe('games-catalog', () => {
     ]);
   });
 
-  it('marks bundled defaults as not removable and marketplace-installed games as removable', () => {
+  it('marks bundled defaults as not removable and gallery-installed games as removable', () => {
     fs.writeFileSync(
       path.join(rootDir, 'games.json'),
       JSON.stringify({ repo: 'uurien/meanwaile-games', games: [{ id: 'circle-tap', version: '1.0.0' }] }),
@@ -140,13 +140,13 @@ describe('games-catalog', () => {
     expect(games.find((g) => g.id === 'meanwaile-maze')?.removable).toBe(true);
   });
 
-  it('ignores a marketplace-installed entry whose id collides with a bundled default', () => {
+  it('ignores a gallery-installed entry whose id collides with a bundled default', () => {
     fs.writeFileSync(
       path.join(rootDir, 'games.json'),
       JSON.stringify({ repo: 'uurien/meanwaile-games', games: [{ id: 'circle-tap', version: '1.0.0' }] }),
     );
     writeGame(rootDir, 'circle-tap', { name: 'CircleTap (bundled)' });
-    writeGame(userDataDir, 'circle-tap', { name: 'CircleTap (marketplace)' });
+    writeGame(userDataDir, 'circle-tap', { name: 'CircleTap (gallery)' });
     addInstalledGame(userDataDir, { id: 'circle-tap', version: '1.0.0' });
 
     const games = listGames(rootDir, userDataDir);
@@ -154,7 +154,7 @@ describe('games-catalog', () => {
     expect(games[0].name).toBe('CircleTap (bundled)');
   });
 
-  it('does not error when no game has been installed via the marketplace yet (no installed-games.json)', () => {
+  it('does not error when no game has been installed via the gallery yet (no installed-games.json)', () => {
     fs.writeFileSync(path.join(rootDir, 'games.json'), JSON.stringify({ repo: 'uurien/meanwaile-games', games: [] }));
     expect(listGames(rootDir, userDataDir)).toEqual([]);
   });

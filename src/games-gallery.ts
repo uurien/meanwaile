@@ -1,7 +1,7 @@
 import * as path from 'path';
 
 // Fetches the live game catalog from meanwaile-games, entirely in the main
-// process — the marketplace renderer never talks to the network directly,
+// process — the gallery renderer never talks to the network directly,
 // it only receives the resolved result over IPC. collection.json is the
 // source of truth that repo's own README documents for this purpose; each
 // game's own game.json/preview.png (not duplicated into collection.json)

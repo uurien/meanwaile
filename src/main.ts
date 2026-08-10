@@ -25,7 +25,7 @@ import { ensureCodexHooksFeatureEnabled } from './codex-config';
 import { AppSettings, DEFAULT_SETTINGS, readSettings, writeSettings, validateSettings } from './settings-store';
 import { listGames, readGamesConfig } from './games-catalog';
 import { installGame, uninstallGame, readInstalledGames } from './game-installer';
-import { fetchCatalog, CatalogGame } from './games-marketplace';
+import { fetchCatalog, CatalogGame } from './games-gallery';
 import { trayIconFileName, shouldPersistContextMenu } from './tray-platform';
 import { installE2ETestHooks } from './e2e-hooks';
 
@@ -50,13 +50,13 @@ const isDev = Boolean(process.env.MEANWAILE_DEV);
 const POPOVER_WIDTH = 440;
 const POPOVER_HEIGHT = 540;
 
-// The marketplace shows a card grid of the full catalog at once (not a
+// The gallery shows a card grid of the full catalog at once (not a
 // swipeable one-at-a-time carousel like the popover), so it gets a bigger,
 // separate window.
-const MARKETPLACE_WIDTH = 720;
-const MARKETPLACE_HEIGHT = 640;
+const GALLERY_WIDTH = 720;
+const GALLERY_HEIGHT = 640;
 
-interface MarketplaceGame extends CatalogGame {
+interface GalleryGame extends CatalogGame {
   bundled: boolean;
   installed: boolean;
   installedVersion: string | null;
@@ -66,7 +66,7 @@ interface MarketplaceGame extends CatalogGame {
 let tray: Tray | null = null;
 let popover: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
-let marketplaceWindow: BrowserWindow | null = null;
+let galleryWindow: BrowserWindow | null = null;
 let httpServer: http.Server | null = null;
 let autoOpenTimer: ReturnType<typeof setTimeout> | null = null;
 let currentSettings: AppSettings = { ...DEFAULT_SETTINGS };
@@ -343,15 +343,15 @@ function showSettingsWindow(): void {
   settingsWindow.on('closed', () => { settingsWindow = null; });
 }
 
-function showMarketplaceWindow(): void {
-  if (marketplaceWindow && !marketplaceWindow.isDestroyed()) {
-    marketplaceWindow.focus();
+function showGalleryWindow(): void {
+  if (galleryWindow && !galleryWindow.isDestroyed()) {
+    galleryWindow.focus();
     return;
   }
 
-  marketplaceWindow = new BrowserWindow({
-    width: MARKETPLACE_WIDTH,
-    height: MARKETPLACE_HEIGHT,
+  galleryWindow = new BrowserWindow({
+    width: GALLERY_WIDTH,
+    height: GALLERY_HEIGHT,
     resizable: false,
     minimizable: false,
     maximizable: false,
@@ -362,33 +362,33 @@ function showMarketplaceWindow(): void {
       nodeIntegration: false,
     },
   });
-  marketplaceWindow.setMenuBarVisibility(false);
-  marketplaceWindow.loadFile(path.join(__dirname, '..', 'src', 'marketplace', 'index.html'));
-  if (isDev) marketplaceWindow.webContents.openDevTools({ mode: 'detach' });
-  marketplaceWindow.on('closed', () => { marketplaceWindow = null; });
+  galleryWindow.setMenuBarVisibility(false);
+  galleryWindow.loadFile(path.join(__dirname, '..', 'src', 'gallery', 'index.html'));
+  if (isDev) galleryWindow.webContents.openDevTools({ mode: 'detach' });
+  galleryWindow.on('closed', () => { galleryWindow = null; });
 }
 
 // Cross-references the live catalog fetched from meanwaile-games against
 // what's already on disk (bundled defaults from games.json, plus whatever
-// the user has installed at runtime via the marketplace) so the UI knows
+// the user has installed at runtime via the gallery) so the UI knows
 // whether to render Install / Update / Remove for each card.
 function annotateCatalog(
   games: CatalogGame[],
   bundledGames: { id: string; version: string }[],
-  marketplaceGames: { id: string; version: string }[],
-): MarketplaceGame[] {
+  galleryGames: { id: string; version: string }[],
+): GalleryGame[] {
   const bundledVersions = new Map(bundledGames.map((g) => [g.id, g.version]));
-  const marketplaceVersions = new Map(marketplaceGames.map((g) => [g.id, g.version]));
+  const galleryVersions = new Map(galleryGames.map((g) => [g.id, g.version]));
 
   return games.map((game) => {
     const bundledVersion = bundledVersions.get(game.id);
-    const marketplaceVersion = marketplaceVersions.get(game.id);
+    const galleryVersion = galleryVersions.get(game.id);
     return {
       ...game,
       bundled: bundledVersion !== undefined,
-      installed: bundledVersion !== undefined || marketplaceVersion !== undefined,
-      installedVersion: bundledVersion ?? marketplaceVersion ?? null,
-      updateAvailable: marketplaceVersion !== undefined && marketplaceVersion !== game.version,
+      installed: bundledVersion !== undefined || galleryVersion !== undefined,
+      installedVersion: bundledVersion ?? galleryVersion ?? null,
+      updateAvailable: galleryVersion !== undefined && galleryVersion !== game.version,
     };
   });
 }
@@ -550,9 +550,9 @@ app.on('ready', async () => {
 
   ipcMain.on('popover-close', () => { popover?.hide(); });
   ipcMain.on('open-settings', () => { showSettingsWindow(); });
-  ipcMain.on('open-marketplace', () => { showMarketplaceWindow(); });
+  ipcMain.on('open-gallery', () => { showGalleryWindow(); });
   ipcMain.handle('games-list', () => listGames(path.join(__dirname, '..'), app.getPath('userData')));
-  ipcMain.handle('marketplace-list', async () => {
+  ipcMain.handle('gallery-list', async () => {
     const rootDir = path.join(__dirname, '..');
     const userDataDir = app.getPath('userData');
     const { repo, games: bundledGames } = readGamesConfig(rootDir);
@@ -562,7 +562,7 @@ app.on('ready', async () => {
 
     return { ok: true, games: annotateCatalog(result.games, bundledGames, readInstalledGames(userDataDir)) };
   });
-  ipcMain.handle('marketplace-install', async (_event, id: string, version: string) => {
+  ipcMain.handle('gallery-install', async (_event, id: string, version: string) => {
     const userDataDir = app.getPath('userData');
     const { repo } = readGamesConfig(path.join(__dirname, '..'));
     try {
@@ -573,13 +573,13 @@ app.on('ready', async () => {
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
   });
-  ipcMain.handle('marketplace-uninstall', async (_event, id: string, name: string) => {
+  ipcMain.handle('gallery-uninstall', async (_event, id: string, name: string) => {
     const { response } = await dialog.showMessageBox({
       type: 'question',
       buttons: ['Cancel', 'Uninstall'],
       defaultId: 0,
       cancelId: 0,
-      message: `Uninstall ${name}? You can reinstall it anytime from the marketplace.`,
+      message: `Uninstall ${name}? You can reinstall it anytime from the gallery.`,
     });
     if (response !== 1) return { ok: false, cancelled: true };
 
