@@ -96,6 +96,11 @@ const mocks = vi.hoisted(() => {
   const DEFAULT_SETTINGS = { httpPort: 3821, autoOpenDelaySeconds: 15 };
   const readSettings = vi.fn(() => ({ ...DEFAULT_SETTINGS }));
   const writeSettings = vi.fn();
+
+  const installGame = vi.fn(async () => {});
+  const uninstallGame = vi.fn();
+  const readInstalledGames = vi.fn(() => [] as { id: string; version: string }[]);
+  const fetchCatalog = vi.fn(async () => ({ ok: true, games: [] as unknown[] }));
   const validateSettings = vi.fn((input: Record<string, unknown>) => {
     const httpPort = Number(input.httpPort);
     const autoOpenDelaySeconds = Number(input.autoOpenDelaySeconds);
@@ -135,6 +140,10 @@ const mocks = vi.hoisted(() => {
     readSettings,
     writeSettings,
     validateSettings,
+    installGame,
+    uninstallGame,
+    readInstalledGames,
+    fetchCatalog,
     BrowserWindow: vi.fn(() => win),
     Tray: vi.fn(() => tray),
     Menu: { buildFromTemplate: vi.fn(() => ({})) },
@@ -191,6 +200,16 @@ vi.mock('../src/settings-store', () => ({
   readSettings: mocks.readSettings,
   writeSettings: mocks.writeSettings,
   validateSettings: mocks.validateSettings,
+}));
+
+vi.mock('../src/game-installer', () => ({
+  installGame: mocks.installGame,
+  uninstallGame: mocks.uninstallGame,
+  readInstalledGames: mocks.readInstalledGames,
+}));
+
+vi.mock('../src/games-marketplace', () => ({
+  fetchCatalog: mocks.fetchCatalog,
 }));
 
 import '../src/main';
@@ -1104,6 +1123,116 @@ describe('settings window IPC', () => {
     await mocks.ipcMain.handlers['settings-save']?.({}, { httpPort: 5000, autoOpenDelaySeconds: 20 });
 
     expect(mocks.dialog.showMessageBox).not.toHaveBeenCalled();
+  });
+});
+
+describe('marketplace window and IPC', () => {
+  beforeEach(() => {
+    mocks.fetchCatalog.mockReset().mockResolvedValue({ ok: true, games: [] });
+    mocks.readInstalledGames.mockReset().mockReturnValue([]);
+    mocks.installGame.mockReset().mockResolvedValue(undefined);
+    mocks.uninstallGame.mockReset();
+    mocks.win.webContents.send.mockClear();
+    // Default: confirm the uninstall dialog (buttons: ['Cancel', 'Uninstall'], index 1).
+    mocks.dialog.showMessageBox.mockReset().mockResolvedValue({ response: 1 });
+  });
+
+  it('open-marketplace creates a marketplace window', () => {
+    const callsBefore = mocks.BrowserWindow.mock.calls.length;
+    mocks.ipcMain.handlers['open-marketplace']?.();
+    expect(mocks.BrowserWindow.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it('open-marketplace focuses the existing marketplace window instead of creating a new one', () => {
+    mocks.ipcMain.handlers['open-marketplace']?.();
+    mocks.win.focus.mockClear();
+    const callsBefore = mocks.BrowserWindow.mock.calls.length;
+
+    mocks.ipcMain.handlers['open-marketplace']?.();
+
+    expect(mocks.BrowserWindow.mock.calls.length).toBe(callsBefore);
+    expect(mocks.win.focus).toHaveBeenCalled();
+  });
+
+  it('marketplace-list annotates catalog entries as bundled, installed, or update-available', async () => {
+    mocks.fetchCatalog.mockResolvedValue({
+      ok: true,
+      games: [
+        { id: 'circle-tap', name: 'CircleTap', tagline: '', description: '', version: '1.0.0', previewDataUri: '' },
+        { id: 'meanwaile-maze', name: 'Meanwaile Maze', tagline: '', description: '', version: '0.2.0', previewDataUri: '' },
+        { id: 'other-game', name: 'Other', tagline: '', description: '', version: '1.0.0', previewDataUri: '' },
+      ],
+    });
+    mocks.readInstalledGames.mockReturnValue([{ id: 'meanwaile-maze', version: '0.1.0' }]);
+
+    const result = await mocks.ipcMain.handlers['marketplace-list']?.();
+
+    expect(result.ok).toBe(true);
+    const byId = Object.fromEntries(result.games.map((g: { id: string }) => [g.id, g]));
+    expect(byId['circle-tap']).toMatchObject({ bundled: true, installed: true, installedVersion: '1.0.0', updateAvailable: false });
+    expect(byId['meanwaile-maze']).toMatchObject({ bundled: false, installed: true, installedVersion: '0.1.0', updateAvailable: true });
+    expect(byId['other-game']).toMatchObject({ bundled: false, installed: false, installedVersion: null, updateAvailable: false });
+  });
+
+  it('marketplace-list passes through a fetch failure untouched', async () => {
+    mocks.fetchCatalog.mockResolvedValue({ ok: false, error: 'network unreachable' });
+
+    const result = await mocks.ipcMain.handlers['marketplace-list']?.();
+
+    expect(result).toEqual({ ok: false, error: 'network unreachable' });
+  });
+
+  it('marketplace-install installs the game and notifies the popover to refresh', async () => {
+    const result = await mocks.ipcMain.handlers['marketplace-install']?.({}, 'meanwaile-maze', '0.1.0');
+
+    expect(mocks.installGame).toHaveBeenCalledWith(
+      expect.objectContaining({ repo: 'uurien/meanwaile-games', id: 'meanwaile-maze', version: '0.1.0' }),
+    );
+    expect(mocks.win.webContents.send).toHaveBeenCalledWith('games-changed');
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('marketplace-install returns an error result when the install fails, without touching the popover', async () => {
+    mocks.installGame.mockRejectedValueOnce(new Error('Failed to download'));
+
+    const result = await mocks.ipcMain.handlers['marketplace-install']?.({}, 'meanwaile-maze', '0.1.0');
+
+    expect(result).toEqual({ ok: false, error: 'Failed to download' });
+    expect(mocks.win.webContents.send).not.toHaveBeenCalledWith('games-changed');
+  });
+
+  it('marketplace-install stringifies a non-Error rejection', async () => {
+    mocks.installGame.mockRejectedValueOnce('boom');
+
+    const result = await mocks.ipcMain.handlers['marketplace-install']?.({}, 'meanwaile-maze', '0.1.0');
+
+    expect(result).toEqual({ ok: false, error: 'boom' });
+  });
+
+  it('marketplace-uninstall asks for confirmation naming the game before removing it', async () => {
+    await mocks.ipcMain.handlers['marketplace-uninstall']?.({}, 'meanwaile-maze', 'Meanwaile Maze');
+
+    expect(mocks.dialog.showMessageBox).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('Meanwaile Maze') }),
+    );
+  });
+
+  it('marketplace-uninstall removes the game and notifies the popover to refresh once confirmed', async () => {
+    const result = await mocks.ipcMain.handlers['marketplace-uninstall']?.({}, 'meanwaile-maze', 'Meanwaile Maze');
+
+    expect(mocks.uninstallGame).toHaveBeenCalledWith('/fake/userData', 'meanwaile-maze');
+    expect(mocks.win.webContents.send).toHaveBeenCalledWith('games-changed');
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('marketplace-uninstall does nothing and reports cancelled when the confirmation is declined', async () => {
+    mocks.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 });
+
+    const result = await mocks.ipcMain.handlers['marketplace-uninstall']?.({}, 'meanwaile-maze', 'Meanwaile Maze');
+
+    expect(mocks.uninstallGame).not.toHaveBeenCalled();
+    expect(mocks.win.webContents.send).not.toHaveBeenCalledWith('games-changed');
+    expect(result).toEqual({ ok: false, cancelled: true });
   });
 });
 

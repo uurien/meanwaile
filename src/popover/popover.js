@@ -13,6 +13,7 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const continueBtn = document.getElementById('continue-btn');
 const settingsBtn = document.getElementById('settings-btn');
+const marketplaceBtn = document.getElementById('marketplace-btn');
 
 let currentState = 'idle';
 let currentSessionId = null;
@@ -94,7 +95,21 @@ function goHome() {
 
 backBtn.addEventListener('click', goHome);
 
-createHub({ container: hubScreen, games: await window.meanwaile.listGames(), onOpenGame: openGame });
+// Re-run whenever the games list changes too (marketplace install/remove),
+// not just on the initial load, so the hub reflects it live without the
+// user having to reopen the popover.
+async function refreshHub() {
+  createHub({
+    container: hubScreen,
+    games: await window.meanwaile.listGames(),
+    onOpenGame: openGame,
+    onOpenMarketplace: () => window.meanwaile.openMarketplace(),
+    onUninstallGame: (game) => window.meanwaile.uninstallGame(game.id, game.name),
+  });
+}
+
+await refreshHub();
+window.meanwaile.onGamesChanged(refreshHub);
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') window.meanwaile.close();
@@ -131,6 +146,11 @@ continueBtn.addEventListener('click', () => {
 settingsBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   window.meanwaile.openSettings();
+});
+
+marketplaceBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  window.meanwaile.openMarketplace();
 });
 
 window.meanwaile.onStateChange((snapshot) => {

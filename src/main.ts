@@ -23,7 +23,9 @@ import {
 } from './codex-settings';
 import { ensureCodexHooksFeatureEnabled } from './codex-config';
 import { AppSettings, DEFAULT_SETTINGS, readSettings, writeSettings, validateSettings } from './settings-store';
-import { listGames } from './games-catalog';
+import { listGames, readGamesConfig } from './games-catalog';
+import { installGame, uninstallGame, readInstalledGames } from './game-installer';
+import { fetchCatalog, CatalogGame } from './games-marketplace';
 import { trayIconFileName, shouldPersistContextMenu } from './tray-platform';
 import { installE2ETestHooks } from './e2e-hooks';
 
@@ -48,9 +50,23 @@ const isDev = Boolean(process.env.MEANWAILE_DEV);
 const POPOVER_WIDTH = 440;
 const POPOVER_HEIGHT = 540;
 
+// The marketplace shows a card grid of the full catalog at once (not a
+// swipeable one-at-a-time carousel like the popover), so it gets a bigger,
+// separate window.
+const MARKETPLACE_WIDTH = 720;
+const MARKETPLACE_HEIGHT = 640;
+
+interface MarketplaceGame extends CatalogGame {
+  bundled: boolean;
+  installed: boolean;
+  installedVersion: string | null;
+  updateAvailable: boolean;
+}
+
 let tray: Tray | null = null;
 let popover: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
+let marketplaceWindow: BrowserWindow | null = null;
 let httpServer: http.Server | null = null;
 let autoOpenTimer: ReturnType<typeof setTimeout> | null = null;
 let currentSettings: AppSettings = { ...DEFAULT_SETTINGS };
@@ -327,6 +343,56 @@ function showSettingsWindow(): void {
   settingsWindow.on('closed', () => { settingsWindow = null; });
 }
 
+function showMarketplaceWindow(): void {
+  if (marketplaceWindow && !marketplaceWindow.isDestroyed()) {
+    marketplaceWindow.focus();
+    return;
+  }
+
+  marketplaceWindow = new BrowserWindow({
+    width: MARKETPLACE_WIDTH,
+    height: MARKETPLACE_HEIGHT,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    title: 'Meanwaile — Get more games',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  marketplaceWindow.setMenuBarVisibility(false);
+  marketplaceWindow.loadFile(path.join(__dirname, '..', 'src', 'marketplace', 'index.html'));
+  if (isDev) marketplaceWindow.webContents.openDevTools({ mode: 'detach' });
+  marketplaceWindow.on('closed', () => { marketplaceWindow = null; });
+}
+
+// Cross-references the live catalog fetched from meanwaile-games against
+// what's already on disk (bundled defaults from games.json, plus whatever
+// the user has installed at runtime via the marketplace) so the UI knows
+// whether to render Install / Update / Remove for each card.
+function annotateCatalog(
+  games: CatalogGame[],
+  bundledGames: { id: string; version: string }[],
+  marketplaceGames: { id: string; version: string }[],
+): MarketplaceGame[] {
+  const bundledVersions = new Map(bundledGames.map((g) => [g.id, g.version]));
+  const marketplaceVersions = new Map(marketplaceGames.map((g) => [g.id, g.version]));
+
+  return games.map((game) => {
+    const bundledVersion = bundledVersions.get(game.id);
+    const marketplaceVersion = marketplaceVersions.get(game.id);
+    return {
+      ...game,
+      bundled: bundledVersion !== undefined,
+      installed: bundledVersion !== undefined || marketplaceVersion !== undefined,
+      installedVersion: bundledVersion ?? marketplaceVersion ?? null,
+      updateAvailable: marketplaceVersion !== undefined && marketplaceVersion !== game.version,
+    };
+  });
+}
+
 // Runs once, on the very first launch ever. Two separate dialogs — never
 // combined into one screen — so each choice reads as its own decision.
 async function runOnboardingIfNeeded(): Promise<void> {
@@ -484,7 +550,43 @@ app.on('ready', async () => {
 
   ipcMain.on('popover-close', () => { popover?.hide(); });
   ipcMain.on('open-settings', () => { showSettingsWindow(); });
-  ipcMain.handle('games-list', () => listGames(path.join(__dirname, '..')));
+  ipcMain.on('open-marketplace', () => { showMarketplaceWindow(); });
+  ipcMain.handle('games-list', () => listGames(path.join(__dirname, '..'), app.getPath('userData')));
+  ipcMain.handle('marketplace-list', async () => {
+    const rootDir = path.join(__dirname, '..');
+    const userDataDir = app.getPath('userData');
+    const { repo, games: bundledGames } = readGamesConfig(rootDir);
+
+    const result = await fetchCatalog({ repo });
+    if (!result.ok) return result;
+
+    return { ok: true, games: annotateCatalog(result.games, bundledGames, readInstalledGames(userDataDir)) };
+  });
+  ipcMain.handle('marketplace-install', async (_event, id: string, version: string) => {
+    const userDataDir = app.getPath('userData');
+    const { repo } = readGamesConfig(path.join(__dirname, '..'));
+    try {
+      await installGame({ repo, id, version, userDataDir });
+      popover?.webContents.send('games-changed');
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+  ipcMain.handle('marketplace-uninstall', async (_event, id: string, name: string) => {
+    const { response } = await dialog.showMessageBox({
+      type: 'question',
+      buttons: ['Cancel', 'Uninstall'],
+      defaultId: 0,
+      cancelId: 0,
+      message: `Uninstall ${name}? You can reinstall it anytime from the marketplace.`,
+    });
+    if (response !== 1) return { ok: false, cancelled: true };
+
+    uninstallGame(app.getPath('userData'), id);
+    popover?.webContents.send('games-changed');
+    return { ok: true };
+  });
   ipcMain.handle('settings-get', () => currentSettings);
   ipcMain.handle('settings-save', async (_event, incoming) => {
     const result = validateSettings(incoming);

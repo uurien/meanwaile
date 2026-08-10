@@ -53,10 +53,15 @@ body {
   padding: 22px 24px 14px 24px;
 }
 
-#header-left {
+#header-left,
+#header-right {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+#header-right {
+  gap: 8px;
 }
 
 #brand,
@@ -68,6 +73,7 @@ body {
 }
 
 #back-btn,
+#marketplace-btn,
 #settings-btn {
   width: 34px;
   height: 34px;
@@ -82,6 +88,7 @@ body {
   justify-content: center;
 }
 
+#marketplace-btn,
 #settings-btn {
   border-color: var(--border);
   background: rgba(255, 255, 255, 0.03);
@@ -90,6 +97,7 @@ body {
 }
 
 #back-btn:hover,
+#marketplace-btn:hover,
 #settings-btn:hover {
   background: rgba(255, 255, 255, 0.09);
 }
@@ -201,10 +209,36 @@ body {
   user-select: none;
 }
 
+.game-card__top-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .game-card__eyebrow {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.4);
-  align-self: flex-start;
+}
+
+.game-card__uninstall {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e08080;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.game-card__uninstall:hover {
+  background: rgba(224, 80, 80, 0.12);
+  border-color: #e08080;
+  color: #ff6b6b;
 }
 
 .game-card__preview {
@@ -249,6 +283,50 @@ body {
 
 .game-card__start:hover {
   background: var(--accent-wash);
+}
+
+.marketplace-card {
+  width: 280px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 18px 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  user-select: none;
+}
+
+.marketplace-card__start {
+  border: 2px solid var(--accent);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 26px;
+  border-radius: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.marketplace-card__start:hover {
+  background: var(--accent-wash);
+}
+
+.marketplace-card__icon {
+  width: 60px;
+  height: 60px;
+  max-width: 150px;
+  border-radius: 12px;
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--accent);
 }
 
 /* ─── Game screen ─────────────────────────────────────────────────────── */

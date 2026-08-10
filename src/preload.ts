@@ -19,4 +19,19 @@ contextBridge.exposeInMainWorld('meanwaile', {
   saveSettings(settings: unknown): Promise<unknown> {
     return ipcRenderer.invoke('settings-save', settings);
   },
+  openMarketplace(): void {
+    ipcRenderer.send('open-marketplace');
+  },
+  listCatalog(): Promise<unknown> {
+    return ipcRenderer.invoke('marketplace-list');
+  },
+  installGame(id: string, version: string): Promise<unknown> {
+    return ipcRenderer.invoke('marketplace-install', id, version);
+  },
+  uninstallGame(id: string, name: string): Promise<unknown> {
+    return ipcRenderer.invoke('marketplace-uninstall', id, name);
+  },
+  onGamesChanged(cb: () => void): void {
+    ipcRenderer.on('games-changed', () => cb());
+  },
 });
