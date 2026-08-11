@@ -15,6 +15,7 @@ const STUB_GAMES = [
     entry: '../../games/circle-tap/index.html',
     preview: '../../games/circle-tap/preview.png',
     implemented: true,
+    removable: false,
   },
   {
     id: 'placeholder-game',
@@ -23,6 +24,7 @@ const STUB_GAMES = [
     entry: null,
     preview: null,
     implemented: false,
+    removable: true,
   },
 ];
 
@@ -34,6 +36,7 @@ let overlay: HTMLElement;
 let overlayMsg: HTMLElement;
 let continueBtn: HTMLElement;
 let settingsBtn: HTMLElement;
+let galleryBtn: HTMLElement;
 let backBtn: HTMLElement;
 let brand: HTMLElement;
 let gameName: HTMLElement;
@@ -44,6 +47,10 @@ let placeholder: HTMLElement;
 let placeholderText: HTMLElement;
 let iframe: HTMLIFrameElement;
 let meanwaileOpenSettings: ReturnType<typeof vi.fn>;
+let meanwaileOpenGallery: ReturnType<typeof vi.fn>;
+let meanwaileUninstallGame: ReturnType<typeof vi.fn>;
+let meanwaileListGames: ReturnType<typeof vi.fn>;
+let triggerGamesChanged: () => void;
 
 function hubStartButtons(): HTMLButtonElement[] {
   return Array.from(hubScreen.querySelectorAll('.game-card__start'));
@@ -70,13 +77,21 @@ beforeAll(async () => {
 
   meanwaileClose = vi.fn();
   meanwaileOpenSettings = vi.fn();
+  meanwaileOpenGallery = vi.fn();
+  meanwaileUninstallGame = vi.fn();
+  meanwaileListGames = vi.fn(() => Promise.resolve(STUB_GAMES));
   Object.defineProperty(window, 'meanwaile', {
     value: {
       close: meanwaileClose,
       openSettings: meanwaileOpenSettings,
-      listGames: () => Promise.resolve(STUB_GAMES),
+      openGallery: meanwaileOpenGallery,
+      uninstallGame: meanwaileUninstallGame,
+      listGames: meanwaileListGames,
       onStateChange(cb: (snapshot: unknown) => void) {
         triggerStateChange = cb as (snapshot: { state: string }) => void;
+      },
+      onGamesChanged(cb: () => void) {
+        triggerGamesChanged = cb;
       },
     },
     configurable: true,
@@ -88,6 +103,7 @@ beforeAll(async () => {
   overlayMsg = document.getElementById('overlay-msg')!;
   continueBtn = document.getElementById('continue-btn')!;
   settingsBtn = document.getElementById('settings-btn')!;
+  galleryBtn = document.getElementById('gallery-btn')!;
   backBtn = document.getElementById('back-btn')!;
   brand = document.getElementById('brand')!;
   gameName = document.getElementById('game-name')!;
@@ -259,6 +275,28 @@ describe('inside a game: agent-driven pause/resume', () => {
     });
   });
 
+  describe('gallery button', () => {
+    it('opens the gallery window without closing the popover', () => {
+      galleryBtn.click();
+      expect(meanwaileOpenGallery).toHaveBeenCalledOnce();
+    });
+
+    it('also opens the gallery window from the trailing "Get more games" carousel card', () => {
+      meanwaileOpenGallery.mockClear();
+      const browseBtn = hubScreen.querySelector('.gallery-card__start') as HTMLButtonElement;
+      browseBtn.click();
+      expect(meanwaileOpenGallery).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('uninstalling a removable game from its hub card', () => {
+    it('calls window.meanwaile.uninstallGame with the game id', () => {
+      const uninstallBtn = hubScreen.querySelector('.game-card__uninstall') as HTMLButtonElement;
+      uninstallBtn.click();
+      expect(meanwaileUninstallGame).toHaveBeenCalledWith('placeholder-game', 'Placeholder');
+    });
+  });
+
   describe('start button', () => {
     it('hides the overlay and sends game:resume on click, marking the game as started', () => {
       overlay.style.display = 'flex';
@@ -413,5 +451,29 @@ describe('guards when no game is active (hub screen)', () => {
   it('onStateChange does nothing while on the hub', () => {
     expect(() => triggerStateChange({ state: 'needs_user', sessionId: 'xyz' })).not.toThrow();
     expect(overlay.style.display).toBe('none');
+  });
+});
+
+describe('games-changed refresh (gallery install/remove while the popover is open)', () => {
+  it('re-fetches the games list and re-renders the hub when games-changed fires', async () => {
+    meanwaileListGames.mockClear();
+    meanwaileListGames.mockResolvedValueOnce([
+      ...STUB_GAMES,
+      {
+        id: 'meanwaile-maze',
+        name: 'Meanwaile Maze',
+        tagline: 'Find a way out',
+        entry: 'file:///games/meanwaile-maze/index.html',
+        preview: 'file:///games/meanwaile-maze/preview.png',
+        implemented: true,
+      },
+    ]);
+
+    triggerGamesChanged();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(meanwaileListGames).toHaveBeenCalledTimes(1);
+    expect(hubStartButtons()).toHaveLength(3);
   });
 });

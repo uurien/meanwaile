@@ -26,6 +26,12 @@ function el(tag, className, text) {
   return node;
 }
 
+// Static, hand-written markup (no user data interpolated) - safe to set via
+// innerHTML under the popover's script-src 'self' CSP, which governs
+// resource loading, not inline non-script markup like this.
+const TRASH_ICON_SVG =
+  '<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6h11M8.5 6V4.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1V6m-6.5 0 .6 9.4a1 1 0 0 0 1 .9h5.8a1 1 0 0 0 1-.9L14.5 6"/></svg>';
+
 function preview(game) {
   if (!game.preview) return el('div', 'game-card__preview game-card__preview--empty');
   const img = el('img', 'game-card__preview');
@@ -34,10 +40,26 @@ function preview(game) {
   return img;
 }
 
-function buildCard(game, index, total, onOpenGame) {
+function buildCard(game, index, total, onOpenGame, onUninstallGame) {
   const card = el('div', 'game-card');
 
-  card.appendChild(el('div', 'game-card__eyebrow', `Game ${index + 1} of ${total}`));
+  const topRow = el('div', 'game-card__top-row');
+  topRow.appendChild(el('div', 'game-card__eyebrow', `Game ${index + 1} of ${total}`));
+  // Only games installed through the gallery can be uninstalled from
+  // here - bundled defaults live inside the read-only app bundle.
+  if (game.removable) {
+    const uninstallBtn = el('button', 'game-card__uninstall');
+    uninstallBtn.title = 'Uninstall';
+    uninstallBtn.innerHTML = TRASH_ICON_SVG;
+    // Stop the click from also bubbling into the card's own Start action.
+    uninstallBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onUninstallGame(game);
+    });
+    topRow.appendChild(uninstallBtn);
+  }
+  card.appendChild(topRow);
+
   card.appendChild(preview(game));
 
   const info = el('div', 'game-card__info');
@@ -52,7 +74,30 @@ function buildCard(game, index, total, onOpenGame) {
   return card;
 }
 
-export function createHub({ container, games, onOpenGame }) {
+// Trailing, non-game slide at the end of the carousel that opens the
+// gallery instead of a game - deliberately its own class (not
+// game-card), so it's never counted among the game cards/slides that use
+// that selector, while still matching their width for the shared
+// index-based SLIDE_STEP geometry.
+function buildGalleryCard(onOpenGallery) {
+  const card = el('div', 'gallery-card');
+
+  card.appendChild(el('div', 'game-card__eyebrow', 'More games'));
+  card.appendChild(el('div', 'gallery-card__icon', '+'));
+
+  const info = el('div', 'game-card__info');
+  info.appendChild(el('div', 'game-card__title', 'Get more games'));
+  info.appendChild(el('div', 'game-card__tagline', 'Browse the full catalog'));
+  card.appendChild(info);
+
+  const browseBtn = el('button', 'gallery-card__start', 'Browse');
+  browseBtn.addEventListener('click', () => onOpenGallery());
+  card.appendChild(browseBtn);
+
+  return card;
+}
+
+export function createHub({ container, games, onOpenGame, onOpenGallery, onUninstallGame }) {
   container.innerHTML = `
     <div id="carousel">
       <button id="prev-btn" class="arrow-btn" aria-label="Previous game">‹</button>
@@ -70,6 +115,7 @@ export function createHub({ container, games, onOpenGame }) {
   const nextBtn = container.querySelector('#next-btn');
   const dotsEl = container.querySelector('#dots');
 
+  const totalSlides = games.length + 1;
   const lastGameIndex = games.findIndex((game) => game.id === getLastGameId());
 
   let activeIndex = Math.max(0, lastGameIndex);
@@ -83,20 +129,25 @@ export function createHub({ container, games, onOpenGame }) {
     onOpenGame(game);
   }
 
-  games.forEach((game, i) => {
-    track.appendChild(buildCard(game, i, games.length, handleOpenGame));
-
-    const dot = el('div', i === activeIndex ? 'dot dot--active' : 'dot');
-    dot.addEventListener('click', () => goTo(i));
+  function addDot(index) {
+    const dot = el('div', index === activeIndex ? 'dot dot--active' : 'dot');
+    dot.addEventListener('click', () => goTo(index));
     dotsEl.appendChild(dot);
+  }
+
+  games.forEach((game, i) => {
+    track.appendChild(buildCard(game, i, games.length, handleOpenGame, onUninstallGame));
+    addDot(i);
   });
+  track.appendChild(buildGalleryCard(onOpenGallery));
+  addDot(games.length);
 
   function atStart() {
     return activeIndex === 0;
   }
 
   function atEnd() {
-    return activeIndex === games.length - 1;
+    return activeIndex === totalSlides - 1;
   }
 
   function render() {
@@ -113,7 +164,7 @@ export function createHub({ container, games, onOpenGame }) {
   }
 
   function goTo(index) {
-    activeIndex = Math.min(games.length - 1, Math.max(0, index));
+    activeIndex = Math.min(totalSlides - 1, Math.max(0, index));
     render();
   }
 

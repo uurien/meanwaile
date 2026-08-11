@@ -10,18 +10,31 @@ const GAMES = [
     entry: 'circle-tap/index.html',
     preview: 'circle-tap/preview.png',
     implemented: true,
+    removable: false,
   },
-  { id: 'game-2', name: 'Juego 2', tagline: 'Próximamente', entry: null, preview: null, implemented: false },
+  {
+    id: 'game-2',
+    name: 'Juego 2',
+    tagline: 'Próximamente',
+    entry: null,
+    preview: null,
+    implemented: false,
+    removable: true,
+  },
 ];
 
 let container: HTMLElement;
 let onOpenGame: ReturnType<typeof vi.fn>;
+let onOpenGallery: ReturnType<typeof vi.fn>;
+let onUninstallGame: ReturnType<typeof vi.fn>;
 
 function build(games = GAMES) {
   document.body.innerHTML = '<div id="hub-screen"></div>';
   container = document.getElementById('hub-screen')!;
   onOpenGame = vi.fn();
-  createHub({ container, games, onOpenGame });
+  onOpenGallery = vi.fn();
+  onUninstallGame = vi.fn();
+  createHub({ container, games, onOpenGame, onOpenGallery, onUninstallGame });
 }
 
 function track(): HTMLElement {
@@ -42,6 +55,10 @@ function dots(): HTMLElement[] {
 
 function carouselCards(): HTMLElement[] {
   return Array.from(track().querySelectorAll('.game-card'));
+}
+
+function galleryCard(): HTMLElement {
+  return track().querySelector('.gallery-card')!;
 }
 
 function fireDrag(deltaX: number) {
@@ -86,6 +103,54 @@ describe('carousel cards', () => {
   });
 });
 
+describe('uninstall button on removable cards', () => {
+  it('is not rendered for a card whose game is not removable', () => {
+    const cards = carouselCards();
+    expect(cards[0].querySelector('.game-card__uninstall')).toBeNull();
+  });
+
+  it('is rendered for a card whose game is removable, as a trash icon (not text)', () => {
+    const cards = carouselCards();
+    const btn = cards[1].querySelector('.game-card__uninstall')!;
+    expect(btn).toBeTruthy();
+    expect(btn.querySelector('svg')).toBeTruthy();
+    expect(btn.textContent).toBe('');
+  });
+
+  it('calls onUninstallGame with the game, not onOpenGame, when clicked', () => {
+    const cards = carouselCards();
+    (cards[1].querySelector('.game-card__uninstall') as HTMLButtonElement).click();
+    expect(onUninstallGame).toHaveBeenCalledWith(GAMES[1]);
+    expect(onOpenGame).not.toHaveBeenCalled();
+  });
+});
+
+describe('gallery card', () => {
+  it('renders a trailing card after the games, not counted among .game-card elements', () => {
+    expect(carouselCards()).toHaveLength(2);
+    expect(galleryCard()).toBeTruthy();
+  });
+
+  it('calls onOpenGallery, not onOpenGame, when its button is clicked', () => {
+    galleryCard().querySelector('button')!.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(onOpenGallery).toHaveBeenCalledTimes(1);
+    expect(onOpenGame).not.toHaveBeenCalled();
+  });
+
+  it('does not persist a last-played game id when opened', () => {
+    galleryCard().querySelector('button')!.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(localStorage.getItem('hub-last-game')).toBeNull();
+  });
+
+  it('gets its own trailing dot, reachable by clicking it', () => {
+    const d = dots();
+    expect(d).toHaveLength(3);
+    d[2].click();
+    expect(d[2].classList.contains('dot--active')).toBe(true);
+    expect(track().style.transform).toBe('translateX(-512px)');
+  });
+});
+
 describe('arrow navigation', () => {
   it('starts with prev disabled and next enabled at the first card', () => {
     expect(prevBtn().disabled).toBe(true);
@@ -96,13 +161,15 @@ describe('arrow navigation', () => {
     nextBtn().click();
     expect(track().style.transform).toBe('translateX(-216px)');
     expect(prevBtn().disabled).toBe(false);
-    expect(nextBtn().disabled).toBe(true);
+    expect(nextBtn().disabled).toBe(false);
   });
 
-  it('does not advance past the last card', () => {
+  it('does not advance past the trailing gallery card', () => {
     nextBtn().click();
     nextBtn().click();
-    expect(track().style.transform).toBe('translateX(-216px)');
+    nextBtn().click();
+    expect(track().style.transform).toBe('translateX(-512px)');
+    expect(nextBtn().disabled).toBe(true);
   });
 
   it('goes back to the first card with prev', () => {
@@ -114,11 +181,12 @@ describe('arrow navigation', () => {
 });
 
 describe('dot pagination', () => {
-  it('renders one dot per game with the first marked active', () => {
+  it('renders one dot per game plus one for the trailing gallery card, with the first marked active', () => {
     const d = dots();
-    expect(d).toHaveLength(2);
+    expect(d).toHaveLength(3);
     expect(d[0].classList.contains('dot--active')).toBe(true);
     expect(d[1].classList.contains('dot--active')).toBe(false);
+    expect(d[2].classList.contains('dot--active')).toBe(false);
   });
 
   it('clicking a dot jumps directly to that game', () => {
@@ -176,7 +244,7 @@ describe('remembering the last played game', () => {
     expect(track().style.transform).toBe('translateX(-216px)');
     expect(dots()[1].classList.contains('dot--active')).toBe(true);
     expect(prevBtn().disabled).toBe(false);
-    expect(nextBtn().disabled).toBe(true);
+    expect(nextBtn().disabled).toBe(false);
   });
 
   it('does not animate the jump to the restored card on mount', () => {

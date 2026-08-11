@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' file:; frame-src 'self' file:" />
   <link rel="stylesheet" href="popover.css" />
   <title>Meanwaile</title>
 </head>
@@ -14,7 +14,10 @@
         <span id="brand">meanwaile</span>
         <span id="game-name" hidden></span>
       </div>
-      <button id="settings-btn" title="Settings">⚙</button>
+      <div id="header-right">
+        <button id="gallery-btn" title="Get more games">＋</button>
+        <button id="settings-btn" title="Settings">⚙</button>
+      </div>
     </div>
 
     <div id="hub-screen"></div>

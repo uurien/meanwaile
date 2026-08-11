@@ -172,4 +172,12 @@ describe('MEANWAILE_DEV=1', () => {
 
     expect(mocks.win.webContents.openDevTools).toHaveBeenCalledWith({ mode: 'detach' });
   });
+
+  it('opens the gallery window with DevTools attached too', () => {
+    mocks.win.webContents.openDevTools.mockClear();
+
+    mocks.ipcMain.handlers['open-gallery']?.();
+
+    expect(mocks.win.webContents.openDevTools).toHaveBeenCalledWith({ mode: 'detach' });
+  });
 });

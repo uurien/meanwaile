@@ -40,6 +40,11 @@ describe('preload', () => {
         listGames: expect.any(Function),
         getSettings: expect.any(Function),
         saveSettings: expect.any(Function),
+        openGallery: expect.any(Function),
+        listCatalog: expect.any(Function),
+        installGame: expect.any(Function),
+        uninstallGame: expect.any(Function),
+        onGamesChanged: expect.any(Function),
       }),
     );
   });
@@ -86,5 +91,40 @@ describe('preload', () => {
     const payload = { httpPort: 4000, autoOpenDelaySeconds: 20 };
     getExposedApi().saveSettings(payload);
     expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('settings-save', payload);
+  });
+
+  it('openGallery sends open-gallery via ipcRenderer', () => {
+    getExposedApi().openGallery();
+    expect(mocks.ipcRenderer.send).toHaveBeenCalledWith('open-gallery');
+  });
+
+  it('listCatalog invokes gallery-list via ipcRenderer', () => {
+    getExposedApi().listCatalog();
+    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('gallery-list');
+  });
+
+  it('installGame invokes gallery-install with the given id and version', () => {
+    getExposedApi().installGame('meanwaile-maze', '0.1.0');
+    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('gallery-install', 'meanwaile-maze', '0.1.0');
+  });
+
+  it('uninstallGame invokes gallery-uninstall with the given id and name', () => {
+    getExposedApi().uninstallGame('meanwaile-maze', 'Meanwaile Maze');
+    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('gallery-uninstall', 'meanwaile-maze', 'Meanwaile Maze');
+  });
+
+  it('onGamesChanged registers an IPC listener on games-changed', () => {
+    const cb = vi.fn();
+    getExposedApi().onGamesChanged(cb);
+    expect(mocks.ipcRenderer.on).toHaveBeenCalledWith('games-changed', expect.any(Function));
+  });
+
+  it('onGamesChanged callback fires when IPC fires', () => {
+    const cb = vi.fn();
+    getExposedApi().onGamesChanged(cb);
+    const calls = vi.mocked(mocks.ipcRenderer.on).mock.calls.filter(([channel]) => channel === 'games-changed');
+    const ipcHandler = calls[calls.length - 1]![1] as (_event: unknown) => void;
+    ipcHandler({});
+    expect(cb).toHaveBeenCalled();
   });
 });
