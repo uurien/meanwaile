@@ -7,14 +7,16 @@ import {
   assetUrl,
   readManifest,
   installedVersion,
+  GAME_CSP,
+  injectGameCsp,
   installGame,
   installAll,
 } from '../../scripts/install-games.js';
 
 function zipBufferFor(id: string, version: string, extraFiles: Record<string, string> = {}) {
   const zip = new AdmZip();
-  zip.addFile('game.json', Buffer.from(JSON.stringify({ id, version })));
-  zip.addFile('index.html', Buffer.from(`<html>${id}</html>`));
+  zip.addFile('game.json', Buffer.from(JSON.stringify({ id, version, entry: 'index.html' })));
+  zip.addFile('index.html', Buffer.from(`<html><head></head><body>${id}</body></html>`));
   for (const [name, contents] of Object.entries(extraFiles)) {
     zip.addFile(name, Buffer.from(contents));
   }
@@ -112,7 +114,9 @@ describe('installGame', () => {
     });
 
     expect(calls).toEqual(['https://github.com/uurien/meanwaile-games/releases/download/circle-tap@1.0.0/circle-tap-1.0.0.zip']);
-    expect(fs.readFileSync(path.join(gamesDir, 'circle-tap', 'index.html'), 'utf8')).toBe('<html>circle-tap</html>');
+    const html = fs.readFileSync(path.join(gamesDir, 'circle-tap', 'index.html'), 'utf8');
+    expect(html).toContain('circle-tap</body>');
+    expect(html).toContain(`<meta http-equiv="Content-Security-Policy" content="${GAME_CSP}" />`);
     expect(fs.readFileSync(path.join(gamesDir, 'circle-tap', 'circle-tap.js'), 'utf8')).toBe('console.log(1)');
   });
 
@@ -172,6 +176,39 @@ describe('installGame', () => {
         log: () => {},
       }),
     ).rejects.toThrow(/Failed to download/);
+  });
+});
+
+describe('injectGameCsp', () => {
+  it('inserts the CSP meta tag right after the opening <head> tag', () => {
+    const dir = mkTmpDir();
+    fs.writeFileSync(path.join(dir, 'game.json'), JSON.stringify({ id: 'circle-tap', entry: 'index.html' }));
+    fs.writeFileSync(path.join(dir, 'index.html'), '<html><head><title>x</title></head><body></body></html>');
+
+    injectGameCsp(dir);
+
+    const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+    expect(html).toContain(`<meta http-equiv="Content-Security-Policy" content="${GAME_CSP}" />`);
+    expect(html.indexOf('Content-Security-Policy')).toBeLessThan(html.indexOf('<title>'));
+  });
+
+  it('does not duplicate the tag when one is already present', () => {
+    const dir = mkTmpDir();
+    fs.writeFileSync(path.join(dir, 'game.json'), JSON.stringify({ id: 'circle-tap', entry: 'index.html' }));
+    const original =
+      '<html><head><meta http-equiv="Content-Security-Policy" content="default-src \'none\'" /></head><body></body></html>';
+    fs.writeFileSync(path.join(dir, 'index.html'), original);
+
+    injectGameCsp(dir);
+
+    expect(fs.readFileSync(path.join(dir, 'index.html'), 'utf8')).toBe(original);
+  });
+
+  it('is a no-op when the entry file does not exist', () => {
+    const dir = mkTmpDir();
+    fs.writeFileSync(path.join(dir, 'game.json'), JSON.stringify({ id: 'circle-tap', entry: 'index.html' }));
+
+    expect(() => injectGameCsp(dir)).not.toThrow();
   });
 });
 

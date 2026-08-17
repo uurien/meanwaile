@@ -52,6 +52,39 @@ function extractZip(buffer, targetDir) {
   new AdmZip(buffer).extractAllTo(targetDir, true);
 }
 
+// Kept in sync with GAME_CSP/injectGameCsp in src/game-installer.ts (see the
+// comment there for why - this script can't import compiled src/ code
+// during postinstall). The game iframe's sandbox flags block top
+// navigation/popups/forms but not network access, so this CSP is what
+// actually stops a compromised or malicious game bundle from exfiltrating
+// data or phoning home.
+const GAME_CSP =
+  "default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+  "connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
+
+function injectGameCsp(gameDir) {
+  let entry = 'index.html';
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(gameDir, 'game.json'), 'utf8'));
+    if (typeof manifest.entry === 'string') entry = manifest.entry;
+  } catch {
+    // game.json missing/malformed - fall back to the index.html convention
+  }
+
+  const entryPath = path.join(gameDir, entry);
+  if (!fs.existsSync(entryPath)) return;
+
+  const html = fs.readFileSync(entryPath, 'utf8');
+  if (/http-equiv=["']Content-Security-Policy["']/i.test(html)) return;
+  if (!/<head[\s>]/i.test(html)) return;
+
+  const patched = html.replace(
+    /<head(\s[^>]*)?>/i,
+    (match) => `${match}\n  <meta http-equiv="Content-Security-Policy" content="${GAME_CSP}" />`,
+  );
+  fs.writeFileSync(entryPath, patched);
+}
+
 async function installGame({ repo, id, version, gamesDir, fetchImpl = fetch, log = console.log }) {
   const gameDir = path.join(gamesDir, id);
   if (installedVersion(gameDir) === version) {
@@ -62,6 +95,7 @@ async function installGame({ repo, id, version, gamesDir, fetchImpl = fetch, log
   log(`[games] installing ${id}@${version} from ${url}`);
   const buffer = await downloadZip(url, fetchImpl);
   extractZip(buffer, gameDir);
+  injectGameCsp(gameDir);
   log(`[games] installed ${id}@${version}`);
 }
 
@@ -83,6 +117,8 @@ module.exports = {
   installedVersion,
   downloadZip,
   extractZip,
+  GAME_CSP,
+  injectGameCsp,
   installGame,
   installAll,
   DEFAULT_MANIFEST_PATH,

@@ -114,6 +114,15 @@ beforeAll(async () => {
   placeholderText = document.getElementById('placeholder-text')!;
 });
 
+describe('game iframe sandboxing', () => {
+  it('is sandboxed with scripts and same-origin only (top navigation, popups, forms, and modals stay blocked; network egress is closed by the per-bundle CSP instead, see injectGameCsp)', () => {
+    const sandbox = iframe.getAttribute('sandbox');
+    expect(sandbox).toContain('allow-scripts');
+    expect(sandbox).toContain('allow-same-origin');
+    expect(sandbox).not.toMatch(/allow-(top-navigation|popups|forms|modals)\b/);
+  });
+});
+
 describe('initial hub screen', () => {
   it('shows the hub with the app brand, not a game', () => {
     expect(hubScreen.hidden).toBe(false);

@@ -83,6 +83,44 @@ function extractZip(buffer: Buffer, targetDir: string): void {
   new AdmZip(buffer).extractAllTo(targetDir, true);
 }
 
+// Games run in a sandboxed iframe (sandbox="allow-scripts allow-same-origin"
+// - see src/popover/index.html; allow-same-origin is required for their
+// <script type="module"> entry points to load over file://) with top
+// navigation, popups, and forms blocked by the sandbox itself. This CSP is
+// what actually closes network egress - it isn't controlled by sandbox
+// flags - against a compromised or malicious game bundle exfiltrating data
+// or phoning home: no cross-origin fetches, no embedding other frames/objects.
+export const GAME_CSP =
+  "default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+  "connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
+
+// Stamps the CSP onto the game's entry HTML so it applies even though the
+// bundle is loaded from a plain file:// URL (no HTTP server to send a CSP
+// response header from). Best-effort: skipped (not thrown) for malformed or
+// unconventional bundles so a broken game.json can't crash installation.
+export function injectGameCsp(gameDir: string): void {
+  let entry = 'index.html';
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(gameDir, 'game.json'), 'utf8'));
+    if (typeof manifest.entry === 'string') entry = manifest.entry;
+  } catch {
+    // game.json missing/malformed - fall back to the index.html convention
+  }
+
+  const entryPath = path.join(gameDir, entry);
+  if (!fs.existsSync(entryPath)) return;
+
+  const html = fs.readFileSync(entryPath, 'utf8');
+  if (/http-equiv=["']Content-Security-Policy["']/i.test(html)) return;
+  if (!/<head[\s>]/i.test(html)) return;
+
+  const patched = html.replace(
+    /<head(\s[^>]*)?>/i,
+    (match) => `${match}\n  <meta http-equiv="Content-Security-Policy" content="${GAME_CSP}" />`,
+  );
+  fs.writeFileSync(entryPath, patched);
+}
+
 export interface InstallGameOptions {
   repo: string;
   id: string;
@@ -109,6 +147,7 @@ export async function installGame({
   log(`[gallery] installing ${id}@${version} from ${url}`);
   const buffer = await downloadZip(url, fetchImpl);
   extractZip(buffer, gameDir);
+  injectGameCsp(gameDir);
   addInstalledGame(userDataDir, { id, version });
   log(`[gallery] installed ${id}@${version}`);
 }

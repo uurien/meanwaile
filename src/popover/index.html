@@ -24,7 +24,17 @@
 
     <div id="game-screen" hidden>
       <div id="game-area">
-        <iframe id="game"></iframe>
+        <!--
+          allow-same-origin is required alongside allow-scripts: games load
+          via file:// and use <script type="module">, and Chromium refuses
+          to fetch module scripts from an opaque origin (what allow-scripts
+          alone produces). The isolation this pair usually gives up - CSP
+          bypass via document.domain tricks - doesn't apply here since each
+          game already gets its own per-bundle CSP (see injectGameCsp in
+          src/game-installer.ts) that isn't controlled by sandbox flags.
+          Top navigation, popups, forms, and modals stay blocked regardless.
+        -->
+        <iframe id="game" sandbox="allow-scripts allow-same-origin"></iframe>
         <div id="overlay">
           <p id="overlay-msg">Ready to play?</p>
           <button id="continue-btn">Start</button>

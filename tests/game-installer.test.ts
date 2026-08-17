@@ -10,12 +10,14 @@ import {
   removeInstalledGame,
   installGame,
   uninstallGame,
+  GAME_CSP,
+  injectGameCsp,
 } from '../src/game-installer';
 
 function zipBufferFor(id: string, version: string, extraFiles: Record<string, string> = {}) {
   const zip = new AdmZip();
-  zip.addFile('game.json', Buffer.from(JSON.stringify({ id, version })));
-  zip.addFile('index.html', Buffer.from(`<html>${id}</html>`));
+  zip.addFile('game.json', Buffer.from(JSON.stringify({ id, version, entry: 'index.html' })));
+  zip.addFile('index.html', Buffer.from(`<html><head></head><body>${id}</body></html>`));
   for (const [name, contents] of Object.entries(extraFiles)) {
     zip.addFile(name, Buffer.from(contents));
   }
@@ -141,7 +143,9 @@ describe('game-installer', () => {
         'https://github.com/uurien/meanwaile-games/releases/download/meanwaile-maze@0.1.0/meanwaile-maze-0.1.0.zip',
       ]);
       const gameDir = path.join(userDataDir, 'games', 'meanwaile-maze');
-      expect(fs.readFileSync(path.join(gameDir, 'index.html'), 'utf8')).toBe('<html>meanwaile-maze</html>');
+      const html = fs.readFileSync(path.join(gameDir, 'index.html'), 'utf8');
+      expect(html).toContain('meanwaile-maze</body>');
+      expect(html).toContain(`<meta http-equiv="Content-Security-Policy" content="${GAME_CSP}" />`);
       expect(fs.readFileSync(path.join(gameDir, 'meanwaile-maze.js'), 'utf8')).toBe('console.log(1)');
       expect(readInstalledGames(userDataDir)).toEqual([{ id: 'meanwaile-maze', version: '0.1.0' }]);
     });
@@ -266,6 +270,79 @@ describe('game-installer', () => {
 
     it('is a no-op when the game was never installed', () => {
       expect(() => uninstallGame(userDataDir, 'meanwaile-maze')).not.toThrow();
+    });
+  });
+
+  describe('injectGameCsp', () => {
+    it('inserts the CSP meta tag right after the opening <head> tag', () => {
+      const gameDir = path.join(userDataDir, 'games', 'meanwaile-maze');
+      fs.mkdirSync(gameDir, { recursive: true });
+      fs.writeFileSync(path.join(gameDir, 'game.json'), JSON.stringify({ id: 'meanwaile-maze', entry: 'index.html' }));
+      fs.writeFileSync(path.join(gameDir, 'index.html'), '<html><head><title>x</title></head><body></body></html>');
+
+      injectGameCsp(gameDir);
+
+      const html = fs.readFileSync(path.join(gameDir, 'index.html'), 'utf8');
+      expect(html).toContain(`<meta http-equiv="Content-Security-Policy" content="${GAME_CSP}" />`);
+      expect(html.indexOf('Content-Security-Policy')).toBeLessThan(html.indexOf('<title>'));
+    });
+
+    it('respects a custom entry filename from game.json', () => {
+      const gameDir = path.join(userDataDir, 'games', 'meanwaile-maze');
+      fs.mkdirSync(gameDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(gameDir, 'game.json'),
+        JSON.stringify({ id: 'meanwaile-maze', entry: 'play.html' }),
+      );
+      fs.writeFileSync(path.join(gameDir, 'play.html'), '<html><head></head><body></body></html>');
+      fs.writeFileSync(path.join(gameDir, 'index.html'), '<html><head></head><body></body></html>');
+
+      injectGameCsp(gameDir);
+
+      expect(fs.readFileSync(path.join(gameDir, 'play.html'), 'utf8')).toContain('Content-Security-Policy');
+      expect(fs.readFileSync(path.join(gameDir, 'index.html'), 'utf8')).not.toContain('Content-Security-Policy');
+    });
+
+    it('does not duplicate the tag when one is already present', () => {
+      const gameDir = path.join(userDataDir, 'games', 'meanwaile-maze');
+      fs.mkdirSync(gameDir, { recursive: true });
+      fs.writeFileSync(path.join(gameDir, 'game.json'), JSON.stringify({ id: 'meanwaile-maze', entry: 'index.html' }));
+      const original =
+        '<html><head><meta http-equiv="Content-Security-Policy" content="default-src \'none\'" /></head><body></body></html>';
+      fs.writeFileSync(path.join(gameDir, 'index.html'), original);
+
+      injectGameCsp(gameDir);
+
+      expect(fs.readFileSync(path.join(gameDir, 'index.html'), 'utf8')).toBe(original);
+    });
+
+    it('falls back to index.html when game.json has no entry field or is missing/malformed', () => {
+      const gameDir = path.join(userDataDir, 'games', 'meanwaile-maze');
+      fs.mkdirSync(gameDir, { recursive: true });
+      fs.writeFileSync(path.join(gameDir, 'index.html'), '<html><head></head><body></body></html>');
+
+      expect(() => injectGameCsp(gameDir)).not.toThrow();
+      expect(fs.readFileSync(path.join(gameDir, 'index.html'), 'utf8')).toContain('Content-Security-Policy');
+    });
+
+    it('is a no-op when the entry file does not exist', () => {
+      const gameDir = path.join(userDataDir, 'games', 'meanwaile-maze');
+      fs.mkdirSync(gameDir, { recursive: true });
+      fs.writeFileSync(path.join(gameDir, 'game.json'), JSON.stringify({ id: 'meanwaile-maze', entry: 'index.html' }));
+
+      expect(() => injectGameCsp(gameDir)).not.toThrow();
+    });
+
+    it('is a no-op when the entry file has no <head> tag', () => {
+      const gameDir = path.join(userDataDir, 'games', 'meanwaile-maze');
+      fs.mkdirSync(gameDir, { recursive: true });
+      fs.writeFileSync(path.join(gameDir, 'game.json'), JSON.stringify({ id: 'meanwaile-maze', entry: 'index.html' }));
+      const original = '<html><body>no head here</body></html>';
+      fs.writeFileSync(path.join(gameDir, 'index.html'), original);
+
+      injectGameCsp(gameDir);
+
+      expect(fs.readFileSync(path.join(gameDir, 'index.html'), 'utf8')).toBe(original);
     });
   });
 });
