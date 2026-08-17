@@ -39,7 +39,15 @@ if (started) {
   app.quit();
 }
 
-// Prevent Dock icon on macOS — this is a menu-bar-only app
+const appIconPath = path.join(__dirname, '..', 'assets', 'app-icon.png');
+
+// macOS ignores AboutPanelOptions.iconPath and instead uses the application's
+// current icon. Set ours before turning the process into a menu-bar-only app;
+// this is especially important in development, where the host bundle is
+// Electron.app and would otherwise supply Electron's icon to the About panel.
+app.dock?.setIcon(appIconPath);
+
+// Prevent Dock icon on macOS — this is a menu-bar-only app.
 app.dock?.hide();
 
 // `npm run dev` sets this so every window opens with its DevTools attached
@@ -524,11 +532,35 @@ app.on('ready', async () => {
   tray = new Tray(icon);
   tray.setToolTip('Meanwaile');
 
+  app.setAboutPanelOptions({
+    applicationName: 'Meanwaile',
+    applicationVersion: app.getVersion(),
+    // macOS renders this as the build detail beside the app version. Label it
+    // explicitly so Electron's runtime version is not mistaken for ours.
+    version: `Electron ${process.versions.electron}`,
+    copyright: 'Copyright © 2026 Ugaitz Urien',
+    credits: 'Created by Ugaitz Urien',
+    authors: ['Ugaitz Urien'],
+    website: 'https://github.com/uurien/meanwaile',
+    iconPath: appIconPath,
+  });
+
   const contextMenu = Menu.buildFromTemplate([
     // AppIndicator-based Linux trays never emit 'click'/'right-click' at
     // all — the context menu is the only way to interact with them, so
     // give it an explicit way in.
     { label: 'Open Meanwaile', click: togglePopover },
+    { type: 'separator' },
+    {
+      label: 'About Meanwaile',
+      click: () => {
+        // A menu-bar-only macOS app starts as a UIElement after dock.hide().
+        // Electron's native call creates the panel without activating it, so
+        // activate immediately afterwards, once there is a panel to focus.
+        app.showAboutPanel();
+        if (process.platform === 'darwin') app.focus({ steal: true });
+      },
+    },
     { type: 'separator' },
     { label: 'Exit', click: () => app.quit() },
   ]);
