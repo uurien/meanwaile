@@ -54,9 +54,10 @@ function extractZip(buffer, targetDir) {
 
 // Kept in sync with GAME_CSP/injectGameCsp in src/game-installer.ts (see the
 // comment there for why - this script can't import compiled src/ code
-// during postinstall). Games run in a sandboxed iframe with no
-// allow-same-origin, so this CSP is belt-and-braces against a compromised
-// or malicious game bundle exfiltrating data or phoning home.
+// during postinstall). The game iframe's sandbox flags block top
+// navigation/popups/forms but not network access, so this CSP is what
+// actually stops a compromised or malicious game bundle from exfiltrating
+// data or phoning home.
 const GAME_CSP =
   "default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
   "connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";

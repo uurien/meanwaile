@@ -83,11 +83,13 @@ function extractZip(buffer: Buffer, targetDir: string): void {
   new AdmZip(buffer).extractAllTo(targetDir, true);
 }
 
-// Games run in a sandboxed iframe (sandbox="allow-scripts", no
-// allow-same-origin - see src/popover/index.html) with no network access of
-// its own beyond same-origin, so this CSP is belt-and-braces against a
-// compromised or malicious game bundle exfiltrating data or phoning home:
-// no cross-origin fetches, no embedding other frames/objects, no forms.
+// Games run in a sandboxed iframe (sandbox="allow-scripts allow-same-origin"
+// - see src/popover/index.html; allow-same-origin is required for their
+// <script type="module"> entry points to load over file://) with top
+// navigation, popups, and forms blocked by the sandbox itself. This CSP is
+// what actually closes network egress - it isn't controlled by sandbox
+// flags - against a compromised or malicious game bundle exfiltrating data
+// or phoning home: no cross-origin fetches, no embedding other frames/objects.
 export const GAME_CSP =
   "default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
   "connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";

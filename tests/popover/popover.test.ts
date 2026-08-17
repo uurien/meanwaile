@@ -115,8 +115,11 @@ beforeAll(async () => {
 });
 
 describe('game iframe sandboxing', () => {
-  it('is sandboxed with scripts only (no allow-same-origin, so games get no network/filesystem access beyond their own CSP)', () => {
-    expect(iframe.getAttribute('sandbox')).toBe('allow-scripts');
+  it('is sandboxed with scripts and same-origin only (top navigation, popups, forms, and modals stay blocked; network egress is closed by the per-bundle CSP instead, see injectGameCsp)', () => {
+    const sandbox = iframe.getAttribute('sandbox');
+    expect(sandbox).toContain('allow-scripts');
+    expect(sandbox).toContain('allow-same-origin');
+    expect(sandbox).not.toMatch(/allow-(top-navigation|popups|forms|modals)\b/);
   });
 });
 
