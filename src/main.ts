@@ -535,9 +535,11 @@ app.on('ready', async () => {
   app.setAboutPanelOptions({
     applicationName: 'Meanwaile',
     applicationVersion: app.getVersion(),
-    // macOS renders this as the build detail beside the app version. Label it
-    // explicitly so Electron's runtime version is not mistaken for ours.
-    version: `Electron ${process.versions.electron}`,
+    // Without this, macOS falls back to the running bundle's own
+    // CFBundleVersion for the parenthesized build number — in an unpackaged
+    // dev build that's Electron's own version, not ours. An explicit empty
+    // string suppresses that parenthetical instead of showing it.
+    version: '',
     copyright: 'Copyright © 2026 Ugaitz Urien',
     credits: 'Created by Ugaitz Urien',
     authors: ['Ugaitz Urien'],

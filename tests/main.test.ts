@@ -541,21 +541,8 @@ describe('main.ts top-level', () => {
 });
 
 describe('app ready handler', () => {
-  const originalElectronVersion = process.versions.electron;
-
   beforeAll(async () => {
-    Object.defineProperty(process.versions, 'electron', {
-      value: '43.1.0',
-      configurable: true,
-    });
     await triggerApp('ready');
-  });
-
-  afterAll(() => {
-    Object.defineProperty(process.versions, 'electron', {
-      value: originalElectronVersion,
-      configurable: true,
-    });
   });
 
   it('creates the tray', () => {
@@ -602,11 +589,11 @@ describe('app ready handler', () => {
     expect(mocks.app.quit).toHaveBeenCalled();
   });
 
-  it('configures the native About panel with labelled app and Electron versions', () => {
+  it('configures the native About panel with the app version and no build-number parenthetical', () => {
     expect(mocks.app.setAboutPanelOptions).toHaveBeenCalledWith({
       applicationName: 'Meanwaile',
       applicationVersion: '0.8.1',
-      version: 'Electron 43.1.0',
+      version: '',
       copyright: 'Copyright © 2026 Ugaitz Urien',
       credits: 'Created by Ugaitz Urien',
       authors: ['Ugaitz Urien'],
