@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from 'vitest';
 // building the tray, popover, or HTTP server for that launch.
 const mocks = vi.hoisted(() => ({
   app: {
-    dock: { hide: vi.fn() },
+    dock: { hide: vi.fn(), setIcon: vi.fn() },
     on: vi.fn(),
     quit: vi.fn(),
     getPath: vi.fn(() => '/fake/userData'),

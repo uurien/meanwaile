@@ -42,12 +42,16 @@ const mocks = vi.hoisted(() => {
 
   const appHandlers: Record<string, (...a: unknown[]) => void> = {};
   const app = {
-    dock: { hide: vi.fn() },
+    dock: { hide: vi.fn(), setIcon: vi.fn() },
     on: vi.fn((event: string, handler: (...a: unknown[]) => void) => {
       appHandlers[event] = handler;
     }),
     quit: vi.fn(),
+    focus: vi.fn(),
     setLoginItemSettings: vi.fn(),
+    getVersion: vi.fn(() => '0.8.1'),
+    setAboutPanelOptions: vi.fn(),
+    showAboutPanel: vi.fn(),
     getPath: vi.fn(() => '/fake/userData'),
     handlers: appHandlers,
   };
@@ -516,6 +520,15 @@ describe('hook backfill for already-onboarded users', () => {
 });
 
 describe('main.ts top-level', () => {
+  it('sets the Meanwaile app icon before hiding the Dock icon', () => {
+    expect(mocks.app.dock.setIcon).toHaveBeenCalledWith(
+      expect.stringMatching(/assets[\\/]app-icon\.png$/),
+    );
+    expect(mocks.app.dock.setIcon.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.app.dock.hide.mock.invocationCallOrder[0],
+    );
+  });
+
   it('hides the dock icon on import', () => {
     expect(mocks.app.dock.hide).toHaveBeenCalled();
   });
@@ -574,6 +587,65 @@ describe('app ready handler', () => {
     const [items] = vi.mocked(mocks.Menu.buildFromTemplate).mock.calls[0] as [{ click?: () => void }[]];
     items[items.length - 1].click!();
     expect(mocks.app.quit).toHaveBeenCalled();
+  });
+
+  it('configures the native About panel with the app version and no build-number parenthetical', () => {
+    expect(mocks.app.setAboutPanelOptions).toHaveBeenCalledWith({
+      applicationName: 'Meanwaile',
+      applicationVersion: '0.8.1',
+      version: '',
+      copyright: 'Copyright © 2026 Ugaitz Urien',
+      credits: 'Created by Ugaitz Urien',
+      authors: ['Ugaitz Urien'],
+      website: 'https://github.com/uurien/meanwaile',
+      iconPath: expect.stringMatching(/assets[\\/]app-icon\.png$/),
+    });
+  });
+
+  it('context menu "About Meanwaile" opens the native panel and then activates it on macOS', () => {
+    const [items] = vi.mocked(mocks.Menu.buildFromTemplate).mock.calls[0] as [
+      { label?: string; click?: () => void }[],
+    ];
+    const aboutItem = items.find((item) => item.label === 'About Meanwaile');
+    const originalPlatform = process.platform;
+
+    expect(aboutItem).toBeDefined();
+    mocks.app.focus.mockClear();
+    mocks.app.showAboutPanel.mockClear();
+
+    try {
+      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+      aboutItem!.click!();
+    } finally {
+      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+    }
+
+    expect(mocks.app.showAboutPanel).toHaveBeenCalledOnce();
+    expect(mocks.app.focus).toHaveBeenCalledWith({ steal: true });
+    expect(mocks.app.showAboutPanel.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.app.focus.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('context menu "About Meanwaile" does not steal focus outside macOS', () => {
+    const [items] = vi.mocked(mocks.Menu.buildFromTemplate).mock.calls[0] as [
+      { label?: string; click?: () => void }[],
+    ];
+    const aboutItem = items.find((item) => item.label === 'About Meanwaile');
+    const originalPlatform = process.platform;
+
+    mocks.app.focus.mockClear();
+    mocks.app.showAboutPanel.mockClear();
+
+    try {
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+      aboutItem!.click!();
+    } finally {
+      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+    }
+
+    expect(mocks.app.showAboutPanel).toHaveBeenCalledOnce();
+    expect(mocks.app.focus).not.toHaveBeenCalled();
   });
 
   it('context menu "Open Meanwaile" click toggles the popover — the fallback for Linux desktop environments where the tray icon does not emit a click event', () => {
