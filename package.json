@@ -15,7 +15,7 @@
     "url": "https://github.com/uurien/meanwaile/issues"
   },
   "scripts": {
-    "postinstall": "node scripts/install-games.js",
+    "postinstall": "node scripts/install-games.js && node scripts/patch-dev-icon.js",
     "build": "tsc",
     "start": "npm run build && electron .",
     "dev": "npm run build && MEANWAILE_DEV=1 electron .",
