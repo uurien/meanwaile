@@ -1,4 +1,5 @@
 import { AgentAdapter, AgentEvent, AgentEventHandler } from './types';
+import { isSyntheticTaskNotification } from './synthetic-prompt';
 
 export class CodexAdapter implements AgentAdapter {
   name = 'codex';
@@ -21,16 +22,20 @@ export class CodexAdapter implements AgentAdapter {
       case 'PermissionRequest':
         return { type: 'needs_user', sessionId, agentName, timestamp: ts };
       case 'Stop':
-      case 'SubagentStop':
         return { type: 'task_finished', sessionId, agentName, timestamp: ts };
       case 'UserPromptSubmit':
+        if (isSyntheticTaskNotification(payload)) return null;
         return { type: 'prompt_submitted', sessionId, agentName, timestamp: ts };
       case 'PreToolUse':
         // Same rationale as the Claude Code adapter: a tool call retrying
         // after an approval prompt (or any tool call at all) means the agent
-        // is actively working again, so it re-arms the auto-open timer and
-        // clears a stale needs_user state.
-        return { type: 'prompt_submitted', sessionId, agentName, timestamp: ts };
+        // is actively working again, but it is not a fresh user prompt and
+        // must not override a manual popover dismissal for this turn.
+        return { type: 'work_resumed', sessionId, agentName, timestamp: ts };
+      case 'SubagentStop':
+        // SubagentStop identifies the child separately; session_id still
+        // belongs to the parent and must remain active until its own Stop.
+        return null;
       default:
         return null;
     }
