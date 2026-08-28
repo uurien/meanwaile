@@ -1,7 +1,8 @@
 export type AgentEventType =
   | 'needs_user'
   | 'task_finished'
-  | 'prompt_submitted';
+  | 'prompt_submitted'
+  | 'work_resumed';
 
 export interface AgentEvent {
   type: AgentEventType;

@@ -36,17 +36,24 @@ describe('ClaudeCodeAdapter.parseHookPayload', () => {
     expect(e?.agentName).toBe('Claude');
   });
 
-  it('SubagentStop → task_finished', () => {
-    expect(parse({ hook_event_name: 'SubagentStop' })?.type).toBe('task_finished');
+  it('SubagentStop does not finish the parent session', () => {
+    expect(parse({ hook_event_name: 'SubagentStop', session_id: 'parent', agent_id: 'child' })).toBeNull();
   });
 
   it('UserPromptSubmit → prompt_submitted', () => {
-    expect(parse({ hook_event_name: 'UserPromptSubmit' })?.type).toBe('prompt_submitted');
+    expect(parse({ hook_event_name: 'UserPromptSubmit', user_prompt: 'Fix the bug' })?.type).toBe('prompt_submitted');
   });
 
-  it('PreToolUse → prompt_submitted', () => {
+  it.each(['user_prompt', 'prompt'])('ignores a synthetic task notification received in %s', (field) => {
+    expect(parse({
+      hook_event_name: 'UserPromptSubmit',
+      [field]: '  <task-notification>\n<status>failed</status>\n</task-notification>  ',
+    })).toBeNull();
+  });
+
+  it('PreToolUse → work_resumed', () => {
     const e = parse({ hook_event_name: 'PreToolUse', tool_name: 'bash', session_id: 's1' });
-    expect(e?.type).toBe('prompt_submitted');
+    expect(e?.type).toBe('work_resumed');
     expect(e?.sessionId).toBe('s1');
   });
 
