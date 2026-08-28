@@ -31,14 +31,34 @@ describe('installedBinaryPath', () => {
     expect(installedBinaryPath('darwin', {})).toBe('/Applications/Meanwaile.app/Contents/MacOS/Meanwaile');
   });
 
-  it('points at the Squirrel shim under LOCALAPPDATA on Windows', () => {
-    expect(installedBinaryPath('win32', { LOCALAPPDATA: 'C:\\Users\\ci\\AppData\\Local' })).toBe(
-      path.join('C:\\Users\\ci\\AppData\\Local', 'Meanwaile', 'Meanwaile.exe'),
+  it('points at the versioned executable (not the forwarding stub) on Windows', () => {
+    const fakeFs = { readdirSync: () => ['Update.exe', 'app-0.8.1', 'packages'] } as unknown as typeof fs;
+    expect(
+      installedBinaryPath('win32', { LOCALAPPDATA: 'C:\\Users\\ci\\AppData\\Local' }, { fs: fakeFs }),
+    ).toBe(path.join('C:\\Users\\ci\\AppData\\Local', 'Meanwaile', 'app-0.8.1', 'Meanwaile.exe'));
+  });
+
+  it('picks the last app-* folder lexically when several are present on Windows', () => {
+    const fakeFs = { readdirSync: () => ['app-0.8.2', 'app-0.8.1', 'app-0.8.3'] } as unknown as typeof fs;
+    expect(installedBinaryPath('win32', { LOCALAPPDATA: 'C:\\x' }, { fs: fakeFs })).toBe(
+      path.join('C:\\x', 'Meanwaile', 'app-0.8.3', 'Meanwaile.exe'),
+    );
+  });
+
+  it('falls back to the stub path when the install dir is not there yet on Windows', () => {
+    const fakeFs = {
+      readdirSync: () => {
+        throw new Error('ENOENT');
+      },
+    } as unknown as typeof fs;
+    expect(installedBinaryPath('win32', { LOCALAPPDATA: 'C:\\x' }, { fs: fakeFs })).toBe(
+      path.join('C:\\x', 'Meanwaile', 'Meanwaile.exe'),
     );
   });
 
   it('falls back to the default AppData\\Local path when LOCALAPPDATA is unset on Windows', () => {
-    const resolved = installedBinaryPath('win32', {});
+    const fakeFs = { readdirSync: () => [] } as unknown as typeof fs;
+    const resolved = installedBinaryPath('win32', {}, { fs: fakeFs });
     expect(resolved.endsWith(path.join('AppData', 'Local', 'Meanwaile', 'Meanwaile.exe'))).toBe(true);
   });
 

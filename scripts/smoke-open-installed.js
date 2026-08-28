@@ -29,13 +29,33 @@ const DEFAULT_GRACE_MS = 15_000;
 //   that always points at the current versioned app-x.y.z folder.
 // - Linux: electron-installer-debian symlinks /usr/bin/<options.name> (lowercase
 //   "meanwaile") to /opt/Meanwaile/Meanwaile.
-function installedBinaryPath(platform, env = process.env) {
+function installedBinaryPath(platform, env = process.env, deps = {}) {
+  const fsImpl = deps.fs || fs;
   if (platform === 'darwin') {
     return '/Applications/Meanwaile.app/Contents/MacOS/Meanwaile';
   }
   if (platform === 'win32') {
     const localAppData = env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
-    return path.join(localAppData, 'Meanwaile', 'Meanwaile.exe');
+    const root = path.join(localAppData, 'Meanwaile');
+    // <root>\Meanwaile.exe is Squirrel's forwarding stub: it relaunches the
+    // real app in the versioned app-<version>\ folder and exits 0 straight
+    // away, which the smoke check would read as an instant self-exit. Watch
+    // the versioned executable directly. (A fresh install has exactly one
+    // app-* folder, so a lexical pick is enough here.)
+    try {
+      const appDir = fsImpl
+        .readdirSync(root)
+        .filter((name) => name.startsWith('app-'))
+        .sort()
+        .pop();
+      if (appDir) {
+        return path.join(root, appDir, 'Meanwaile.exe');
+      }
+    } catch {
+      // No install dir yet - fall back to the stub path so the caller's
+      // existsSync check produces the "did the installer run?" error.
+    }
+    return path.join(root, 'Meanwaile.exe');
   }
   if (platform === 'linux') {
     return '/usr/bin/meanwaile';
