@@ -151,3 +151,70 @@ jobs:
           path: out/make/deb/x64/*.deb
           if-no-files-found: error
           retention-days: 14
+
+  smoke-install:
+    # E2E: build each platform's installer, actually install it, launch the
+    # installed app and confirm it doesn't crash on open. Signing not
+    # required. PR-only, like `package`, since it's a full per-OS build.
+    if: github.event_name == 'pull_request'
+    needs: build-and-test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Linux packaging and headless-launch dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fakeroot dpkg xvfb
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Package app
+        run: npm run forge:make
+
+      - name: Install the .deb and launch it (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo dpkg -i out/make/deb/x64/*.deb || sudo apt-get -f install -y
+          xvfb-run --auto-servernum node scripts/smoke-open-installed.js
+
+      - name: Install the .app from the .dmg and launch it (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          dmg=$(ls out/make/*.dmg | head -n1)
+          hdiutil attach "$dmg" -nobrowse -mountpoint /Volumes/meanwaile-smoke
+          app=$(find /Volumes/meanwaile-smoke -maxdepth 1 -name '*.app' | head -n1)
+          cp -R "$app" /Applications/
+          hdiutil detach /Volumes/meanwaile-smoke
+          node scripts/smoke-open-installed.js
+
+      - name: Run the Squirrel installer and launch it (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem out/make/squirrel.windows/x64/*Setup.exe | Select-Object -First 1
+          # --silent: install without the progress UI *and* without the
+          # post-install app auto-launch. That auto-launched instance has no
+          # MEANWAILE_E2E flag or seeded onboarding, so it blocks on a modal
+          # first-run dialog forever in headless CI and Setup.exe never returns.
+          Start-Process -FilePath $setup.FullName -ArgumentList '--silent' -Wait
+          $exe = Join-Path $env:LOCALAPPDATA 'Meanwaile\Meanwaile.exe'
+          for ($i = 0; $i -lt 30 -and -not (Test-Path $exe); $i++) { Start-Sleep 1 }
+          Get-Process Meanwaile -ErrorAction SilentlyContinue | Stop-Process -Force
+          node scripts/smoke-open-installed.js
