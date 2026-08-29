@@ -28,7 +28,7 @@ import { listGames, readGamesConfig } from './games-catalog';
 import { installGame, uninstallGame, readInstalledGames } from './game-installer';
 import { fetchCatalog, CatalogGame } from './games-gallery';
 import { trayIconFileName, shouldPersistContextMenu } from './tray-platform';
-import { installE2ETestHooks } from './e2e-hooks';
+import { installE2ETestHooks, PopoverPlacement } from './e2e-hooks';
 
 // Squirrel.Windows relaunches the app with --squirrel-install/-updated/
 // -uninstall/-obsolete during install/update/uninstall so it can create or
@@ -40,7 +40,15 @@ if (started) {
   app.quit();
 }
 
-// Prevent Dock icon on macOS — this is a menu-bar-only app
+const appIconPath = path.join(__dirname, '..', 'assets', 'app-icon.png');
+
+// macOS ignores AboutPanelOptions.iconPath and instead uses the application's
+// current icon. Set ours before turning the process into a menu-bar-only app;
+// this is especially important in development, where the host bundle is
+// Electron.app and would otherwise supply Electron's icon to the About panel.
+app.dock?.setIcon(appIconPath);
+
+// Prevent Dock icon on macOS — this is a menu-bar-only app.
 app.dock?.hide();
 
 // `npm run dev` sets this so every window opens with its DevTools attached
@@ -71,6 +79,10 @@ let galleryWindow: BrowserWindow | null = null;
 let httpServer: http.Server | null = null;
 let autoOpenTimer: ReturnType<typeof setTimeout> | null = null;
 let autoOpenSuppressed = false;
+// The tray bounds and work area the last showPopover() call positioned
+// against. Only read by the E2E position test (see e2e-hooks.ts) - it has to
+// assert against the exact inputs used, not a fresh tray.getBounds() reading.
+let lastPopoverPlacement: PopoverPlacement | null = null;
 let currentSettings: AppSettings = { ...DEFAULT_SETTINGS };
 
 const adapter = new ClaudeCodeAdapter();
@@ -180,7 +192,15 @@ function showPopover(): void {
   }
 
   const winBounds = popover.getBounds();
-  const { x, y } = process.platform === 'linux' ? topRightPosition(winBounds) : popoverPosition(tray.getBounds(), winBounds);
+  const trayBounds = tray.getBounds();
+  lastPopoverPlacement = {
+    trayBounds,
+    workArea:
+      process.platform === 'linux'
+        ? screen.getPrimaryDisplay().workArea
+        : screen.getDisplayMatching(trayBounds).workArea,
+  };
+  const { x, y } = process.platform === 'linux' ? topRightPosition(winBounds) : popoverPosition(trayBounds, winBounds);
 
   popover.setPosition(x, y);
   // Toggle visibleOnAllWorkspaces on just for the show() call so macOS places
@@ -531,11 +551,37 @@ app.on('ready', async () => {
   tray = new Tray(icon);
   tray.setToolTip('Meanwaile');
 
+  app.setAboutPanelOptions({
+    applicationName: 'Meanwaile',
+    applicationVersion: app.getVersion(),
+    // Without this, macOS falls back to the running bundle's own
+    // CFBundleVersion for the parenthesized build number — in an unpackaged
+    // dev build that's Electron's own version, not ours. An explicit empty
+    // string suppresses that parenthetical instead of showing it.
+    version: '',
+    copyright: 'Copyright © 2026 Ugaitz Urien',
+    credits: 'Created by Ugaitz Urien',
+    authors: ['Ugaitz Urien'],
+    website: 'https://github.com/uurien/meanwaile',
+    iconPath: appIconPath,
+  });
+
   const contextMenu = Menu.buildFromTemplate([
     // AppIndicator-based Linux trays never emit 'click'/'right-click' at
     // all — the context menu is the only way to interact with them, so
     // give it an explicit way in.
     { label: 'Open Meanwaile', click: togglePopover },
+    { type: 'separator' },
+    {
+      label: 'About Meanwaile',
+      click: () => {
+        // A menu-bar-only macOS app starts as a UIElement after dock.hide().
+        // Electron's native call creates the panel without activating it, so
+        // activate immediately afterwards, once there is a panel to focus.
+        app.showAboutPanel();
+        if (process.platform === 'darwin') app.focus({ steal: true });
+      },
+    },
     { type: 'separator' },
     { label: 'Exit', click: () => app.quit() },
   ]);
@@ -551,7 +597,7 @@ app.on('ready', async () => {
     tray.setContextMenu(contextMenu);
   }
 
-  installE2ETestHooks(tray, () => popover);
+  installE2ETestHooks(tray, () => popover, () => lastPopoverPlacement);
 
   popover = createPopover();
 

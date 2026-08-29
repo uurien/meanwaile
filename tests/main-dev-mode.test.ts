@@ -50,12 +50,16 @@ const mocks = vi.hoisted(() => {
 
   const appHandlers: Record<string, (...a: unknown[]) => void> = {};
   const app = {
-    dock: { hide: vi.fn() },
+    dock: { hide: vi.fn(), setIcon: vi.fn() },
     on: vi.fn((event: string, handler: (...a: unknown[]) => void) => {
       appHandlers[event] = handler;
     }),
     quit: vi.fn(),
+    focus: vi.fn(),
     setLoginItemSettings: vi.fn(),
+    getVersion: vi.fn(() => '0.8.1'),
+    setAboutPanelOptions: vi.fn(),
+    showAboutPanel: vi.fn(),
     getPath: vi.fn(() => '/fake/userData'),
     handlers: appHandlers,
   };
