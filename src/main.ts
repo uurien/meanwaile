@@ -28,7 +28,7 @@ import { listGames, readGamesConfig } from './games-catalog';
 import { installGame, uninstallGame, readInstalledGames } from './game-installer';
 import { fetchCatalog, CatalogGame } from './games-gallery';
 import { trayIconFileName, shouldPersistContextMenu } from './tray-platform';
-import { installE2ETestHooks } from './e2e-hooks';
+import { installE2ETestHooks, PopoverPlacement } from './e2e-hooks';
 
 // Squirrel.Windows relaunches the app with --squirrel-install/-updated/
 // -uninstall/-obsolete during install/update/uninstall so it can create or
@@ -79,6 +79,10 @@ let galleryWindow: BrowserWindow | null = null;
 let httpServer: http.Server | null = null;
 let autoOpenTimer: ReturnType<typeof setTimeout> | null = null;
 let autoOpenSuppressed = false;
+// The tray bounds and work area the last showPopover() call positioned
+// against. Only read by the E2E position test (see e2e-hooks.ts) - it has to
+// assert against the exact inputs used, not a fresh tray.getBounds() reading.
+let lastPopoverPlacement: PopoverPlacement | null = null;
 let currentSettings: AppSettings = { ...DEFAULT_SETTINGS };
 
 const adapter = new ClaudeCodeAdapter();
@@ -188,7 +192,15 @@ function showPopover(): void {
   }
 
   const winBounds = popover.getBounds();
-  const { x, y } = process.platform === 'linux' ? topRightPosition(winBounds) : popoverPosition(tray.getBounds(), winBounds);
+  const trayBounds = tray.getBounds();
+  lastPopoverPlacement = {
+    trayBounds,
+    workArea:
+      process.platform === 'linux'
+        ? screen.getPrimaryDisplay().workArea
+        : screen.getDisplayMatching(trayBounds).workArea,
+  };
+  const { x, y } = process.platform === 'linux' ? topRightPosition(winBounds) : popoverPosition(trayBounds, winBounds);
 
   popover.setPosition(x, y);
   // Toggle visibleOnAllWorkspaces on just for the show() call so macOS places
@@ -585,7 +597,7 @@ app.on('ready', async () => {
     tray.setContextMenu(contextMenu);
   }
 
-  installE2ETestHooks(tray, () => popover);
+  installE2ETestHooks(tray, () => popover, () => lastPopoverPlacement);
 
   popover = createPopover();
 

@@ -118,9 +118,6 @@ test.describe('tray click opens the popover next to the tray icon', () => {
   });
 
   test('popover opens next to the tray icon', async () => {
-    const workArea = await electronApp.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea);
-    const trayBounds = await electronApp.evaluate<Rect>(() => (global as any).__meanwaile_e2e__.getTrayBounds());
-
     await electronApp.evaluate(() => (global as any).__meanwaile_e2e__.clickTray());
 
     await expect
@@ -128,7 +125,15 @@ test.describe('tray click opens the popover next to the tray icon', () => {
       .not.toBeNull();
 
     const bounds = await electronApp.evaluate<Rect>(() => (global as any).__meanwaile_e2e__.getPopoverBounds());
-    const expected = expectedPosition(trayBounds, workArea, bounds);
+    // Assert against the exact tray bounds and work area showPopover() placed
+    // the window against, not a separate reading taken before the click: on
+    // macOS a menu-bar tray icon's bounds aren't reported stably in the first
+    // moments after launch, so a second tray.getBounds() call can disagree
+    // with the one that positioned the popover and make this test flaky.
+    const placement = await electronApp.evaluate<{ trayBounds: Rect; workArea: Rect }>(
+      () => (global as any).__meanwaile_e2e__.getPopoverPlacement(),
+    );
+    const expected = expectedPosition(placement.trayBounds, placement.workArea, bounds);
 
     expect(bounds.x).toBe(expected.x);
     expect(bounds.y).toBe(expected.y);

@@ -216,6 +216,12 @@ vi.mock('../src/games-gallery', () => ({
   fetchCatalog: mocks.fetchCatalog,
 }));
 
+// Captures the args main.ts passes to installE2ETestHooks so the placement
+// getter (3rd arg) can be invoked directly - it's the only way to observe the
+// tray bounds / work area showPopover() positioned against.
+const e2eHooks = vi.hoisted(() => ({ installE2ETestHooks: vi.fn() }));
+vi.mock('../src/e2e-hooks', () => e2eHooks);
+
 import '../src/main';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -773,6 +779,24 @@ describe('togglePopover / showPopover', () => {
       const [x] = mocks.win.setPosition.mock.calls.at(-1)!;
       expect(x).toBeLessThanOrEqual(1440 - 440);
       expect(x).toBeGreaterThanOrEqual(0);
+    });
+
+    // The E2E position test asserts against these exact values rather than a
+    // fresh tray.getBounds() call, which on macOS isn't stable right after
+    // launch (see e2e-hooks.ts / tray-popover-position.spec.ts).
+    it('records the tray bounds and work area it positioned the popover against', () => {
+      mocks.tray.getBounds.mockReturnValueOnce({ x: 700, y: 10, width: 22, height: 22 });
+      mocks.screen.getDisplayMatching.mockReturnValueOnce({ workArea: { x: 0, y: 0, width: 1440, height: 900 } });
+      mocks.win.getBounds.mockReturnValueOnce({ width: 440, height: 540 });
+      mocks.win.isVisible.mockReturnValue(false);
+
+      triggerTray('click');
+
+      const getPlacement = e2eHooks.installE2ETestHooks.mock.calls.at(-1)![2] as () => unknown;
+      expect(getPlacement()).toEqual({
+        trayBounds: { x: 700, y: 10, width: 22, height: 22 },
+        workArea: { x: 0, y: 0, width: 1440, height: 900 },
+      });
     });
   });
 
