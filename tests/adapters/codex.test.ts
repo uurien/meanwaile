@@ -35,12 +35,29 @@ describe('CodexAdapter.parseHookPayload', () => {
     expect(parse({ hook_event_name: 'UserPromptSubmit', prompt: 'Fix the bug' })?.type).toBe('prompt_submitted');
   });
 
-  it.each(['prompt', 'user_prompt'])('ignores a synthetic task notification received in %s', (field) => {
+  it.each(['prompt', 'user_prompt'])('ignores a bare synthetic task notification received in %s', (field) => {
     expect(parse({
       hook_event_name: 'UserPromptSubmit',
       [field]: '  <task-notification>\n<status>failed</status>\n</task-notification>  ',
     })).toBeNull();
   });
+
+  it.each(['prompt', 'user_prompt'])(
+    'ignores the system-reminder-wrapped background notification (%s)',
+    (field) => {
+      const wrapped = [
+        '<system-reminder>',
+        '[SYSTEM NOTIFICATION - NOT USER INPUT]',
+        'This is an automated background-task event, NOT a message from the user.',
+        '',
+        '<task-notification>',
+        '<status>completed</status>',
+        '</task-notification>',
+        '</system-reminder>',
+      ].join('\n');
+      expect(parse({ hook_event_name: 'UserPromptSubmit', [field]: wrapped })).toBeNull();
+    },
+  );
 
   it('PreToolUse → work_resumed', () => {
     const e = parse({ hook_event_name: 'PreToolUse', tool_name: 'exec', session_id: 's1' });

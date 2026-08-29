@@ -140,4 +140,41 @@ test.describe('auto-open with real agent event sequences', () => {
       session_id: 'parent',
     })).toBe(200);
   });
+
+  test('a background task notification that wakes the agent from idle does not auto-open the game', async () => {
+    if (!electronApp) throw new Error('Electron did not launch');
+
+    // Start from a hidden popover and an idle state (the previous test left
+    // the window open on its "task done" prompt).
+    await popover.evaluate(() => window.meanwaile.close());
+    await expect.poll(() => popoverIsVisible(electronApp)).toBe(false);
+
+    // No real user prompt. The client injects a background completion as a
+    // user-role message (dropped by the adapter), then the agent resumes
+    // with a tool call. The user never asked for anything and is reading.
+    expect(await postHook(port, {
+      hook_event_name: 'UserPromptSubmit',
+      session_id: 'bg',
+      prompt: '<task-notification>\n<summary>Monitor event</summary>\n<event>status=completed</event>\n</task-notification>',
+    })).toBe(200);
+    expect(await postHook(port, {
+      hook_event_name: 'PreToolUse',
+      session_id: 'bg',
+    })).toBe(200);
+    await popover.waitForTimeout(800);
+    expect(await popoverIsVisible(electronApp)).toBe(false);
+
+    // A genuine prompt on the same session still opens the game.
+    expect(await postHook(port, {
+      hook_event_name: 'UserPromptSubmit',
+      session_id: 'bg',
+      prompt: 'Now do something I actually asked for',
+    })).toBe(200);
+    await expect.poll(() => popoverIsVisible(electronApp)).toBe(true);
+
+    expect(await postHook(port, {
+      hook_event_name: 'Stop',
+      session_id: 'bg',
+    })).toBe(200);
+  });
 });

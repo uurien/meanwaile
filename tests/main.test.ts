@@ -1073,7 +1073,30 @@ describe('auto-open popover after idle timeout', () => {
     postHook(JSON.stringify({ hook_event_name: 'Stop' }), route);
   });
 
-  it.each(['/hook', '/hook/codex'])('does not arm auto-open for synthetic task notifications on %s', (route) => {
+  const BARE_TASK_NOTIFICATION = '<task-notification>\n<status>failed</status>\n</task-notification>';
+  // The shape Claude Code actually posts: a <system-reminder> wrapper opening
+  // with the "NOT USER INPUT" banner around a <task-notification>. The user
+  // typed nothing, so this must not arm the auto-open timer and pop the game
+  // open while they read something else.
+  const WRAPPED_TASK_NOTIFICATION = [
+    '<system-reminder>',
+    '[SYSTEM NOTIFICATION - NOT USER INPUT]',
+    'This is an automated background-task event, NOT a message from the user.',
+    '',
+    '<task-notification>',
+    '<task-id>b8hpxeqfy</task-id>',
+    '<summary>Monitor event: "CI check results"</summary>',
+    '<event>e2e (macos-latest): SUCCESS</event>',
+    '</task-notification>',
+    '</system-reminder>',
+  ].join('\n');
+
+  it.each([
+    { route: '/hook', body: BARE_TASK_NOTIFICATION },
+    { route: '/hook', body: WRAPPED_TASK_NOTIFICATION },
+    { route: '/hook/codex', body: BARE_TASK_NOTIFICATION },
+    { route: '/hook/codex', body: WRAPPED_TASK_NOTIFICATION },
+  ])('does not arm auto-open for a synthetic task notification on $route', ({ route, body }) => {
     vi.useFakeTimers();
     mocks.win.isVisible.mockReturnValue(false);
     mocks.win.show.mockClear();
@@ -1081,14 +1104,41 @@ describe('auto-open popover after idle timeout', () => {
 
     postHook(JSON.stringify({
       hook_event_name: 'UserPromptSubmit',
-      user_prompt: '<task-notification>\n<status>failed</status>\n</task-notification>',
-      prompt: '<task-notification>\n<status>failed</status>\n</task-notification>',
+      user_prompt: body,
+      prompt: body,
     }), route);
     vi.advanceTimersByTime(15500);
 
     expect(mocks.win.show).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
+
+  // The reported bug: from idle, a background task notification (ignored by
+  // the adapter) wakes the agent, which then resumes with a tool call.
+  // work_resumed drives the state machine to agent_working, but there was no
+  // real user prompt - the user is just reading - so nothing must auto-open.
+  it.each(['/hook', '/hook/codex'])(
+    'does not auto-open when work_resumed follows a background task notification on %s',
+    (route) => {
+      vi.useFakeTimers();
+      mocks.win.isVisible.mockReturnValue(false);
+      mocks.win.show.mockClear();
+      mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
+
+      postHook(JSON.stringify({
+        hook_event_name: 'UserPromptSubmit',
+        session_id: 'bg',
+        prompt: '<task-notification>\n<summary>Monitor event</summary>\n<event>status=completed</event>\n</task-notification>',
+      }), route);
+      postHook(JSON.stringify({ hook_event_name: 'PreToolUse', session_id: 'bg' }), route);
+      vi.advanceTimersByTime(15500);
+
+      expect(mocks.win.show).not.toHaveBeenCalled();
+      vi.useRealTimers();
+
+      postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 'bg' }), route);
+    },
+  );
 
   it.each(['/hook', '/hook/codex'])('keeps the parent working when a subagent stops on %s', (route) => {
     vi.useFakeTimers();
