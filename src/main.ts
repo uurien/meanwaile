@@ -148,8 +148,11 @@ function createPopover(): BrowserWindow {
 // (and most Linux) tray sits at the bottom of the screen instead — opening
 // downward there pushes the popover under the taskbar, clipping it. Detect
 // which half of the display's work area the tray icon is in and flip the
-// open direction accordingly. Horizontal position is clamped to the work
-// area so a tray icon near either edge never pushes the popover off-screen.
+// open direction accordingly. Both axes are clamped to the work area so a
+// tray icon near any edge - or a transient bogus tray.getBounds() reading
+// during startup - never pushes the popover off-screen. Without the vertical
+// clamp the OS silently repositions the window to keep it on-screen, so the
+// final on-screen bounds stop matching what we computed.
 function popoverPosition(
   trayBounds: { x: number; y: number; width: number; height: number },
   winBounds: { width: number; height: number },
@@ -160,9 +163,8 @@ function popoverPosition(
   const x = Math.round(Math.min(Math.max(rawX, workArea.x), workArea.x + workArea.width - winBounds.width));
 
   const trayIsInLowerHalf = trayBounds.y > workArea.y + workArea.height / 2;
-  const y = Math.round(
-    trayIsInLowerHalf ? trayBounds.y - winBounds.height - 4 : trayBounds.y + trayBounds.height + 4,
-  );
+  const rawY = trayIsInLowerHalf ? trayBounds.y - winBounds.height - 4 : trayBounds.y + trayBounds.height + 4;
+  const y = Math.round(Math.min(Math.max(rawY, workArea.y), workArea.y + workArea.height - winBounds.height));
 
   return { x, y };
 }

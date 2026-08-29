@@ -15,7 +15,7 @@ type Rect = { x: number; y: number; width: number; height: number };
 // regardless of X11 vs Wayland - tray-relative placement is meaningless
 // there) opens at the work area's top-right corner. macOS/Windows center
 // under the tray icon, flipped vertically depending on which half of the
-// work area the tray sits in.
+// work area the tray sits in, then clamped to the work area on both axes.
 function expectedPosition(trayBounds: Rect, workArea: Rect, winBounds: { width: number; height: number }) {
   if (process.platform === 'linux') {
     const margin = 8;
@@ -29,9 +29,8 @@ function expectedPosition(trayBounds: Rect, workArea: Rect, winBounds: { width: 
   const x = Math.round(Math.min(Math.max(rawX, workArea.x), workArea.x + workArea.width - winBounds.width));
 
   const trayIsInLowerHalf = trayBounds.y > workArea.y + workArea.height / 2;
-  const y = Math.round(
-    trayIsInLowerHalf ? trayBounds.y - winBounds.height - 4 : trayBounds.y + trayBounds.height + 4,
-  );
+  const rawY = trayIsInLowerHalf ? trayBounds.y - winBounds.height - 4 : trayBounds.y + trayBounds.height + 4;
+  const y = Math.round(Math.min(Math.max(rawY, workArea.y), workArea.y + workArea.height - winBounds.height));
 
   return { x, y };
 }
