@@ -1,4 +1,5 @@
 import { AgentAdapter, AgentEvent, AgentEventHandler } from './types';
+import { isSyntheticTaskNotification } from './synthetic-prompt';
 
 export class ClaudeCodeAdapter implements AgentAdapter {
   name = 'claude-code';
@@ -26,17 +27,20 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         return null;
       }
       case 'Stop':
-      case 'SubagentStop':
         return { type: 'task_finished', sessionId, agentName, timestamp: ts };
       case 'UserPromptSubmit':
+        if (isSyntheticTaskNotification(payload)) return null;
         return { type: 'prompt_submitted', sessionId, agentName, timestamp: ts };
       case 'PreToolUse':
         // A tool call retrying after a permission prompt (or any tool call at
-        // all) means the agent is actively working again — same transition
-        // as UserPromptSubmit, so it re-arms the auto-open timer and clears
-        // a stale needs_user state instead of leaving the popover stuck on
-        // "needs attention" for the rest of the turn.
-        return { type: 'prompt_submitted', sessionId, agentName, timestamp: ts };
+        // all) means the agent is actively working again. Keep that distinct
+        // from a new user prompt so a resumed tool cannot override a manual
+        // popover dismissal for the current turn.
+        return { type: 'work_resumed', sessionId, agentName, timestamp: ts };
+      case 'SubagentStop':
+        // A subagent hook carries the parent session_id plus a separate
+        // agent_id. Treating it as Stop deletes the still-running parent.
+        return null;
       default:
         return null;
     }

@@ -2,7 +2,7 @@ import { defineConfig, configDefaults } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    exclude: [...configDefaults.exclude, 'e2e/**', 'games/**'],
+    exclude: [...configDefaults.exclude, 'e2e/**', 'games/**', 'out/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],

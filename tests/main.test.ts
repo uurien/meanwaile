@@ -985,38 +985,71 @@ describe('auto-open popover after idle timeout', () => {
     vi.useRealTimers();
   });
 
-  // Characterization test, not a spec: this documents current behavior,
-  // which is arguably not what a user would want, but changing it was
-  // explicitly deferred rather than fixed here. PreToolUse only re-arms this
-  // timer through one specific path - a needs_user -> agent_working retry
-  // after a permission prompt (see the PreToolUse case in
-  // claude-code.ts/codex.ts) - and maybeAutoOpenPopover() only checks
-  // isVisible(), with no memory of "the user just closed this by hand". So a
-  // tool call that merely resumes an already-open task can still pop the
-  // window back open after the idle delay, even right after the user
-  // dismissed it for that same task.
-  it('a PreToolUse retry after needs_user can still reopen the popover even though the user just closed it by hand', () => {
+  it.each([
+    { route: '/hook', needsUser: { hook_event_name: 'Notification', notification_type: 'permission_prompt' } },
+    { route: '/hook/codex', needsUser: { hook_event_name: 'PermissionRequest' } },
+  ])('does not reopen a dismissed popover when work resumes through PreToolUse on $route', ({ route, needsUser }) => {
     vi.useFakeTimers();
     mocks.win.isVisible.mockReturnValue(false);
     mocks.win.show.mockClear();
     mocks.win.hide.mockClear();
     mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
 
-    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit' }));
-    postHook(JSON.stringify({ hook_event_name: 'Notification', notification_type: 'permission_prompt' }));
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit' }), route);
+    postHook(JSON.stringify(needsUser), route);
 
     // User manually closes the popover while waiting on the permission prompt.
     mocks.ipcMain.handlers['popover-close']?.();
     expect(mocks.win.hide).toHaveBeenCalled();
 
-    // Agent's next tool call (e.g. after the permission is approved in the
-    // terminal) flips needs_user -> agent_working, re-arming the timer
-    // exactly as a fresh UserPromptSubmit would.
-    postHook(JSON.stringify({ hook_event_name: 'PreToolUse' }));
+    // Work may resume after approval, but dismissing the game is final for
+    // this turn. Only a new real prompt may make it eligible to auto-open.
+    postHook(JSON.stringify({ hook_event_name: 'PreToolUse' }), route);
     vi.advanceTimersByTime(15500);
 
-    expect(mocks.win.show).toHaveBeenCalled();
+    expect(mocks.win.show).not.toHaveBeenCalled();
+
+    // A genuine new user prompt starts a new opportunity to offer the game.
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit' }), route);
+    vi.advanceTimersByTime(15500);
+    expect(mocks.win.show).toHaveBeenCalledOnce();
+
     vi.useRealTimers();
+
+    postHook(JSON.stringify({ hook_event_name: 'Stop' }), route);
+  });
+
+  it.each(['/hook', '/hook/codex'])('does not arm auto-open for synthetic task notifications on %s', (route) => {
+    vi.useFakeTimers();
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+    mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
+
+    postHook(JSON.stringify({
+      hook_event_name: 'UserPromptSubmit',
+      user_prompt: '<task-notification>\n<status>failed</status>\n</task-notification>',
+      prompt: '<task-notification>\n<status>failed</status>\n</task-notification>',
+    }), route);
+    vi.advanceTimersByTime(15500);
+
+    expect(mocks.win.show).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it.each(['/hook', '/hook/codex'])('keeps the parent working when a subagent stops on %s', (route) => {
+    vi.useFakeTimers();
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+    mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
+
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 'parent' }), route);
+    postHook(JSON.stringify({ hook_event_name: 'SubagentStop', session_id: 'parent', agent_id: 'child' }), route);
+    vi.advanceTimersByTime(15500);
+
+    expect(mocks.win.show).toHaveBeenCalledOnce();
+    vi.useRealTimers();
+
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 'parent' }), route);
   });
 
   // Two-agent variant of the reported bug: the state machine now tracks

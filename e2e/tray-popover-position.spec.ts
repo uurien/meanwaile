@@ -91,7 +91,9 @@ test.describe('tray click opens the popover next to the tray icon', () => {
       args.push('--no-sandbox', '--disable-gpu');
     }
 
-    electronApp = await electron.launch({ args, env: { ...process.env, MEANWAILE_E2E: '1' } });
+    const electronEnv = { ...process.env };
+    delete electronEnv.ELECTRON_RUN_AS_NODE;
+    electronApp = await electron.launch({ args, env: { ...electronEnv, MEANWAILE_E2E: '1' } });
     await electronApp.firstWindow();
   });
 

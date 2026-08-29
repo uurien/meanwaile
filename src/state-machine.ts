@@ -39,6 +39,7 @@ export class StateMachine {
     const key = event.sessionId ?? DEFAULT_SESSION_KEY;
     switch (event.type) {
       case 'prompt_submitted':
+      case 'work_resumed':
         this.sessions.set(key, 'working');
         break;
       case 'needs_user':

@@ -5,6 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { ClaudeCodeAdapter } from './adapters/claude-code';
 import { CodexAdapter } from './adapters/codex';
+import { AgentEvent } from './adapters/types';
 import { StateMachine } from './state-machine';
 import {
   hasOnboarded,
@@ -77,11 +78,17 @@ let settingsWindow: BrowserWindow | null = null;
 let galleryWindow: BrowserWindow | null = null;
 let httpServer: http.Server | null = null;
 let autoOpenTimer: ReturnType<typeof setTimeout> | null = null;
+let autoOpenSuppressed = false;
 let currentSettings: AppSettings = { ...DEFAULT_SETTINGS };
 
 const adapter = new ClaudeCodeAdapter();
 const codexAdapter = new CodexAdapter();
 const machine = new StateMachine();
+
+function dismissPopover(): void {
+  if (machine.snapshot().state !== 'idle') autoOpenSuppressed = true;
+  popover?.hide();
+}
 
 function createPopover(): BrowserWindow {
   const win = new BrowserWindow({
@@ -121,7 +128,7 @@ function createPopover(): BrowserWindow {
   win.on('blur', () => {
     if (isDev) return;
     blurTimer = setTimeout(() => {
-      if (!win.isDestroyed()) win.hide();
+      if (!win.isDestroyed()) dismissPopover();
     }, 150);
   });
   win.on('focus', () => {
@@ -205,7 +212,7 @@ function showPopover(): void {
 
 function togglePopover(): void {
   if (popover && !popover.isDestroyed() && popover.isVisible()) {
-    popover.hide();
+    dismissPopover();
     return;
   }
   showPopover();
@@ -582,7 +589,7 @@ app.on('ready', async () => {
 
   popover = createPopover();
 
-  ipcMain.on('popover-close', () => { popover?.hide(); });
+  ipcMain.on('popover-close', dismissPopover);
   ipcMain.on('open-settings', () => { showSettingsWindow(); });
   ipcMain.on('open-gallery', () => { showGalleryWindow(); });
   ipcMain.handle('games-list', () => listGames(path.join(__dirname, '..'), app.getPath('userData')));
@@ -631,25 +638,44 @@ app.on('ready', async () => {
     return result;
   });
 
-  adapter.onEvent((event) => machine.handle(event));
-  codexAdapter.onEvent((event) => machine.handle(event));
+  const clearAutoOpenTimer = (): void => {
+    if (!autoOpenTimer) return;
+    clearTimeout(autoOpenTimer);
+    autoOpenTimer = null;
+  };
+  const armAutoOpenTimer = (): void => {
+    clearAutoOpenTimer();
+    // setTimeout and the OS HID-idle clock do not share an origin. The small
+    // buffer avoids reading a fraction of a second short without widening
+    // the false-positive window after a fast app switch.
+    autoOpenTimer = setTimeout(maybeAutoOpenPopover, currentSettings.autoOpenDelaySeconds * 1000 + 500);
+  };
+  const handleAgentEvent = (event: AgentEvent): void => {
+    const previousState = machine.snapshot().state;
+    if (event.type === 'prompt_submitted') autoOpenSuppressed = false;
+
+    machine.handle(event);
+    const nextState = machine.snapshot().state;
+
+    if (nextState !== 'agent_working') {
+      clearAutoOpenTimer();
+      if (nextState === 'idle') autoOpenSuppressed = false;
+      return;
+    }
+
+    // A fresh prompt always starts a new offer window, even if it steers an
+    // already-working session and therefore causes no state transition.
+    // Resumed work only arms after a real state transition and never after
+    // the user dismissed the popover for this turn.
+    if (!autoOpenSuppressed && (event.type === 'prompt_submitted' || previousState !== 'agent_working')) {
+      armAutoOpenTimer();
+    }
+  };
+
+  adapter.onEvent(handleAgentEvent);
+  codexAdapter.onEvent(handleAgentEvent);
   machine.onStateChange((snapshot) => {
     popover?.webContents.send('state-change', snapshot);
-
-    if (autoOpenTimer) {
-      clearTimeout(autoOpenTimer);
-      autoOpenTimer = null;
-    }
-    if (snapshot.state === 'agent_working') {
-      // setTimeout's clock and the OS's HID-idle clock don't share an origin:
-      // by the time this fires at exactly the configured delay, getSystemIdleTime()
-      // can read a fraction of a second short because of the delay between the
-      // last real input and when the hook reached us and we armed this timer.
-      // Kept small (vs. a larger buffer) so a fast app-switch right after
-      // submitting the prompt doesn't get counted as idle time and trigger a
-      // false auto-open over whatever app the user switched to.
-      autoOpenTimer = setTimeout(maybeAutoOpenPopover, currentSettings.autoOpenDelaySeconds * 1000 + 500);
-    }
   });
 
   startHttpServer(currentSettings.httpPort);

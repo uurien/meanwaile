@@ -6,4 +6,9 @@ describe('vitest.config', () => {
     const exclude = config.test?.exclude ?? [];
     expect(exclude).toContain('games/**');
   });
+
+  it('excludes packaged app output, which contains duplicate tests and Playwright specs', () => {
+    const exclude = config.test?.exclude ?? [];
+    expect(exclude).toContain('out/**');
+  });
 });
