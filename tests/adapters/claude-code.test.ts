@@ -44,11 +44,38 @@ describe('ClaudeCodeAdapter.parseHookPayload', () => {
     expect(parse({ hook_event_name: 'UserPromptSubmit', user_prompt: 'Fix the bug' })?.type).toBe('prompt_submitted');
   });
 
-  it.each(['user_prompt', 'prompt'])('ignores a synthetic task notification received in %s', (field) => {
+  it.each(['user_prompt', 'prompt'])('ignores a bare synthetic task notification received in %s', (field) => {
     expect(parse({
       hook_event_name: 'UserPromptSubmit',
       [field]: '  <task-notification>\n<status>failed</status>\n</task-notification>  ',
     })).toBeNull();
+  });
+
+  it.each(['user_prompt', 'prompt'])(
+    'ignores the system-reminder-wrapped background notification Claude Code actually sends (%s)',
+    (field) => {
+      const wrapped = [
+        '<system-reminder>',
+        '[SYSTEM NOTIFICATION - NOT USER INPUT]',
+        'This is an automated background-task event, NOT a message from the user.',
+        '',
+        '<task-notification>',
+        '<task-id>b8hpxeqfy</task-id>',
+        '<summary>Monitor event: "CI check results"</summary>',
+        '<event>e2e (macos-latest): SUCCESS</event>',
+        '</task-notification>',
+        '</system-reminder>',
+      ].join('\n');
+      expect(parse({ hook_event_name: 'UserPromptSubmit', [field]: wrapped })).toBeNull();
+    },
+  );
+
+  it('still treats a real prompt that quotes a notification alongside the user\'s text as a prompt', () => {
+    const e = parse({
+      hook_event_name: 'UserPromptSubmit',
+      prompt: 'the game keeps opening on <task-notification> ... </task-notification> messages, fix it',
+    });
+    expect(e?.type).toBe('prompt_submitted');
   });
 
   it('PreToolUse → work_resumed', () => {
