@@ -679,9 +679,16 @@ app.on('ready', async () => {
 
     // A fresh prompt always starts a new offer window, even if it steers an
     // already-working session and therefore causes no state transition.
-    // Resumed work only arms after a real state transition and never after
-    // the user dismissed the popover for this turn.
-    if (!autoOpenSuppressed && (event.type === 'prompt_submitted' || previousState !== 'agent_working')) {
+    // Resumed work only re-arms when it clears a needs_user block (a tool
+    // retrying after an approved permission prompt) - never when it wakes
+    // the app out of idle. From idle, work_resumed means the agent started
+    // acting with no user prompt behind it (a background task notification
+    // the adapter dropped, then a tool call), and the user - who never
+    // asked for anything - must not have the game pop open while they read.
+    const startsOfferWindow =
+      event.type === 'prompt_submitted' ||
+      (event.type === 'work_resumed' && previousState === 'needs_user');
+    if (!autoOpenSuppressed && startsOfferWindow) {
       armAutoOpenTimer();
     }
   };
