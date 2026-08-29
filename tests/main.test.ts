@@ -724,7 +724,7 @@ describe('togglePopover / showPopover', () => {
     mocks.win.isDestroyed.mockReturnValue(false);
   });
 
-  // These three exercise popoverPosition(), the tray-relative placement used
+  // These exercise popoverPosition(), the tray-relative placement used
   // on macOS/Windows - Linux takes the topRightPosition() branch instead
   // (AppIndicator tray bounds are meaningless there, see its comment), so
   // stub the platform to a non-Linux value regardless of the host actually
@@ -779,6 +779,36 @@ describe('togglePopover / showPopover', () => {
       const [x] = mocks.win.setPosition.mock.calls.at(-1)!;
       expect(x).toBeLessThanOrEqual(1440 - 440);
       expect(x).toBeGreaterThanOrEqual(0);
+    });
+
+    // A bogus tray.getBounds() reading during startup (seen on the GitHub
+    // macOS runner) can put the downward-opening popover past the bottom of
+    // the work area; without the clamp the OS repositions the window itself
+    // and its final bounds no longer match what we computed.
+    it('clamps the popover down to the work area when opening below a tray icon near the bottom edge', () => {
+      mocks.tray.getBounds.mockReturnValueOnce({ x: 700, y: 450, width: 22, height: 22 });
+      mocks.screen.getDisplayMatching.mockReturnValueOnce({ workArea: { x: 0, y: 0, width: 1440, height: 900 } });
+      mocks.win.getBounds.mockReturnValueOnce({ width: 440, height: 540 });
+      mocks.win.isVisible.mockReturnValue(false);
+      mocks.win.setPosition.mockClear();
+
+      triggerTray('click');
+
+      const [, y] = mocks.win.setPosition.mock.calls.at(-1)!;
+      expect(y).toBe(900 - 540);
+    });
+
+    it('clamps the popover up to the work area when opening above a tray icon whose upward flip would overflow the top', () => {
+      mocks.tray.getBounds.mockReturnValueOnce({ x: 700, y: 460, width: 22, height: 22 });
+      mocks.screen.getDisplayMatching.mockReturnValueOnce({ workArea: { x: 0, y: 0, width: 1440, height: 900 } });
+      mocks.win.getBounds.mockReturnValueOnce({ width: 440, height: 540 });
+      mocks.win.isVisible.mockReturnValue(false);
+      mocks.win.setPosition.mockClear();
+
+      triggerTray('click');
+
+      const [, y] = mocks.win.setPosition.mock.calls.at(-1)!;
+      expect(y).toBe(0);
     });
 
     // The E2E position test asserts against these exact values rather than a
