@@ -4,7 +4,7 @@
 
 **Creado:** 2026-09-02
 
-**Progreso:** 3/11 tareas completadas
+**Progreso:** 4/11 tareas completadas
 
 **Alcance:** Vista de ejecuciones de agentes, notificaciones nativas, ajustes de comportamiento y rediseño acordado de la interfaz.
 
@@ -256,7 +256,7 @@ Claude o Codex.
   `npx vitest run tests/adapters tests/state-machine.test.ts --exclude '.claude/**'`;
   `npm run build` correcto.
 
-### [ ] T03 — Construir el tracker por ejecución
+### [x] T03 — Construir el tracker por ejecución
 
 **Objetivo:** Producir el snapshot de ejecuciones activas y recientes que
 necesitan la interfaz, las notificaciones y el tray sin cambiar la semántica del
@@ -272,32 +272,35 @@ estado agregado existente.
 
 **Comportamiento requerido**
 
-- [ ] El primer `prompt_submitted` o `work_resumed` crea una ejecución trabajando.
-- [ ] Los eventos repetidos del mismo estado actualizan las marcas de tiempo sin duplicar registros.
-- [ ] `needs_user` mueve únicamente la ejecución correspondiente a necesita-atención.
-- [ ] `task_finished` mueve únicamente la ejecución correspondiente al historial reciente.
-- [ ] Los eventos de finalización duplicados no duplican historial ni notificaciones.
-- [ ] Los contadores distinguen trabajando, necesita-atención, activos y terminados.
-- [ ] Dos adapters con el mismo ID de sesión permanecen diferenciados.
-- [ ] Dos sesiones del mismo proyecto permanecen diferenciadas.
-- [ ] Los ID de sesión ausentes quedan limitados a su adapter.
-- [ ] El historial reciente se ordena del más nuevo al más antiguo y tiene un máximo de 20.
-- [ ] Los registros obsoletos caducan silenciosamente después de 24 horas.
-- [ ] El tracker informa de si un evento provocó una transición significativa.
+- [x] El primer `prompt_submitted` o `work_resumed` crea una ejecución trabajando.
+- [x] Los eventos repetidos del mismo estado actualizan las marcas de tiempo sin duplicar registros.
+- [x] `needs_user` mueve únicamente la ejecución correspondiente a necesita-atención.
+- [x] `task_finished` mueve únicamente la ejecución correspondiente al historial reciente.
+- [x] Los eventos de finalización duplicados no duplican historial ni notificaciones.
+- [x] Los contadores distinguen trabajando, necesita-atención, activos y terminados.
+- [x] Dos adapters con el mismo ID de sesión permanecen diferenciados.
+- [x] Dos sesiones del mismo proyecto permanecen diferenciadas.
+- [x] Los ID de sesión ausentes quedan limitados a su adapter.
+- [x] El historial reciente se ordena del más nuevo al más antiguo y tiene un máximo de 20.
+- [x] Los registros obsoletos caducan silenciosamente después de 24 horas.
+- [x] El tracker informa de si un evento provocó una transición significativa.
 
 **Checklist TDD**
 
-- [ ] ROJO: crear la suite completa del comportamiento anterior.
-- [ ] VERDE: implementar el tracker mínimo.
-- [ ] Refactorizar la creación del snapshot para devolver datos inmutables.
+- [x] ROJO: crear la suite completa del comportamiento anterior.
+- [x] VERDE: implementar el tracker mínimo.
+- [x] Refactorizar la creación del snapshot para devolver datos inmutables.
 
 **Puerta de verificación:** `npx vitest run tests/execution-tracker.test.ts tests/state-machine.test.ts`
 
 **Evidencias**
 
-- Evidencia ROJA: _pendiente_
-- Evidencia VERDE: _pendiente_
-- Resultado de la puerta: _pendiente_
+- Evidencia ROJA: la suite nueva falla al importar el módulo inexistente
+  `src/execution-tracker.ts`.
+- Evidencia VERDE: 17/17 pruebas del tracker y cobertura del archivo al 100 %
+  en statements, branches, functions y lines.
+- Resultado de la puerta: 34/34 pruebas correctas entre tracker y máquina de
+  estados; regresión propia completa 563/563 y `npm run build` correcto.
 
 ### [ ] T04 — Ampliar la configuración y migrar a los usuarios existentes
 
@@ -685,6 +688,8 @@ Añadir entradas sin reescribir el historial.
 | 2026-09-02 | T01 | Completada | `AGENTS.md`, `CONTRIBUTING.md` y el product brief local coinciden en modos, contadores, pausa principal, privacidad y exclusión de subagentes. |
 | 2026-09-03 | T02 | En curso | Comienza la ampliación TDD de `AgentEvent` con identidad de adapter y nombre de proyecto saneado. |
 | 2026-09-03 | T02 | Completada | Los adapters emiten identidad estable y solo el basename seguro; la máquina diferencia sesiones iguales de adapters distintos. Puerta 74/74 y build correctos. |
+| 2026-09-03 | T03 | En curso | Comienza la suite TDD del tracker de ejecuciones activas y finalizaciones recientes. |
+| 2026-09-03 | T03 | Completada | Tracker puro con identidad compuesta, transiciones deduplicadas, contadores, historial máximo de 20 y caducidad silenciosa; puerta 34/34. |
 
 ## Registro de decisiones
 
