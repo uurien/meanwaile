@@ -4,7 +4,7 @@
 
 **Creado:** 2026-09-02
 
-**Progreso:** 4/11 tareas completadas
+**Progreso:** 5/11 tareas completadas
 
 **Alcance:** Vista de ejecuciones de agentes, notificaciones nativas, ajustes de comportamiento y rediseño acordado de la interfaz.
 
@@ -302,7 +302,7 @@ estado agregado existente.
 - Resultado de la puerta: 34/34 pruebas correctas entre tracker y máquina de
   estados; regresión propia completa 563/563 y `npm run build` correcto.
 
-### [ ] T04 — Ampliar la configuración y migrar a los usuarios existentes
+### [x] T04 — Ampliar la configuración y migrar a los usuarios existentes
 
 **Objetivo:** Persistir los dos comportamientos principales independientes y
 los detalles de notificaciones sin romper los archivos `settings.json` existentes.
@@ -339,19 +339,23 @@ interface AppSettings {
 
 **Checklist TDD**
 
-- [ ] ROJO: los archivos antiguos de dos campos migran al modelo completo.
-- [ ] ROJO: se validan todos los booleanos y valores de sonido.
-- [ ] ROJO: el ciclo lectura/escritura conserva todos los campos.
-- [ ] ROJO: se validan las cuatro combinaciones de comportamiento.
-- [ ] VERDE: implementar valores por defecto, migración, serialización y validación.
+- [x] ROJO: los archivos antiguos de dos campos migran al modelo completo.
+- [x] ROJO: se validan todos los booleanos y valores de sonido.
+- [x] ROJO: el ciclo lectura/escritura conserva todos los campos.
+- [x] ROJO: se validan las cuatro combinaciones de comportamiento.
+- [x] VERDE: implementar valores por defecto, migración, serialización y validación.
 
 **Puerta de verificación:** `npx vitest run tests/settings-store.test.ts`
 
 **Evidencias**
 
-- Evidencia ROJA: _pendiente_
-- Evidencia VERDE: _pendiente_
-- Resultado de la puerta: _pendiente_
+- Evidencia ROJA: 12/24 pruebas fallan por ausencia de los nuevos campos,
+  migración, validación de booleanos y enum de sonido.
+- Evidencia VERDE: lectura defensiva por campo, migración de archivos antiguos,
+  serialización completa y validación de las cuatro combinaciones.
+- Resultado de la puerta: 27/27 pruebas correctas y cobertura de
+  `src/settings-store.ts` al 100 % en statements, branches, functions y lines;
+  `npm run build` correcto.
 
 ### [ ] T05 — Implementar la política de notificaciones nativas
 
@@ -690,6 +694,8 @@ Añadir entradas sin reescribir el historial.
 | 2026-09-03 | T02 | Completada | Los adapters emiten identidad estable y solo el basename seguro; la máquina diferencia sesiones iguales de adapters distintos. Puerta 74/74 y build correctos. |
 | 2026-09-03 | T03 | En curso | Comienza la suite TDD del tracker de ejecuciones activas y finalizaciones recientes. |
 | 2026-09-03 | T03 | Completada | Tracker puro con identidad compuesta, transiciones deduplicadas, contadores, historial máximo de 20 y caducidad silenciosa; puerta 34/34. |
+| 2026-09-03 | T04 | En curso | Comienza la migración TDD de ajustes para separar juegos automáticos y notificaciones. |
+| 2026-09-03 | T04 | Completada | Ajustes migrados sin romper el formato antiguo; los cuatro modos, preferencias por evento y sonido quedan validados. Puerta 27/27. |
 
 ## Registro de decisiones
 
