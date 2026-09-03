@@ -4,7 +4,7 @@
 
 **Creado:** 2026-09-02
 
-**Progreso:** 9/11 tareas completadas
+**Progreso:** 10/11 tareas completadas
 
 **Alcance:** Vista de ejecuciones de agentes, notificaciones nativas, ajustes de comportamiento y rediseño acordado de la interfaz.
 
@@ -636,36 +636,39 @@ acordada; verificar que el escalado estándar de texto no recorta contenido.
   684 pruebas. `npm run build` correcto. Cobertura 100 % (incluye `settings.js`).
 - Ruta de la captura: _pendiente de la verificación visual manual del usuario._
 
-### [ ] T09 — Probar la integración entre funcionalidades y las regresiones
+### [x] T09 — Probar la integración entre funcionalidades y las regresiones
 
 **Objetivo:** Verificar que la actividad multiagente, las notificaciones, los
 juegos, la configuración y la galería funcionan conjuntamente.
 
-**Escenarios automatizados**
+**Escenarios automatizados** (`tests/main-integration.test.ts`, registro de módulos
+propio para arrancar con `StateMachine`/`ExecutionTracker` limpios)
 
-- [ ] Claude y Codex trabajan simultáneamente en proyectos distintos.
-- [ ] Dos sesiones utilizan el mismo proyecto.
-- [ ] Una termina mientras otra trabaja: actualizar contadores, notificar las restantes y pausar el juego.
-- [ ] Una necesita atención mientras otra trabaja: actualizar contadores, notificar y pausar el juego.
-- [ ] Termina la última ejecución: actualizar contadores, notificar y pausar el juego.
-- [ ] Los hooks duplicados `Notification`/`PermissionRequest`/`Stop` son idempotentes.
-- [ ] `SubagentStop` no altera los contadores principales.
-- [ ] Las combinaciones de `Settings` coinciden con la matriz de aceptación.
-- [ ] Instalar o eliminar desde la galería sigue actualizando la pestaña `Games`.
-- [ ] Los cambios de puerto conservan las confirmaciones para actualizar hooks instalados.
-- [ ] Siguen funcionando el cierre del popover y la supresión de la apertura automática de una sola comprobación.
+- [x] Claude y Codex trabajan simultáneamente en proyectos distintos (dos ejecuciones activas con `adapterId`/`projectName` correctos).
+- [x] Dos sesiones utilizan el mismo proyecto (ids distintos, mismo `projectName`).
+- [x] Una termina mientras otra trabaja: `working` baja a 1, `agent-interruption` `finished`, notificación `1 other agent is still working.`
+- [x] Una necesita atención mientras otra trabaja: `needsUser` sube, `agent-interruption` `needs_user`, notificación `… needs your attention`.
+- [x] Termina la última ejecución: contadores a cero, interrupción `finished`, notificación `No other agents are active.`, tooltip del tray de vuelta a `Meanwaile`.
+- [x] Los hooks duplicados `Notification`/`Stop` son idempotentes (una sola interrupción y una sola notificación por evento).
+- [x] `SubagentStop` no emite `activity-change`, interrupción ni notificación, y no mueve los contadores.
+- [x] Las cuatro combinaciones de `Settings` coinciden con la matriz: el timer de una sola comprobación se arma solo con `autoOpenGames`; la notificación se muestra solo con `notificationsEnabled`.
+- [x] Instalar desde la galería sigue enviando `games-changed` al popover.
+- [x] Un cambio de puerto sigue confirmando antes de reescribir un hook de Claude instalado.
+- [x] Cerrar el popover suprime la apertura automática de una sola comprobación durante el resto del turno.
 
 **Puerta automatizada completa**
 
-- [ ] `npm test`
-- [ ] `npm run build`
-- [ ] `npm run test:e2e`
+- [x] `npm test` (como `npm test -- --exclude '.claude/**'`, ver T00).
+- [x] `npm run build`
+- [x] `npm run test:e2e`
 
 **Evidencias**
 
-- Suite unitaria: _pendiente_
-- Compilación: _pendiente_
-- E2E: _pendiente_
+- Suite unitaria: `npm test -- --exclude '.claude/**'` → 36 archivos, 698 pruebas
+  correctas. Cobertura global 100 % (statements/branches/functions/lines).
+- Compilación: `npm run build` (`tsc`) correcto.
+- E2E: `npm run test:e2e` → 3/3 pruebas correctas
+  (`auto-open-events.spec.ts` ×2, `tray-popover-position.spec.ts` ×1).
 
 ### [ ] T10 — Validar el comportamiento empaquetado y finalizar la documentación
 
@@ -755,6 +758,7 @@ Añadir entradas sin reescribir el historial.
 | 2026-09-03 | T07 | Completada | `agents-view.js` (proyección segura, sin rutas/prompts/transcripciones), pestañas `Games`/`Agents` con `Games` por defecto, menú `···` (`Add game`/`Settings`), overlay de interrupción multiagente con recuento restante y enrutado de notificaciones con prioridad de partida en curso. Sin `Reply` ni CTA inferior. Puerta `tests/popover` 112/112, regresión 671/671, build y cobertura 100 %. Puerta visual pendiente de la prueba manual final. |
 | 2026-09-03 | T08 | En curso | Comienza la reescritura TDD de la ventana de ajustes al modelo completo (interruptores independientes, sonido, estado del servidor, tooltips de ayuda). |
 | 2026-09-03 | T08 | Completada | Ventana de ajustes rediseñada en `Automation`/`Notifications`/`Detection`: interruptores independientes, sub-controles que se deshabilitan conservando su valor, `select` de sonido, estado real del servidor junto al puerto y tooltips accesibles (`aria-describedby`, hover/focus/blur/Escape) con los textos exactos. `main.ts` abre la ventana a `380×560`. Puerta 160/160, regresión 684/684, build y cobertura 100 %. Puerta visual pendiente de la prueba manual final. |
+| 2026-09-03 | T09 | Completada | `tests/main-integration.test.ts` cubre concurrencia Claude+Codex, sesiones del mismo proyecto, finalización parcial/última, `needs_user`, idempotencia de hooks, exclusión de `SubagentStop`, la matriz de ajustes y las regresiones de galería/puerto/supresión. Puerta completa: `npm test` 698/698, `npm run build` y `npm run test:e2e` 3/3 correctos; cobertura 100 %. |
 
 ## Registro de decisiones
 
