@@ -4,7 +4,7 @@
 
 **Creado:** 2026-09-02
 
-**Progreso:** 7/11 tareas completadas
+**Progreso:** 8/11 tareas completadas
 
 **Alcance:** Vista de ejecuciones de agentes, notificaciones nativas, ajustes de comportamiento y rediseño acordado de la interfaz.
 
@@ -496,7 +496,7 @@ con el renderer.
   correctas (597 → 624). `npm run build` correcto. Cobertura global 100 %
   (statements/branches/functions/lines), `main.ts` y `preload.ts` al 100 %.
 
-### [ ] T07 — Construir el popover de `Games`/`Agents`
+### [x] T07 — Construir el popover de `Games`/`Agents`
 
 **Objetivo:** Implementar la interfaz principal acordada sin reescribir el
 carrusel existente ni el comportamiento del host de juegos.
@@ -515,31 +515,31 @@ carrusel existente ni el comportamiento del host de juegos.
 
 **Comportamiento requerido**
 
-- [ ] `Games` está a la izquierda y aparece seleccionado en una apertura normal.
-- [ ] `Agents` está a la derecha y muestra el snapshot más reciente.
-- [ ] `Games` reutiliza la implementación actual del hub/carrusel.
-- [ ] Los contadores muestran trabajando, necesita-atención y terminados recientemente.
-- [ ] Las ejecuciones que necesitan atención se ordenan antes que las que trabajan.
-- [ ] Las ejecuciones recientes se ordenan de la más nueva a la más antigua.
-- [ ] Si falta el proyecto, se muestra el nombre del agente sin puntuación extraña.
-- [ ] Los estados vacíos están diseñados y probados.
-- [ ] No existe el botón `Reply`.
-- [ ] No existe una llamada a la acción inferior para juegos.
-- [ ] No hay cheurones sin explicación ni affordances desplegables falsas.
-- [ ] `···` abre un menú accesible con `Add game` y `Settings`.
-- [ ] Abrir un juego oculta las pestañas y conserva el comportamiento existente de pausa y reanudación.
-- [ ] `needs_user` y `task_finished` de cualquier agente principal pausan inmediatamente el iframe y muestran el overlay.
-- [ ] El overlay de una finalización parcial indica el agente terminado y cuántos siguen trabajando.
-- [ ] Continuar después de la pausa siempre requiere una acción explícita del usuario.
-- [ ] Volver desde un juego lleva a `Games`.
-- [ ] El enrutado desde notificaciones selecciona y enfoca la fila de `Agents` correspondiente.
-- [ ] Funcionan la navegación por teclado, el orden de foco, Escape y los estados ARIA.
+- [x] `Games` está a la izquierda y aparece seleccionado en una apertura normal.
+- [x] `Agents` está a la derecha y muestra el snapshot más reciente (`getActivity` al cargar + `onActivityChange`).
+- [x] `Games` reutiliza la implementación actual del hub/carrusel (sin cambios en `carousel.js`).
+- [x] Los contadores muestran trabajando, necesita-atención y terminados recientemente.
+- [x] Las ejecuciones que necesitan atención se ordenan antes que las que trabajan (orden defensivo también en la vista).
+- [x] Las ejecuciones recientes se ordenan de la más nueva a la más antigua.
+- [x] Si falta el proyecto, se muestra el nombre del agente sin puntuación extraña (`agentLabel`).
+- [x] Los estados vacíos están diseñados y probados (`agents-empty`, `agents-recent-empty`).
+- [x] No existe el botón `Reply`.
+- [x] No existe una llamada a la acción inferior para juegos.
+- [x] No hay cheurones sin explicación ni affordances desplegables falsas (el único menú es `···`).
+- [x] `···` abre un menú accesible con `Add game` y `Settings` (`role=menu`/`menuitem`, `aria-haspopup`, `aria-expanded`, Escape y clic externo lo cierran).
+- [x] Abrir un juego oculta las pestañas y conserva el comportamiento existente de pausa y reanudación (39 pruebas previas intactas).
+- [x] `needs_user` y `task_finished` de cualquier agente principal pausan inmediatamente el iframe y muestran el overlay (`onAgentInterruption`).
+- [x] El overlay de una finalización parcial indica el agente terminado y cuántos siguen trabajando (singular/plural).
+- [x] Continuar después de la pausa siempre requiere una acción explícita del usuario (clic en Continue; nunca auto-reanuda).
+- [x] Volver desde un juego lleva a `Games` (`goHome` → `selectTab('games')`).
+- [x] El enrutado desde notificaciones selecciona y enfoca la fila de `Agents` correspondiente (`highlightExecutionId` + `focusHighlightedRow`).
+- [x] Funcionan la navegación por teclado (flechas entre pestañas, roving `tabindex`), Escape y los estados ARIA.
 
 **Checklist TDD**
 
-- [ ] ROJO: añadir pruebas DOM para navegación, orden, contadores, menú, estados vacíos y enrutado.
-- [ ] VERDE: implementar HTML semántico y comportamiento.
-- [ ] Refactorizar el código del renderer en funciones de vista pequeñas si es necesario.
+- [x] ROJO: añadir pruebas DOM para navegación, orden, contadores, menú, estados vacíos y enrutado.
+- [x] VERDE: implementar HTML semántico y comportamiento.
+- [x] Refactorizar el código del renderer en funciones de vista pequeñas (`agents-view.js` como módulo puro reutilizable).
 
 **Puerta de verificación:** `npx vitest run tests/popover`
 
@@ -548,10 +548,22 @@ carrusel existente ni el comportamiento del host de juegos.
 
 **Evidencias**
 
-- Evidencia ROJA: _pendiente_
-- Evidencia VERDE: _pendiente_
-- Resultado de la puerta: _pendiente_
-- Ruta de la captura: _pendiente_
+- Evidencia ROJA: `tests/popover/agents-view.test.ts` falla al no resolver el
+  módulo `src/popover/agents-view.js`; tras crearlo y añadir las suites T07 a
+  `tests/popover/popover.test.ts`, la suite falla por `window.meanwaile.getActivity
+  is not a function` y luego por los contratos de pestañas/menú/overlay/enrutado
+  aún sin implementar.
+- Evidencia VERDE: `agents-view.js` (módulo puro de proyección segura) + `index.html`
+  con barra de pestañas `Games`/`Agents`, panel `#agents-screen` y menú `···`
+  (`Add game` / `Settings`); `popover.js` cablea `getActivity`/`onActivityChange`,
+  `onAgentInterruption` (pausa + overlay con recuento restante), `onPopoverView`
+  (enrutado con prioridad de partida en curso) y la navegación por teclado. Las
+  39 pruebas previas del popover siguen verdes.
+- Resultado de la puerta: `npx vitest run tests/popover` → 3 archivos, 112 pruebas
+  correctas (`agents-view` 19, `popover` 76, `carousel` 17). Regresión propia
+  `npm test -- --exclude '.claude/**'` → 35 archivos, 671 pruebas. `npm run build`
+  correcto. Cobertura 100 % en `agents-view.js`, `popover.js` y `carousel.js`.
+- Ruta de la captura: _pendiente de la verificación visual manual del usuario._
 
 ### [ ] T08 — Construir la ventana de configuración rediseñada
 
@@ -726,6 +738,8 @@ Añadir entradas sin reescribir el historial.
 | 2026-09-03 | T06 | En curso | Comienza la integración TDD de tracker, interrupciones, notificaciones, routing, tray, IPC y estado del servidor. |
 | 2026-09-03 | T06 | Checkpoint | Trabajo pausado antes de escribir pruebas o producción de T06; contexto de continuación en `2026-09-03-agent-activity-handoff.md`. |
 | 2026-09-03 | T06 | Completada | `main.ts`/`preload.ts` orquestan `ExecutionTracker` + `NotificationService` tras una fachada Electron inyectable: `activity-change`, `agent-interruption`, notificaciones deduplicadas y suprimidas con popover visible, enrutado `Games`/`Agents`, contadores en el tooltip, `serverStatus` y APIs IPC concretas sin `ipcRenderer`. `SubagentStop` sigue sin efecto. Puerta 145/145, regresión 624/624, build y cobertura 100 % correctos. |
+| 2026-09-03 | T07 | En curso | Comienza el popover `Games`/`Agents` con TDD: primero `agents-view.js` como módulo puro, luego la integración en `popover.js`. |
+| 2026-09-03 | T07 | Completada | `agents-view.js` (proyección segura, sin rutas/prompts/transcripciones), pestañas `Games`/`Agents` con `Games` por defecto, menú `···` (`Add game`/`Settings`), overlay de interrupción multiagente con recuento restante y enrutado de notificaciones con prioridad de partida en curso. Sin `Reply` ni CTA inferior. Puerta `tests/popover` 112/112, regresión 671/671, build y cobertura 100 %. Puerta visual pendiente de la prueba manual final. |
 
 ## Registro de decisiones
 

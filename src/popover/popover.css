@@ -73,8 +73,7 @@ body {
 }
 
 #back-btn,
-#gallery-btn,
-#settings-btn {
+#menu-btn {
   width: 34px;
   height: 34px;
   border-radius: 10px;
@@ -88,22 +87,200 @@ body {
   justify-content: center;
 }
 
-#gallery-btn,
-#settings-btn {
+#menu-btn {
   border-color: var(--border);
   background: rgba(255, 255, 255, 0.03);
   color: rgba(255, 255, 255, 0.65);
   font-size: 16px;
+  line-height: 1;
 }
 
 #back-btn:hover,
-#gallery-btn:hover,
-#settings-btn:hover {
+#menu-btn:hover {
   background: rgba(255, 255, 255, 0.09);
 }
 
 #back-btn[hidden] {
   display: none;
+}
+
+/* ─── ··· menu ────────────────────────────────────────────────────────── */
+
+#header-right {
+  position: relative;
+}
+
+#header-menu {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  z-index: 20;
+  min-width: 160px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+}
+
+#header-menu[hidden] {
+  display: none;
+}
+
+#header-menu button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#header-menu button:hover,
+#header-menu button:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+/* ─── Games / Agents tabs ─────────────────────────────────────────────── */
+
+#tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+  padding: 0 24px 12px 24px;
+}
+
+#tabs[hidden] {
+  display: none;
+}
+
+#tabs [role='tab'] {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+#tabs [role='tab']:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+#tabs [role='tab'][aria-selected='true'] {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+#tabs [role='tab']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ─── Agents view ─────────────────────────────────────────────────────── */
+
+#agents-screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 24px 24px 24px;
+}
+
+#agents-screen[hidden] {
+  display: none;
+}
+
+.agents-counts {
+  display: flex;
+  gap: 16px;
+  padding-bottom: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.agents-count__value {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.agents-list,
+.agents-recent {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.agent-row:hover,
+.agent-row:focus-visible {
+  border-color: var(--border-strong);
+  outline: none;
+}
+
+.agent-row--highlight {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.agent-row__label {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.agent-row[data-status='needs_user'] .agent-row__status {
+  color: var(--accent);
+}
+
+.agent-row__status {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+}
+
+.agents-empty,
+.agents-recent-empty {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.agents-recent-title {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin: 20px 0 8px;
+}
+
+.agents-recent .agent-recent-row {
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
 }
 
 /* ─── Hub screen ──────────────────────────────────────────────────────── */
