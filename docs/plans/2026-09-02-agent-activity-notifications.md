@@ -413,7 +413,7 @@ notificaciones nativas deduplicadas con textos multiagente correctos.
 - Resultado de la puerta: 20/20 pruebas focalizadas y cobertura al 100 % de
   ambos módulos; regresión propia 597/597 y `npm run build` correcto.
 
-### [ ] T06 — Orquestar eventos, IPC, tray y permisos
+### [~] T06 — Orquestar eventos, IPC, tray y permisos
 
 **Objetivo:** Conectar el tracker y las notificaciones con el proceso principal,
 preservando el detector de espera de una sola comprobación y la frontera segura
@@ -701,6 +701,8 @@ Añadir entradas sin reescribir el historial.
 | 2026-09-03 | T04 | Completada | Ajustes migrados sin romper el formato antiguo; los cuatro modos, preferencias por evento y sonido quedan validados. Puerta 27/27. |
 | 2026-09-03 | T05 | En curso | Comienza la matriz TDD de política, copy multiagente y clic de notificaciones nativas. |
 | 2026-09-03 | T05 | Completada | Política opt-in, silenciosa, deduplicada y suprimida con popup visible; textos multiagente y clic hacia `Agents` cubiertos. Puerta 20/20. |
+| 2026-09-03 | T06 | En curso | Comienza la integración TDD de tracker, interrupciones, notificaciones, routing, tray, IPC y estado del servidor. |
+| 2026-09-03 | T06 | Checkpoint | Trabajo pausado antes de escribir pruebas o producción de T06; contexto de continuación en `2026-09-03-agent-activity-handoff.md`. |
 
 ## Registro de decisiones
 
