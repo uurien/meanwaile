@@ -8,17 +8,79 @@
 </head>
 <body>
   <form id="settings-form">
-    <label for="http-port">Port</label>
-    <input id="http-port" name="httpPort" type="number" min="1" max="65535" step="1" required />
+    <section class="group">
+      <h2 class="group__title">Automation</h2>
 
-    <label for="auto-open-delay">Seconds until popup opens</label>
-    <input id="auto-open-delay" name="autoOpenDelaySeconds" type="number" min="1" step="1" required />
+      <div class="row row--switch">
+        <label for="auto-open-games">Open games automatically</label>
+        <input id="auto-open-games" name="autoOpenGames" type="checkbox" role="switch" />
+      </div>
 
-    <p id="error-msg"></p>
+      <div class="row">
+        <span class="row__label">
+          <label for="auto-open-delay">Idle time</label>
+          <button type="button" class="help" id="help-idle" aria-label="About idle time" aria-describedby="tip-idle">?</button>
+        </span>
+        <span class="row__control">
+          <input id="auto-open-delay" name="autoOpenDelaySeconds" type="number" min="1" step="1" required />
+          <span class="unit">s</span>
+        </span>
+        <span role="tooltip" id="tip-idle" class="tooltip" hidden>Meanwaile checks whether you have been away from your keyboard and mouse for this long before opening a game.</span>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2 class="group__title">Notifications</h2>
+
+      <div class="row row--switch">
+        <label for="notifications-enabled">Notifications</label>
+        <input id="notifications-enabled" name="notificationsEnabled" type="checkbox" role="switch" />
+      </div>
+
+      <div class="row row--switch row--nested">
+        <label for="notify-needs-user">When an agent needs attention</label>
+        <input id="notify-needs-user" name="notifyNeedsUser" type="checkbox" />
+      </div>
+
+      <div class="row row--switch row--nested">
+        <label for="notify-finished">When an agent finishes</label>
+        <input id="notify-finished" name="notifyFinished" type="checkbox" />
+      </div>
+
+      <div class="row row--nested">
+        <label for="notification-sound">Sound</label>
+        <select id="notification-sound" name="notificationSound">
+          <option value="none">No sound</option>
+          <option value="system">System sound</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2 class="group__title">Detection</h2>
+
+      <div class="row">
+        <span class="row__label">
+          <label for="http-port">Port</label>
+          <button type="button" class="help" id="help-port" aria-label="About the port" aria-describedby="tip-port">?</button>
+        </span>
+        <span class="row__control">
+          <input id="http-port" name="httpPort" type="number" min="1" max="65535" step="1" required />
+        </span>
+        <span role="tooltip" id="tip-port" class="tooltip" hidden>The local port Meanwaile uses to receive events from your agents. Change it only if there is a conflict.</span>
+      </div>
+
+      <div class="row row--status">
+        <span class="row__label">Server</span>
+        <span id="server-status" class="status">…</span>
+      </div>
+    </section>
+
+    <p id="error-msg" role="alert"></p>
 
     <div id="actions">
       <button type="button" id="cancel-btn">Cancel</button>
-      <button type="submit" id="save-btn">Save</button>
+      <button type="submit" id="save-btn">Save settings</button>
     </div>
   </form>
   <script src="settings.js"></script>

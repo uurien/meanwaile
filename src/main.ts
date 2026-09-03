@@ -419,8 +419,8 @@ function showSettingsWindow(): void {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 300,
-    height: 260,
+    width: 380,
+    height: 560,
     resizable: false,
     minimizable: false,
     maximizable: false,

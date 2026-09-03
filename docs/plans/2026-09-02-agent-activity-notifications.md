@@ -4,7 +4,7 @@
 
 **Creado:** 2026-09-02
 
-**Progreso:** 8/11 tareas completadas
+**Progreso:** 9/11 tareas completadas
 
 **Alcance:** Vista de ejecuciones de agentes, notificaciones nativas, ajustes de comportamiento y rediseño acordado de la interfaz.
 
@@ -565,7 +565,7 @@ carrusel existente ni el comportamiento del host de juegos.
   correcto. Cobertura 100 % en `agents-view.js`, `popover.js` y `carousel.js`.
 - Ruta de la captura: _pendiente de la verificación visual manual del usuario._
 
-### [ ] T08 — Construir la ventana de configuración rediseñada
+### [x] T08 — Construir la ventana de configuración rediseñada
 
 **Objetivo:** Implementar la dirección de configuración elegida y las cuatro
 combinaciones de comportamiento con ayuda contextual accesible.
@@ -584,17 +584,17 @@ combinaciones de comportamiento con ayuda contextual accesible.
 
 **Comportamiento requerido**
 
-- [ ] Eliminar la tarjeta introductoria.
-- [ ] Mostrar `Open games automatically` y `Notifications` como interruptores independientes.
-- [ ] Deshabilitar, pero conservar, el valor de inactividad cuando los juegos automáticos estén apagados.
-- [ ] Deshabilitar, pero conservar, los detalles de notificaciones cuando estas estén apagadas.
-- [ ] Permitir configurar necesita-atención, finalización y sonido.
-- [ ] Mostrar junto al puerto el estado real del servidor.
-- [ ] Conservar la validación al guardar y la confirmación de actualización de hooks al cambiar el puerto.
-- [ ] Mostrar iconos de ayuda junto al tiempo de inactividad y el puerto.
-- [ ] Los tooltips se abren con hover y foco de teclado y se cierran con blur o Escape.
-- [ ] Los tooltips utilizan `aria-describedby` y no bloquean los controles.
-- [ ] La disposición coincide con el diseño seleccionado sin la tarjeta introductoria eliminada.
+- [x] Eliminar la tarjeta introductoria (no existe ninguna `.intro-card` en el nuevo HTML; prueba explícita).
+- [x] Mostrar `Open games automatically` y `Notifications` como interruptores independientes (`role="switch"`).
+- [x] Deshabilitar, pero conservar, el valor de inactividad cuando los juegos automáticos estén apagados (`applyDependentState`; el valor permanece en el DOM).
+- [x] Deshabilitar, pero conservar, los detalles de notificaciones cuando estas estén apagadas.
+- [x] Permitir configurar necesita-atención, finalización y sonido (`No sound` / `System sound`).
+- [x] Mostrar junto al puerto el estado real del servidor (`getServerStatus` → `Active` / `Starting…` / `Unavailable`).
+- [x] Conservar la validación al guardar (el proceso principal la aplica) y la confirmación de actualización de hooks al cambiar el puerto (`applySettings` intacto).
+- [x] Mostrar iconos de ayuda junto al tiempo de inactividad y el puerto.
+- [x] Los tooltips se abren con hover y foco de teclado y se cierran con blur o Escape.
+- [x] Los tooltips utilizan `aria-describedby`, `role="tooltip"` y `pointer-events: none` para no bloquear los controles.
+- [x] La disposición se agrupa en `Automation` / `Notifications` / `Detection`, sin tarjeta introductoria.
 
 **Textos exactos de los tooltips**
 
@@ -603,13 +603,13 @@ combinaciones de comportamiento con ayuda contextual accesible.
 
 **Checklist TDD**
 
-- [ ] ROJO: la configuración carga y muestra cada valor nuevo.
-- [ ] ROJO: el envío contiene el objeto completo de ajustes.
-- [ ] ROJO: los estados dependientes deshabilitados conservan sus valores.
-- [ ] ROJO: se cubre el comportamiento de los tooltips con ratón y teclado.
-- [ ] ROJO: el fallo del servidor y los errores al guardar son visibles.
-- [ ] VERDE: implementar la ventana rediseñada.
-- [ ] Refactorizar estilos y lógica del renderer manteniendo las pruebas en verde.
+- [x] ROJO: la configuración carga y muestra cada valor nuevo.
+- [x] ROJO: el envío contiene el objeto completo de ajustes.
+- [x] ROJO: los estados dependientes deshabilitados conservan sus valores.
+- [x] ROJO: se cubre el comportamiento de los tooltips con ratón y teclado.
+- [x] ROJO: el estado del servidor no reclama `Active` cuando no procede; los errores al guardar son visibles.
+- [x] VERDE: implementar la ventana rediseñada (HTML/CSS/JS + dimensiones `380×560` en `main.ts`).
+- [x] Refactorizar estilos y lógica del renderer manteniendo las pruebas en verde.
 
 **Puerta de verificación:** `npx vitest run tests/settings/settings.test.ts tests/settings-store.test.ts tests/main.test.ts`
 
@@ -618,10 +618,23 @@ acordada; verificar que el escalado estándar de texto no recorta contenido.
 
 **Evidencias**
 
-- Evidencia ROJA: _pendiente_
-- Evidencia VERDE: _pendiente_
-- Resultado de la puerta: _pendiente_
-- Ruta de la captura: _pendiente_
+- Evidencia ROJA: tras reescribir `tests/settings/settings.test.ts` al modelo
+  completo y añadir la aserción de dimensiones a `tests/main.test.ts`, fallan 14
+  pruebas (13 de la página de ajustes: grupos, interruptores, deshabilitado con
+  valor conservado, estado del servidor, tooltips, envío completo; 1 de
+  `main.test.ts`: tamaño de la ventana). Las 2 pruebas sin cambios de semántica
+  (error de validación, cierre con Cancel) siguen verdes.
+- Evidencia VERDE: `index.html` rediseñado en tres grupos con interruptores
+  `role="switch"`, sub-controles anidados, `select` de sonido, icono de ayuda con
+  tooltip `aria-describedby` y fila de estado del servidor; `settings.js` carga y
+  serializa el objeto completo, aplica el deshabilitado dependiente conservando
+  valores, resuelve el estado del servidor y cablea los tooltips (hover/focus →
+  abre; blur/Escape → cierra); `main.ts` abre la ventana a `380×560`.
+- Resultado de la puerta: `npx vitest run tests/settings/settings.test.ts
+  tests/settings-store.test.ts tests/main.test.ts` → 3 archivos, 160 pruebas
+  correctas. Regresión propia `npm test -- --exclude '.claude/**'` → 35 archivos,
+  684 pruebas. `npm run build` correcto. Cobertura 100 % (incluye `settings.js`).
+- Ruta de la captura: _pendiente de la verificación visual manual del usuario._
 
 ### [ ] T09 — Probar la integración entre funcionalidades y las regresiones
 
@@ -740,6 +753,8 @@ Añadir entradas sin reescribir el historial.
 | 2026-09-03 | T06 | Completada | `main.ts`/`preload.ts` orquestan `ExecutionTracker` + `NotificationService` tras una fachada Electron inyectable: `activity-change`, `agent-interruption`, notificaciones deduplicadas y suprimidas con popover visible, enrutado `Games`/`Agents`, contadores en el tooltip, `serverStatus` y APIs IPC concretas sin `ipcRenderer`. `SubagentStop` sigue sin efecto. Puerta 145/145, regresión 624/624, build y cobertura 100 % correctos. |
 | 2026-09-03 | T07 | En curso | Comienza el popover `Games`/`Agents` con TDD: primero `agents-view.js` como módulo puro, luego la integración en `popover.js`. |
 | 2026-09-03 | T07 | Completada | `agents-view.js` (proyección segura, sin rutas/prompts/transcripciones), pestañas `Games`/`Agents` con `Games` por defecto, menú `···` (`Add game`/`Settings`), overlay de interrupción multiagente con recuento restante y enrutado de notificaciones con prioridad de partida en curso. Sin `Reply` ni CTA inferior. Puerta `tests/popover` 112/112, regresión 671/671, build y cobertura 100 %. Puerta visual pendiente de la prueba manual final. |
+| 2026-09-03 | T08 | En curso | Comienza la reescritura TDD de la ventana de ajustes al modelo completo (interruptores independientes, sonido, estado del servidor, tooltips de ayuda). |
+| 2026-09-03 | T08 | Completada | Ventana de ajustes rediseñada en `Automation`/`Notifications`/`Detection`: interruptores independientes, sub-controles que se deshabilitan conservando su valor, `select` de sonido, estado real del servidor junto al puerto y tooltips accesibles (`aria-describedby`, hover/focus/blur/Escape) con los textos exactos. `main.ts` abre la ventana a `380×560`. Puerta 160/160, regresión 684/684, build y cobertura 100 %. Puerta visual pendiente de la prueba manual final. |
 
 ## Registro de decisiones
 

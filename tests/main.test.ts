@@ -1239,6 +1239,14 @@ describe('settings window IPC', () => {
     expect(mocks.BrowserWindow.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 
+  it('creates the settings window at the redesigned size', () => {
+    const call = mocks.BrowserWindow.mock.calls.find(
+      ([opts]) => (opts as { title?: string })?.title === 'Meanwaile — Settings',
+    );
+    expect(call).toBeDefined();
+    expect(call![0]).toMatchObject({ width: 380, height: 560 });
+  });
+
   it('open-settings focuses the existing settings window instead of creating a new one', () => {
     mocks.win.focus.mockClear();
     const callsBefore = mocks.BrowserWindow.mock.calls.length;

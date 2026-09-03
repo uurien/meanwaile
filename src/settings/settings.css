@@ -13,17 +13,87 @@ body {
 #settings-form {
   display: flex;
   flex-direction: column;
+  gap: 18px;
+  padding: 20px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.group__title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #888;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  position: relative;
+}
+
+.row--nested {
+  padding-left: 14px;
+}
+
+.row__label {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  padding: 16px;
 }
 
 label {
-  font-size: 12px;
-  color: #aaa;
-  margin-top: 8px;
+  font-size: 13px;
+  color: #cfcfcf;
 }
 
-input {
+.row--nested label {
+  color: #aaa;
+}
+
+.row__control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.unit {
+  font-size: 12px;
+  color: #888;
+}
+
+input[type='number'] {
+  width: 84px;
+  background: #2a2a2a;
+  color: #e0e0e0;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  text-align: right;
+}
+
+input[type='number']:focus,
+select:focus {
+  outline: none;
+  border-color: #666;
+}
+
+input:disabled,
+select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+select {
   background: #2a2a2a;
   color: #e0e0e0;
   border: 1px solid #444;
@@ -33,23 +103,105 @@ input {
   font-family: inherit;
 }
 
-input:focus {
+input[type='checkbox'] {
+  width: 34px;
+  height: 20px;
+  appearance: none;
+  background: #3a3a3a;
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ddd;
+  transition: transform 0.15s;
+}
+
+input[type='checkbox']:checked {
+  background: #4caf7d;
+}
+
+input[type='checkbox']:checked::after {
+  transform: translateX(14px);
+}
+
+.help {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid #555;
+  background: transparent;
+  color: #999;
+  font-size: 10px;
+  line-height: 1;
+  cursor: help;
+  font-family: inherit;
+}
+
+.help:hover,
+.help:focus-visible {
+  color: #ddd;
+  border-color: #888;
   outline: none;
-  border-color: #666;
+}
+
+.tooltip {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  max-width: 260px;
+  padding: 8px 10px;
+  background: #2c2c2c;
+  border: 1px solid #4a4a4a;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #ddd;
+  /* Never sits between the pointer and a control. */
+  pointer-events: none;
+}
+
+.tooltip[hidden] {
+  display: none;
+}
+
+.status {
+  font-size: 12px;
+  color: #888;
+}
+
+.status[data-state='active'] {
+  color: #4caf7d;
+}
+
+.status[data-state='error'] {
+  color: #e07070;
 }
 
 #error-msg {
   color: #e07070;
   font-size: 12px;
   min-height: 14px;
-  margin-top: 8px;
+}
+
+#error-msg:empty {
+  min-height: 0;
 }
 
 #actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 12px;
 }
 
 button {
@@ -57,7 +209,7 @@ button {
   color: #aaa;
   border: 1px solid #444;
   border-radius: 6px;
-  padding: 6px 14px;
+  padding: 7px 14px;
   font-size: 12px;
   cursor: pointer;
   font-family: inherit;
@@ -71,4 +223,5 @@ button:hover {
 
 #save-btn {
   color: #e0e0e0;
+  border-color: #4caf7d;
 }
