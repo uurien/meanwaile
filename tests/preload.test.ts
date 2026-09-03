@@ -49,6 +49,85 @@ describe('preload', () => {
     );
   });
 
+  it('exposes the agent-activity, interruption, routing, notification and server-status methods', () => {
+    expect(mocks.contextBridge.exposeInMainWorld).toHaveBeenCalledWith(
+      'meanwaile',
+      expect.objectContaining({
+        getActivity: expect.any(Function),
+        onActivityChange: expect.any(Function),
+        onAgentInterruption: expect.any(Function),
+        openPopover: expect.any(Function),
+        onPopoverView: expect.any(Function),
+        getPopoverView: expect.any(Function),
+        getNotificationStatus: expect.any(Function),
+        getServerStatus: expect.any(Function),
+      }),
+    );
+  });
+
+  it('never exposes ipcRenderer itself through the bridge', () => {
+    const api = getExposedApi();
+    expect((api as Record<string, unknown>).ipcRenderer).toBeUndefined();
+    expect(Object.values(api)).not.toContain(mocks.ipcRenderer);
+  });
+
+  it('getActivity invokes activity-get via ipcRenderer', () => {
+    getExposedApi().getActivity();
+    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('activity-get');
+  });
+
+  it('onActivityChange registers an activity-change listener and forwards the snapshot', () => {
+    const cb = vi.fn();
+    getExposedApi().onActivityChange(cb);
+    const calls = vi.mocked(mocks.ipcRenderer.on).mock.calls.filter(([channel]) => channel === 'activity-change');
+    expect(calls.length).toBeGreaterThan(0);
+    const ipcHandler = calls[calls.length - 1]![1] as (_event: unknown, snapshot: unknown) => void;
+    const snapshot = { active: [], recent: [], counts: {} };
+    ipcHandler({}, snapshot);
+    expect(cb).toHaveBeenCalledWith(snapshot);
+  });
+
+  it('onAgentInterruption registers an agent-interruption listener and forwards the payload', () => {
+    const cb = vi.fn();
+    getExposedApi().onAgentInterruption(cb);
+    const calls = vi.mocked(mocks.ipcRenderer.on).mock.calls.filter(([channel]) => channel === 'agent-interruption');
+    expect(calls.length).toBeGreaterThan(0);
+    const ipcHandler = calls[calls.length - 1]![1] as (_event: unknown, payload: unknown) => void;
+    const payload = { transition: 'finished', counts: { working: 1 } };
+    ipcHandler({}, payload);
+    expect(cb).toHaveBeenCalledWith(payload);
+  });
+
+  it('openPopover sends open-popover with the requested view', () => {
+    getExposedApi().openPopover('agents');
+    expect(mocks.ipcRenderer.send).toHaveBeenCalledWith('open-popover', 'agents');
+  });
+
+  it('onPopoverView registers a popover-view listener and forwards the view', () => {
+    const cb = vi.fn();
+    getExposedApi().onPopoverView(cb);
+    const calls = vi.mocked(mocks.ipcRenderer.on).mock.calls.filter(([channel]) => channel === 'popover-view');
+    expect(calls.length).toBeGreaterThan(0);
+    const ipcHandler = calls[calls.length - 1]![1] as (_event: unknown, view: unknown) => void;
+    ipcHandler({}, 'agents');
+    expect(cb).toHaveBeenCalledWith('agents');
+  });
+
+  it('getPopoverView invokes popover-view-get via ipcRenderer', () => {
+    getExposedApi().getPopoverView();
+    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('popover-view-get');
+  });
+
+  it('getNotificationStatus invokes notifications-status via ipcRenderer', () => {
+    getExposedApi().getNotificationStatus();
+    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('notifications-status');
+  });
+
+  it('getServerStatus invokes server-status via ipcRenderer', () => {
+    getExposedApi().getServerStatus();
+    expect(mocks.ipcRenderer.invoke).toHaveBeenCalledWith('server-status');
+  });
+
   it('onStateChange registers an IPC listener on state-change', () => {
     const cb = vi.fn();
     getExposedApi().onStateChange(cb);

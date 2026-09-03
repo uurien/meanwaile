@@ -4,7 +4,7 @@
 
 **Creado:** 2026-09-02
 
-**Progreso:** 6/11 tareas completadas
+**Progreso:** 7/11 tareas completadas
 
 **Alcance:** Vista de ejecuciones de agentes, notificaciones nativas, ajustes de comportamiento y rediseño acordado de la interfaz.
 
@@ -413,7 +413,7 @@ notificaciones nativas deduplicadas con textos multiagente correctos.
 - Resultado de la puerta: 20/20 pruebas focalizadas y cobertura al 100 % de
   ambos módulos; regresión propia 597/597 y `npm run build` correcto.
 
-### [~] T06 — Orquestar eventos, IPC, tray y permisos
+### [x] T06 — Orquestar eventos, IPC, tray y permisos
 
 **Objetivo:** Conectar el tracker y las notificaciones con el proceso principal,
 preservando el detector de espera de una sola comprobación y la frontera segura
@@ -442,37 +442,59 @@ con el renderer.
 
 **Comportamiento de orquestación requerido**
 
-- [ ] Cada evento de adapter llega tanto a `StateMachine` como a `ExecutionTracker`.
-- [ ] Los snapshots del tracker se envían aunque no cambie el estado agregado de la aplicación.
-- [ ] Cada `needs_user` o `task_finished` significativo de un agente principal envía una interrupción al juego aunque no cambie el estado agregado.
-- [ ] Una finalización parcial pausa la partida y muestra cuántos agentes siguen trabajando.
-- [ ] `SubagentStop` no genera interrupción, pausa ni notificación.
-- [ ] `autoOpenGames: false` impide armar y disparar el temporizador de inactividad.
-- [ ] La apertura manual de juegos ignora `autoOpenGames`.
-- [ ] Pulsar una notificación abre `Agents`; los flujos normales del tray y la apertura automática abren `Games`.
-- [ ] Una partida en curso tiene prioridad sobre el enrutado por defecto al reabrir.
-- [ ] El tooltip del tray refleja los contadores de trabajando y necesita-atención.
-- [ ] Los menús nativos dinámicos del tray se vuelven a asignar en Linux después de los cambios.
-- [ ] Los errores de escucha del servidor local se capturan y muestran en lugar de indicar falsamente `Activo`.
-- [ ] Las confirmaciones existentes al cambiar el puerto de Claude y Codex siguen funcionando.
-- [ ] El preload expone métodos específicos, nunca `ipcRenderer` sin procesar.
+- [x] Cada evento de adapter llega tanto a `StateMachine` como a `ExecutionTracker`.
+- [x] Los snapshots del tracker se envían aunque no cambie el estado agregado de la aplicación.
+- [x] Cada `needs_user` o `task_finished` significativo de un agente principal envía una interrupción al juego aunque no cambie el estado agregado.
+- [x] Una finalización parcial pausa la partida y muestra cuántos agentes siguen trabajando (IPC `agent-interruption` con `transition`, `execution` y `counts`; el overlay lo pinta T07).
+- [x] `SubagentStop` no genera interrupción, pausa ni notificación (los adapters ya lo descartan antes de `handleAgentEvent`).
+- [x] `autoOpenGames: false` impide armar y disparar el temporizador de inactividad.
+- [x] La apertura manual de juegos ignora `autoOpenGames`.
+- [x] Pulsar una notificación abre `Agents`; los flujos normales del tray y la apertura automática abren `Games`.
+- [x] Una partida en curso tiene prioridad sobre el enrutado por defecto al reabrir: `showPopover` solo emite `popover-view`; la prioridad de la partida se resuelve en el popover (T07).
+- [x] El tooltip del tray refleja los contadores de trabajando y necesita-atención.
+- [x] Los menús nativos dinámicos del tray se vuelven a asignar en Linux después de los cambios (`refreshTray` vuelve a llamar `tray.setContextMenu()` cuando `shouldPersistContextMenu`).
+- [x] Los errores de escucha del servidor local se capturan y muestran en lugar de indicar falsamente `Activo` (`serverStatus` `starting | active | error`, `httpServer.on('error')`).
+- [x] Las confirmaciones existentes al cambiar el puerto de Claude y Codex siguen funcionando (suites previas intactas).
+- [x] El preload expone métodos específicos, nunca `ipcRenderer` sin procesar (test «never exposes ipcRenderer itself»).
+
+**Superficie IPC entregada**
+
+- `activity-get` (snapshot actual) y evento `activity-change` (suscripción vía `onActivityChange`).
+- `open-popover` + `popover-view-get` + evento `popover-view` para el enrutado `Games` / `Agents`.
+- `notifications-status` → `{ supported }`. Electron no expone API de solicitud de permiso de notificaciones (confirmado en el handoff); la lectura de soporte es la API de alcance limitado disponible.
+- `server-status` → `starting | active | error` para la pantalla de `Settings`.
+- Evento `agent-interruption` para la política de pausa del juego.
 
 **Checklist TDD**
 
-- [ ] ROJO: ampliar los mocks de Electron con `Notification` y los nuevos contratos IPC.
-- [ ] ROJO: cubrir que una finalización parcial pausa el juego mientras otro agente sigue trabajando.
-- [ ] ROJO: cubrir las cuatro combinaciones de comportamiento.
-- [ ] ROJO: cubrir el enrutado al pulsar notificaciones y la supresión con el popover visible.
-- [ ] VERDE: conectar servicios e IPC.
-- [ ] Refactorizar `main.ts` si es necesario para mantener la política comprobable.
+- [x] ROJO: ampliar los mocks de Electron con `Notification` y los nuevos contratos IPC.
+- [x] ROJO: cubrir que una finalización parcial pausa el juego mientras otro agente sigue trabajando.
+- [x] ROJO: cubrir las cuatro combinaciones de comportamiento (interruptores independientes de juegos automáticos y notificaciones).
+- [x] ROJO: cubrir el enrutado al pulsar notificaciones y la supresión con el popover visible.
+- [x] VERDE: conectar servicios e IPC.
+- [x] Refactorizar `main.ts` si es necesario para mantener la política comprobable (`refreshTray` extraído; fachada `notificationPlatform` para aislar Electron).
 
 **Puerta de verificación:** `npx vitest run tests/main.test.ts tests/preload.test.ts tests/main-dev-mode.test.ts`
 
 **Evidencias**
 
-- Evidencia ROJA: _pendiente_
-- Evidencia VERDE: _pendiente_
-- Resultado de la puerta: _pendiente_
+- Evidencia ROJA: tras ampliar mocks (`Notification`, `server.on`, `DEFAULT_SETTINGS`
+  completo, `validateSettings` completo) y añadir las suites T06, `npx vitest run
+  tests/main.test.ts tests/preload.test.ts` falla con 10 pruebas nuevas rojas en
+  `main.test.ts` (activity-change, agent-interruption, notificación nativa,
+  enrutado, `popover-view-get`, tooltip del tray, `activity-get`, `server-status`,
+  `notifications-status`) y 9 en `preload.test.ts` (métodos IPC ausentes). Sin
+  regresiones en las suites previas.
+- Evidencia VERDE: `main.ts` alimenta `ExecutionTracker` en cada evento, emite
+  `activity-change`, `agent-interruption` y notificaciones nativas deduplicadas
+  vía fachada inyectable, enruta `Games`/`Agents`, refleja contadores en el
+  tooltip, expone `serverStatus` y las nuevas APIs IPC; `preload.ts` expone
+  métodos concretos sin `ipcRenderer`. Puerta 3 archivos / 145 pruebas correctas.
+- Resultado de la puerta: `npx vitest run tests/main.test.ts tests/preload.test.ts
+  tests/main-dev-mode.test.ts` → 3 archivos, 145 pruebas correctas. Regresión
+  propia `npm test -- --exclude '.claude/**'` → 34 archivos, 624 pruebas
+  correctas (597 → 624). `npm run build` correcto. Cobertura global 100 %
+  (statements/branches/functions/lines), `main.ts` y `preload.ts` al 100 %.
 
 ### [ ] T07 — Construir el popover de `Games`/`Agents`
 
@@ -703,6 +725,7 @@ Añadir entradas sin reescribir el historial.
 | 2026-09-03 | T05 | Completada | Política opt-in, silenciosa, deduplicada y suprimida con popup visible; textos multiagente y clic hacia `Agents` cubiertos. Puerta 20/20. |
 | 2026-09-03 | T06 | En curso | Comienza la integración TDD de tracker, interrupciones, notificaciones, routing, tray, IPC y estado del servidor. |
 | 2026-09-03 | T06 | Checkpoint | Trabajo pausado antes de escribir pruebas o producción de T06; contexto de continuación en `2026-09-03-agent-activity-handoff.md`. |
+| 2026-09-03 | T06 | Completada | `main.ts`/`preload.ts` orquestan `ExecutionTracker` + `NotificationService` tras una fachada Electron inyectable: `activity-change`, `agent-interruption`, notificaciones deduplicadas y suprimidas con popover visible, enrutado `Games`/`Agents`, contadores en el tooltip, `serverStatus` y APIs IPC concretas sin `ipcRenderer`. `SubagentStop` sigue sin efecto. Puerta 145/145, regresión 624/624, build y cobertura 100 % correctos. |
 
 ## Registro de decisiones
 

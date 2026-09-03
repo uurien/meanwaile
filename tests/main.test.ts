@@ -57,10 +57,21 @@ const mocks = vi.hoisted(() => {
   };
 
   let capturedHttpHandler: ((req: Record<string, unknown>, res: Record<string, unknown>) => void) | null = null;
+  const serverHandlers: Record<string, (...a: unknown[]) => void> = {};
   const server = {
     listen: vi.fn((_p: unknown, _h: unknown, cb?: () => void) => cb?.()),
     close: vi.fn(),
+    on: vi.fn((event: string, handler: (...a: unknown[]) => void) => {
+      serverHandlers[event] = handler;
+    }),
+    handlers: serverHandlers,
   };
+
+  const notificationInstance = { on: vi.fn(), show: vi.fn() };
+  const Notification = Object.assign(
+    vi.fn(() => notificationInstance),
+    { isSupported: vi.fn(() => true) },
+  );
   const httpCreateServer = vi.fn(
     (handler: (req: Record<string, unknown>, res: Record<string, unknown>) => void) => {
       capturedHttpHandler = handler;
@@ -97,7 +108,15 @@ const mocks = vi.hoisted(() => {
   const hasCodexInstalled = vi.fn(() => false);
   const ensureCodexHooksFeatureEnabled = vi.fn();
 
-  const DEFAULT_SETTINGS = { httpPort: 3821, autoOpenDelaySeconds: 15 };
+  const DEFAULT_SETTINGS = {
+    httpPort: 3821,
+    autoOpenDelaySeconds: 15,
+    autoOpenGames: true,
+    notificationsEnabled: false,
+    notifyNeedsUser: true,
+    notifyFinished: true,
+    notificationSound: 'none',
+  };
   const readSettings = vi.fn(() => ({ ...DEFAULT_SETTINGS }));
   const writeSettings = vi.fn();
 
@@ -114,7 +133,20 @@ const mocks = vi.hoisted(() => {
     if (!Number.isFinite(autoOpenDelaySeconds) || autoOpenDelaySeconds <= 0) {
       return { ok: false, error: 'Seconds must be a positive number.' };
     }
-    return { ok: true, settings: { httpPort, autoOpenDelaySeconds } };
+    const pick = (key: string, fallback: unknown): unknown =>
+      input[key] === undefined ? fallback : input[key];
+    return {
+      ok: true,
+      settings: {
+        httpPort,
+        autoOpenDelaySeconds,
+        autoOpenGames: pick('autoOpenGames', true),
+        notificationsEnabled: pick('notificationsEnabled', false),
+        notifyNeedsUser: pick('notifyNeedsUser', true),
+        notifyFinished: pick('notifyFinished', true),
+        notificationSound: pick('notificationSound', 'none'),
+      },
+    };
   });
 
   return {
@@ -148,6 +180,8 @@ const mocks = vi.hoisted(() => {
     uninstallGame,
     readInstalledGames,
     fetchCatalog,
+    Notification,
+    notificationInstance,
     BrowserWindow: vi.fn(() => win),
     Tray: vi.fn(() => tray),
     Menu: { buildFromTemplate: vi.fn(() => ({})) },
@@ -167,6 +201,7 @@ vi.mock('electron', () => ({
   powerMonitor: mocks.powerMonitor,
   dialog: mocks.dialog,
   screen: mocks.screen,
+  Notification: mocks.Notification,
 }));
 
 vi.mock('electron-squirrel-startup', () => ({ default: false }));
@@ -1216,7 +1251,15 @@ describe('settings window IPC', () => {
 
   it('settings-get returns the currently loaded settings', async () => {
     const result = await mocks.ipcMain.handlers['settings-get']?.();
-    expect(result).toEqual({ httpPort: 3821, autoOpenDelaySeconds: 15 });
+    expect(result).toEqual({
+      httpPort: 3821,
+      autoOpenDelaySeconds: 15,
+      autoOpenGames: true,
+      notificationsEnabled: false,
+      notifyNeedsUser: true,
+      notifyFinished: true,
+      notificationSound: 'none',
+    });
   });
 
   it('settings-save rejects an invalid port and does not touch the HTTP server', async () => {
@@ -1245,6 +1288,11 @@ describe('settings window IPC', () => {
     expect(mocks.writeSettings).toHaveBeenCalledWith('/fake/userData', {
       httpPort: 4000,
       autoOpenDelaySeconds: 20,
+      autoOpenGames: true,
+      notificationsEnabled: false,
+      notifyNeedsUser: true,
+      notifyFinished: true,
+      notificationSound: 'none',
     });
   });
 
@@ -1455,6 +1503,269 @@ describe('app lifecycle', () => {
   it('before-quit closes the HTTP server', () => {
     triggerApp('before-quit');
     expect(mocks.server.close).toHaveBeenCalled();
+  });
+});
+
+// T06 — orchestrating the execution tracker, native notifications, popover
+// routing, tray counters and server status through main.ts. The state machine
+// and execution tracker are module-level singletons shared across this file,
+// so every test here uses its own session_id(s) and finishes them with a
+// matching Stop so later blocks still see an idle machine.
+describe('agent activity orchestration (T06)', () => {
+  const fullSettings = (overrides: Record<string, unknown> = {}) => ({
+    httpPort: 5000,
+    autoOpenDelaySeconds: 15,
+    autoOpenGames: true,
+    notificationsEnabled: false,
+    notifyNeedsUser: true,
+    notifyFinished: true,
+    notificationSound: 'none',
+    ...overrides,
+  });
+  const saveSettings = (overrides: Record<string, unknown> = {}) =>
+    mocks.ipcMain.handlers['settings-save']?.({}, fullSettings(overrides));
+
+  const activityCalls = () =>
+    mocks.win.webContents.send.mock.calls.filter(([channel]) => channel === 'activity-change');
+  const interruptionCalls = () =>
+    mocks.win.webContents.send.mock.calls.filter(([channel]) => channel === 'agent-interruption');
+  const viewCalls = () =>
+    mocks.win.webContents.send.mock.calls.filter(([channel]) => channel === 'popover-view');
+
+  beforeEach(() => {
+    mocks.win.webContents.send.mockClear();
+    mocks.Notification.mockClear();
+    mocks.notificationInstance.show.mockClear();
+    mocks.notificationInstance.on.mockReset();
+    mocks.Notification.isSupported.mockReturnValue(true);
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.tray.setToolTip.mockClear();
+    mocks.tray.setContextMenu.mockClear();
+  });
+
+  it('feeds every adapter event to the execution tracker and sends an activity-change snapshot, even with no aggregate state change', () => {
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 't6-a' }));
+    // A bare tool call for an already-working session does not move the
+    // aggregate state, but the tracker snapshot must still be pushed.
+    postHook(JSON.stringify({ hook_event_name: 'PreToolUse', session_id: 't6-a' }));
+
+    expect(activityCalls().length).toBeGreaterThanOrEqual(2);
+    expect(activityCalls().at(-1)![1]).toMatchObject({
+      active: expect.any(Array),
+      recent: expect.any(Array),
+      counts: expect.any(Object),
+    });
+
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 't6-a' }));
+  });
+
+  it('emits an agent-interruption when one principal agent finishes while another keeps working', () => {
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 't6-b1' }));
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 't6-b2' }));
+    mocks.win.webContents.send.mockClear();
+
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 't6-b1' }));
+
+    expect(interruptionCalls()).toHaveLength(1);
+    expect(interruptionCalls()[0][1]).toMatchObject({
+      transition: 'finished',
+      counts: expect.objectContaining({ working: expect.any(Number) }),
+    });
+    expect(interruptionCalls()[0][1].counts.working).toBeGreaterThanOrEqual(1);
+
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 't6-b2' }));
+  });
+
+  it('emits an agent-interruption when a principal agent needs the user', () => {
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 't6-n' }));
+    mocks.win.webContents.send.mockClear();
+
+    postHook(JSON.stringify({ hook_event_name: 'Notification', notification_type: 'permission_prompt', session_id: 't6-n' }));
+
+    expect(interruptionCalls()).toHaveLength(1);
+    expect(interruptionCalls()[0][1]).toMatchObject({ transition: 'needs_user' });
+
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 't6-n' }));
+  });
+
+  it('never interrupts, pauses or notifies on SubagentStop', async () => {
+    await saveSettings({ notificationsEnabled: true });
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 't6-c' }));
+    mocks.win.webContents.send.mockClear();
+    mocks.Notification.mockClear();
+
+    postHook(JSON.stringify({ hook_event_name: 'SubagentStop', session_id: 't6-c', agent_id: 'child' }));
+
+    expect(interruptionCalls()).toHaveLength(0);
+    expect(mocks.Notification).not.toHaveBeenCalled();
+
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 't6-c' }));
+    await saveSettings();
+  });
+
+  it('shows a silent native notification for a significant transition, and its click opens the Agents view', async () => {
+    await saveSettings({ notificationsEnabled: true });
+    mocks.Notification.mockClear();
+    mocks.notificationInstance.show.mockClear();
+    let clickHandler: (() => void) | undefined;
+    mocks.notificationInstance.on.mockImplementation((eventName: string, handler: () => void) => {
+      if (eventName === 'click') clickHandler = handler;
+    });
+
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 't6-d', cwd: '/home/x/website' }));
+    postHook(JSON.stringify({ hook_event_name: 'Notification', notification_type: 'permission_prompt', session_id: 't6-d', cwd: '/home/x/website' }));
+
+    expect(mocks.Notification).toHaveBeenCalledWith(
+      expect.objectContaining({ title: expect.stringContaining('needs your attention'), silent: true }),
+    );
+    expect(mocks.notificationInstance.show).toHaveBeenCalled();
+
+    mocks.win.webContents.send.mockClear();
+    mocks.win.show.mockClear();
+    clickHandler?.();
+    expect(mocks.win.show).toHaveBeenCalled();
+    expect(viewCalls().at(-1)![1]).toBe('agents');
+
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 't6-d' }));
+    await saveSettings();
+  });
+
+  it('suppresses the native notification while the popover is visible', async () => {
+    await saveSettings({ notificationsEnabled: true });
+    mocks.Notification.mockClear();
+    mocks.win.isVisible.mockReturnValue(true);
+
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 't6-e' }));
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 't6-e' }));
+
+    expect(mocks.Notification).not.toHaveBeenCalled();
+
+    mocks.win.isVisible.mockReturnValue(false);
+    await saveSettings();
+  });
+
+  it('does not notify at all when the notifications master switch is off', () => {
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 't6-off' }));
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 't6-off' }));
+
+    expect(mocks.Notification).not.toHaveBeenCalled();
+  });
+
+  it('does not arm the auto-open idle timer when autoOpenGames is disabled', async () => {
+    await saveSettings({ autoOpenGames: false });
+    vi.useFakeTimers();
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+    mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
+
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 't6-f' }));
+    vi.advanceTimersByTime(20000);
+
+    expect(mocks.win.show).not.toHaveBeenCalled();
+    vi.useRealTimers();
+
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 't6-f' }));
+    await saveSettings();
+  });
+
+  it('does not auto-open a game when autoOpenGames is switched off after the timer was armed', async () => {
+    await saveSettings({ autoOpenGames: true });
+    vi.useFakeTimers();
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+    mocks.powerMonitor.getSystemIdleTime.mockReturnValue(20);
+
+    // Arms the fake idle timer while games auto-open is still on...
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 't6-f2' }));
+    // ...then the switch is turned off before it fires (microtasks only, safe
+    // under fake timers since applySettings schedules no timers here).
+    await saveSettings({ autoOpenGames: false });
+    vi.advanceTimersByTime(20000);
+
+    expect(mocks.win.show).not.toHaveBeenCalled();
+    vi.useRealTimers();
+
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 't6-f2' }));
+    await saveSettings();
+  });
+
+  it('still opens a game manually from the tray when autoOpenGames is disabled', async () => {
+    await saveSettings({ autoOpenGames: false });
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.show.mockClear();
+
+    triggerTray('click');
+
+    expect(mocks.win.show).toHaveBeenCalled();
+
+    await saveSettings();
+  });
+
+  it('routes a normal tray open to Games and a notification click to Agents', () => {
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.win.webContents.send.mockClear();
+
+    triggerTray('click');
+    expect(viewCalls().at(-1)![1]).toBe('games');
+
+    mocks.win.webContents.send.mockClear();
+    mocks.ipcMain.handlers['open-popover']?.({}, 'agents');
+    expect(viewCalls().at(-1)![1]).toBe('agents');
+  });
+
+  it('reports the pending popover view over popover-view-get IPC', async () => {
+    mocks.ipcMain.handlers['open-popover']?.({}, 'agents');
+    expect(await mocks.ipcMain.handlers['popover-view-get']?.()).toBe('agents');
+    mocks.ipcMain.handlers['open-popover']?.({}, 'games');
+    expect(await mocks.ipcMain.handlers['popover-view-get']?.()).toBe('games');
+  });
+
+  it('updates the tray tooltip with the working and needs-you counters', () => {
+    mocks.tray.setToolTip.mockClear();
+
+    postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 't6-g' }));
+    const tips = mocks.tray.setToolTip.mock.calls.map(([tip]) => tip as string);
+    expect(tips.some((tip) => /\bworking\b/.test(tip))).toBe(true);
+
+    postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 't6-g' }));
+    const clearedTips = mocks.tray.setToolTip.mock.calls.map(([tip]) => tip as string);
+    expect(clearedTips.at(-1)).toBe('Meanwaile');
+  });
+
+  it('re-registers the dynamic tray context menu on Linux after the counters change', () => {
+    const originalPlatform = process.platform;
+    Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+    mocks.tray.setContextMenu.mockClear();
+
+    try {
+      postHook(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 't6-linux' }));
+      expect(mocks.tray.setContextMenu).toHaveBeenCalledWith(expect.anything());
+    } finally {
+      postHook(JSON.stringify({ hook_event_name: 'Stop', session_id: 't6-linux' }));
+      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+    }
+  });
+
+  it('exposes the current execution snapshot over the activity-get IPC', async () => {
+    const snapshot = await mocks.ipcMain.handlers['activity-get']?.();
+    expect(snapshot).toMatchObject({
+      active: expect.any(Array),
+      recent: expect.any(Array),
+      counts: expect.any(Object),
+    });
+  });
+
+  it('reports the local server status and flips it to error when the server emits an error', async () => {
+    expect(await mocks.ipcMain.handlers['server-status']?.()).toBe('active');
+
+    mocks.server.handlers['error']?.(new Error('EADDRINUSE'));
+
+    expect(await mocks.ipcMain.handlers['server-status']?.()).toBe('error');
+  });
+
+  it('reports native notification support over the notifications-status IPC', async () => {
+    mocks.Notification.isSupported.mockReturnValue(true);
+    expect(await mocks.ipcMain.handlers['notifications-status']?.()).toEqual({ supported: true });
   });
 });
 
