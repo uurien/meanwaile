@@ -2,9 +2,9 @@
 
 ## What this app does
 
-Meanwaile is a macOS menu-bar app (Electron) that detects when your AI coding agent is working and you're idle — and offers you a minigame in a small popup until the agent needs you again.
+Meanwaile is a desktop tray app (Electron) that detects local AI coding-agent activity. It can offer a minigame while the user waits and can show configurable native notifications when a principal agent needs attention or finishes.
 
-No notifications. No integrations. One trick, done well.
+No account, no external integrations, and no productivity surveillance. Automatic games and notifications are independent user choices.
 
 The game popup appears when, and only when, both signals hold simultaneously:
 
@@ -13,9 +13,13 @@ The game popup appears when, and only when, both signals hold simultaneously:
 
 When both signals hold, the popup opens directly — no intermediate hint, no confirmation step. Dismissing costs nothing (Esc or switching apps).
 
-When the agent finishes or needs the user, the game **pauses** and prompts: "looks like the task is done, you should get back to work" — with **Close** and **It can wait a bit more**. The user always has the final say.
+When any principal agent finishes or needs the user, the game **pauses**, even if another principal agent is still working, and prompts with **Close** and **It can wait a bit more**. `SubagentStop` is ignored. The user always has the final say.
 
-On-demand mode: clicking the tray icon opens the game directly, anytime, bypassing all detection conditions.
+The main popup exposes **Games** as its left/default view and **Agents** as its right view. On-demand mode bypasses all detection conditions. If a game is in progress, reopening returns to the game.
+
+Native notifications are opt-in, local, event-specific, silent by default, and suppressed while the popup is visible. Clicking one opens **Agents** and never controls the originating terminal. The activity view and recent in-memory completions never expose full paths, prompts, transcripts, tool input, or assistant output.
+
+The **Agents** summary reports working, needs-attention, and recently-finished principal executions; its active total is working plus needs-attention. Recent completions are kept only in memory, capped at 20, and cleared on exit. A principal-agent completion notification includes the remaining working and needs-attention counts. All visible application copy is English.
 
 ## TDD — tests before code (mandatory)
 
@@ -64,7 +68,7 @@ Adding support for a new agent = write a new file in `src/adapters/`, implement 
 ```
 onPromptSubmitted()
 onNeedsUser()        // permission_prompt or idle_prompt — agent is waiting on the user
-onTaskFinished()     // Stop / SubagentStop
+onTaskFinished()     // principal Stop; SubagentStop is ignored
 ```
 
 ### Claude Code adapter
@@ -95,12 +99,12 @@ Third-party games run in a sandboxed view (`nodeIntegration: false`, no network/
 
 ## Key constraints
 
-- **No notifications.** Meanwaile must never nag or interrupt. The soft-open flow and the user's final say on game close are the product's entire UX philosophy.
+- **Notifications stay quiet and local.** Only principal-agent attention and completion events may notify. Controls are independent from automatic game opening, event-specific, silent by default, and notifications are suppressed while the popup is visible.
 - **No external integrations.** No OAuth, no Slack, no Gmail, no account. Everything is local.
 - **No agent lock-in.** Never add Claude Code–specific logic outside `src/adapters/claude-code.ts`.
 - **Wait detection must be conservative.** A false positive (game appears when the user is still reading output) is the primary failure mode. The idle threshold is the sole mitigation — tune with phase-0 data, don't add UX layers to compensate for a threshold that's too low.
 - **Games must be mild.** If the game is too good, users start wishing agents were slower. No deep progression, no streaks, no dailies. Rounds of 30–90 s.
-- **Agent events always take precedence.** When `onNeedsUser` or `onTaskFinished` arrives mid-game, the game pauses immediately and prompts — continuing to play is always a deliberate act, never the default.
+- **Principal-agent events always take precedence.** When `onNeedsUser` or `onTaskFinished` arrives mid-game, the game pauses immediately and prompts, even if other principal agents are working. `SubagentStop` never pauses, notifies, or changes counts. Continuing to play is always a deliberate act, never the default.
 - **macOS, Windows, and Ubuntu (Linux) are the officially supported MVP platforms.** `src/tray-platform.ts` has two confirmed, tested fixes wired into `src/main.ts`: the tray icon (`trayIconFileName` — macOS's template-image auto-inversion has no Linux equivalent) and menu wiring (`shouldPersistContextMenu` — AppIndicator/StatusNotifierItem trays never emit `click`/`right-click` at all, so the context menu must be registered via `tray.setContextMenu()` up front instead of shown on demand).
   Popover **positioning** on Linux/Wayland is an open problem, not a solved one: confirmed on real hardware that `Tray.getBounds()`, `screen.getCursorScreenPoint()`, and `BrowserWindow.setPosition()` (both called after creation and passed to the constructor) are all unreliable-to-useless under GNOME/Mutter's native Wayland backend — clients simply don't get to control window placement there. The popover currently just opens wherever the compositor puts it (observed: top-left), and that's the accepted state for now. Do not re-attempt: (1) forcing `app.commandLine.appendSwitch('ozone-platform', 'x11')` to route through XWayland — tried, caused a GPU-process crash loop (`exit_code=139`) without even fixing `getBounds()`, since AppIndicator icons are managed over D-Bus independent of the app's Ozone backend; (2) a cursor-position or top-right-corner fallback via `setPosition()` — also confirmed ignored. A real fix would need a draggable region so the user can position it manually (Wayland does respect user-initiated moves) — not yet built.
   Packaging is done: `forge.config.js` has a `@electron-forge/maker-deb` entry producing `out/make/deb/x64/*.deb` (needs `bin: 'Meanwaile'` set explicitly — the packaged binary is capitalized, but the maker's default `bin` follows the lowercase `name` and fails to find it otherwise). CI builds it the same way as macOS/Windows: `ci.yml`'s `build-and-test`/`package` matrices and `release-publish.yml`'s `build-linux` job all include Ubuntu, installing `fakeroot`/`dpkg` first since `electron-installer-debian` needs them.

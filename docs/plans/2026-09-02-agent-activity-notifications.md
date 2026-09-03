@@ -4,7 +4,7 @@
 
 **Creado:** 2026-09-02
 
-**Progreso:** 1/11 tareas completadas
+**Progreso:** 2/11 tareas completadas
 
 **Alcance:** Vista de ejecuciones de agentes, notificaciones nativas, ajustes de comportamiento y rediseño acordado de la interfaz.
 
@@ -175,33 +175,38 @@ pasan, o todos los fallos previos quedan documentados antes de continuar.
   creado para esta funcionalidad. No había cambios previos del usuario en
   archivos versionados.
 
-### [ ] T01 — Actualizar el contrato de producto antes del código
+### [x] T01 — Actualizar el contrato de producto antes del código
 
 **Objetivo:** Eliminar la contradicción entre la antigua promesa «Sin
 notificaciones» y el nuevo comportamiento de producto aprobado.
 
 **Archivos**
 
-- `PRODUCT_BRIEF.md`
+- `PRODUCT_BRIEF.md` (fuente local ignorada deliberadamente por Git)
 - `AGENTS.md`
 - `CONTRIBUTING.md`
 
 **Checklist de aceptación**
 
-- [ ] Sustituir «Sin notificaciones» por notificaciones silenciosas, configurables y dirigidas por eventos.
-- [ ] Documentar las cuatro combinaciones de ajustes.
-- [ ] Definir los contadores de activos, trabajando, necesita-atención y terminados recientemente.
-- [ ] Indicar que los subagentes no cuentan.
-- [ ] Definir que una finalización parcial de un agente principal pausa el juego y muestra el recuento restante.
-- [ ] Conservar «sin integraciones», el funcionamiento local y la ausencia de analítica de productividad.
-- [ ] Documentar la política de historial transitorio y privacidad.
+- [x] Sustituir «Sin notificaciones» por notificaciones silenciosas, configurables y dirigidas por eventos.
+- [x] Documentar las cuatro combinaciones de ajustes.
+- [x] Definir los contadores de activos, trabajando, necesita-atención y terminados recientemente.
+- [x] Indicar que los subagentes no cuentan.
+- [x] Definir que una finalización parcial de un agente principal pausa el juego y muestra el recuento restante.
+- [x] Conservar «sin integraciones», el funcionamiento local y la ausencia de analítica de productividad.
+- [x] Documentar la política de historial transitorio y privacidad.
 
 **Puerta de verificación:** Los tres documentos coinciden entre sí y con las
 decisiones cerradas anteriores.
 
 **Evidencias**
 
-- Revisión del contrato: _pendiente_
+- Revisión del contrato: `rg` confirma que ya no quedan prohibiciones generales
+  de notificaciones en `AGENTS.md`, `CONTRIBUTING.md` ni `PRODUCT_BRIEF.md`.
+  Los tres recogen notificaciones locales configurables, exclusión de
+  subagentes, pausa por finalización principal y límites de privacidad. El
+  product brief se mantiene como fuente local ignorada por Git; no se fuerza su
+  incorporación al repositorio.
 
 ### [ ] T02 — Ampliar el contrato de eventos independiente del adapter
 
@@ -671,6 +676,8 @@ Añadir entradas sin reescribir el historial.
 | 2026-09-02 | Pausa multiagente | Corregido | La finalización de cualquier agente principal pausa la partida; `SubagentStop` continúa ignorándose. |
 | 2026-09-02 | T00 | En curso | Rama `feat/agent-activity-notifications` creada; comienza la verificación de la línea base. |
 | 2026-09-02 | T00 | Completada | Suite propia 531/531, compilación correcta y E2E 3/3. Se documenta que el comando unitario sin exclusión también descubre worktrees de `.claude`. |
+| 2026-09-02 | T01 | En curso | Comienza la eliminación de las contradicciones sobre notificaciones en el contrato del producto y de contribución. |
+| 2026-09-02 | T01 | Completada | `AGENTS.md`, `CONTRIBUTING.md` y el product brief local coinciden en modos, contadores, pausa principal, privacidad y exclusión de subagentes. |
 
 ## Registro de decisiones
 
