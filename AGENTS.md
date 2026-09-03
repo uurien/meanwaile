@@ -81,7 +81,19 @@ Three states: `idle` → `agent-working` → `needs-user`. Transitions are drive
 
 ### Wait detector
 
-Runs on top of the state machine. Combines two signals — agent state and `powerMonitor.getSystemIdleTime()` — to decide when to trigger stage 1. Only fires when both conditions hold.
+Runs on top of the state machine. Combines two signals — agent state and `powerMonitor.getSystemIdleTime()` — to decide when to trigger stage 1. Only fires when both conditions hold. It is only armed when `autoOpenGames` is on; the setting gates the timer entirely and is independent of notifications.
+
+### Execution tracker
+
+`src/execution-tracker.ts` is a pure projection that runs alongside the state machine on every adapter event. Identity is the `(adapterId, sessionId)` composite (never `sessionId` alone), so Claude and Codex sessions that happen to share an id stay distinct. It emits a snapshot (`active` executions, `recent` completions, and `counts` of `working` / `needsUser` / `active` / `finished`) plus whether the event was a significant transition (`started` / `resumed` / `needs_user` / `finished`). `recent` is in-memory only, capped at 20, newest first; records with no event for 24 h expire silently and are not a completion. Only sanitized fields are kept — `agentName`, `projectName` (the `cwd` basename), timestamps — never paths, prompts, transcripts, tool input, or assistant output.
+
+### Notification service
+
+`src/notification-service.ts` turns significant `needs_user` / `finished` transitions into native notifications behind an injected `NotificationPlatform` facade (so it's Electron-free and unit-tested). It no-ops unless `notificationsEnabled`, respects `notifyNeedsUser` / `notifyFinished` independently, stays silent unless `notificationSound === 'system'`, and is suppressed while the popover is visible. `src/notification-copy.ts` builds the multi-agent wording (singular/plural, post-removal remaining counts). Clicking a notification opens the **Agents** view only.
+
+### Settings model
+
+`AppSettings` (`src/settings-store.ts`): `httpPort` (3821), `autoOpenDelaySeconds` (15), `autoOpenGames` (`true`), `notificationsEnabled` (`false`), `notifyNeedsUser` (`true`), `notifyFinished` (`true`), `notificationSound` (`'none' | 'system'`, default `'none'`). Legacy two-field `settings.json` files migrate forward: missing `autoOpenGames` → `true`, missing `notificationsEnabled` → `false`. Unknown keys are ignored; known-but-invalid values are rejected on save and fall back to the default on read.
 
 ### Game bundles
 

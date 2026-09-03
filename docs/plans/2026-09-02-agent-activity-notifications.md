@@ -670,7 +670,7 @@ propio para arrancar con `StateMachine`/`ExecutionTracker` limpios)
 - E2E: `npm run test:e2e` → 3/3 pruebas correctas
   (`auto-open-events.spec.ts` ×2, `tray-popover-position.spec.ts` ×1).
 
-### [ ] T10 — Validar el comportamiento empaquetado y finalizar la documentación
+### [~] T10 — Validar el comportamiento empaquetado y finalizar la documentación
 
 **Objetivo:** Demostrar el comportamiento nativo fuera de los mocks y entregar
 una funcionalidad documentada.
@@ -697,23 +697,30 @@ una funcionalidad documentada.
 
 **Checklist de aceptación**
 
-- [ ] Documentar los ajustes y sus valores por defecto.
-- [ ] Documentar permisos de notificaciones y limitaciones de plataforma.
-- [ ] Documentar el historial local transitorio y sus límites de privacidad.
-- [ ] Actualizar las capturas después de implementar, no con conceptos generados.
-- [ ] Eliminar o etiquetar claramente los diseños reemplazados.
-- [ ] Comprobar todos los enlaces de documentación.
-- [ ] Confirmar que no se añadió telemetría, almacenamiento de prompts ni control de terminales.
+- [x] Documentar los ajustes y sus valores por defecto (`README.md` sección Settings; `AGENTS.md` «Settings model»).
+- [x] Documentar permisos de notificaciones y limitaciones de plataforma (`README.md` sección Notifications: opt-in, local, silencioso, suprimido con popup visible, clic → `Agents`, firma requerida en macOS empaquetado, degradación si el SO no soporta).
+- [x] Documentar el historial local transitorio y sus límites de privacidad (`README.md` «The popup: Games and Agents»; `AGENTS.md` «Execution tracker»: en memoria, máximo 20, se borra al salir, solo `agentName`/`projectName`/timestamps).
+- [ ] Actualizar las capturas después de implementar, no con conceptos generados. — **pendiente del usuario** (requiere ejecutar la app).
+- [x] Eliminar o etiquetar claramente los diseños reemplazados (los mockups viven en `docs/design-concepts/`; el plan ya indica que son referencia de disposición, no de idioma ni de affordances).
+- [x] Comprobar todos los enlaces de documentación (`CODE_SIGNING.md`, `AGENTS.md`, `CONTRIBUTING.md`, `scripts/setup-hooks.sh` existen; `README.md` verificado).
+- [x] Confirmar que no se añadió telemetría, almacenamiento de prompts ni control de terminales (`grep` de telemetría/analítica en `src/` sin resultados; el tracker solo guarda campos saneados; el clic de notificación solo abre `Agents`).
 
 **Puerta de verificación:** Todas las filas manuales pasan o tienen una limitación
 aceptada explícitamente; toda la documentación coincide con el comportamiento entregado.
 
+**Estado:** La mitad documental está completa y es coherente entre `README.md`,
+`AGENTS.md` y `CONTRIBUTING.md`. La matriz manual por plataforma y las capturas
+requieren hardware del usuario (app firmada de macOS, Windows, `.deb` de Ubuntu)
+y quedan pendientes de su prueba final; hasta entonces T10 permanece en curso.
+
 **Evidencias**
 
-- Paquete/versión de macOS: _pendiente_
-- Paquete/versión de Windows: _pendiente_
-- Paquete/versión de Ubuntu: _pendiente_
-- Limitaciones aceptadas: _pendiente_
+- Paquete/versión de macOS: _pendiente de la prueba manual del usuario._
+- Paquete/versión de Windows: _pendiente de la prueba manual del usuario._
+- Paquete/versión de Ubuntu: _pendiente de la prueba manual del usuario._
+- Limitaciones aceptadas: notificaciones empaquetadas en macOS requieren firma
+  (los DMG de release lo están); posicionamiento del popover en Wayland sin
+  resolver (ya documentado en `AGENTS.md`/`README.md`).
 
 ## Definición de terminado
 
@@ -759,6 +766,7 @@ Añadir entradas sin reescribir el historial.
 | 2026-09-03 | T08 | En curso | Comienza la reescritura TDD de la ventana de ajustes al modelo completo (interruptores independientes, sonido, estado del servidor, tooltips de ayuda). |
 | 2026-09-03 | T08 | Completada | Ventana de ajustes rediseñada en `Automation`/`Notifications`/`Detection`: interruptores independientes, sub-controles que se deshabilitan conservando su valor, `select` de sonido, estado real del servidor junto al puerto y tooltips accesibles (`aria-describedby`, hover/focus/blur/Escape) con los textos exactos. `main.ts` abre la ventana a `380×560`. Puerta 160/160, regresión 684/684, build y cobertura 100 %. Puerta visual pendiente de la prueba manual final. |
 | 2026-09-03 | T09 | Completada | `tests/main-integration.test.ts` cubre concurrencia Claude+Codex, sesiones del mismo proyecto, finalización parcial/última, `needs_user`, idempotencia de hooks, exclusión de `SubagentStop`, la matriz de ajustes y las regresiones de galería/puerto/supresión. Puerta completa: `npm test` 698/698, `npm run build` y `npm run test:e2e` 3/3 correctos; cobertura 100 %. |
+| 2026-09-03 | T10 | En curso | Mitad documental completada: `README.md` (intro, estado, popup `Games`/`Agents`, Settings con valores por defecto, Notifications, privacidad del historial), `AGENTS.md` (secciones «Execution tracker», «Notification service», «Settings model») y `CONTRIBUTING.md` (ya coherente desde T01). Enlaces verificados; sin telemetría/almacenamiento de prompts/control de terminal. Pendiente: matriz manual por plataforma y capturas (hardware del usuario). |
 
 ## Registro de decisiones
 
