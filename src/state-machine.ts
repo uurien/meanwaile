@@ -12,10 +12,13 @@ export type StateChangeHandler = (snapshot: StateSnapshot) => void;
 
 type SessionStatus = 'working' | 'needs_user';
 
-// Real hook payloads always carry a session_id; this key only covers
-// synthetic/test events that omit one, so they still behave like a single
-// implicit session.
+// Real hook payloads normally carry a session_id; this key covers events that
+// omit one. It is still scoped by adapter in sessionKey().
 const DEFAULT_SESSION_KEY = '__default__';
+
+function sessionKey(event: AgentEvent): string {
+  return JSON.stringify([event.adapterId, event.sessionId ?? DEFAULT_SESSION_KEY]);
+}
 
 export class StateMachine {
   private state: AppState = 'idle';
@@ -36,7 +39,7 @@ export class StateMachine {
     if (event.sessionId) this.sessionId = event.sessionId;
     if (event.agentName) this.agentName = event.agentName;
 
-    const key = event.sessionId ?? DEFAULT_SESSION_KEY;
+    const key = sessionKey(event);
     switch (event.type) {
       case 'prompt_submitted':
       case 'work_resumed':

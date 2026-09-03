@@ -4,7 +4,7 @@
 
 **Creado:** 2026-09-02
 
-**Progreso:** 2/11 tareas completadas
+**Progreso:** 3/11 tareas completadas
 
 **Alcance:** Vista de ejecuciones de agentes, notificaciones nativas, ajustes de comportamiento y rediseño acordado de la interfaz.
 
@@ -208,7 +208,7 @@ decisiones cerradas anteriores.
   product brief se mantiene como fuente local ignorada por Git; no se fuerza su
   incorporación al repositorio.
 
-### [ ] T02 — Ampliar el contrato de eventos independiente del adapter
+### [x] T02 — Ampliar el contrato de eventos independiente del adapter
 
 **Objetivo:** Proporcionar una identidad de ejecución estable y metadatos de
 presentación seguros sin filtrar fuera de los adapters payloads específicos de
@@ -236,20 +236,25 @@ Claude o Codex.
 
 **Checklist TDD**
 
-- [ ] ROJO: las pruebas de adapters exigen `adapterId` y un `projectName` saneado.
-- [ ] ROJO: las pruebas cubren `cwd` ausente o malformado y `session_id` ausente.
-- [ ] ROJO: las pruebas conservan la regla de que `SubagentStop` no finaliza al padre.
-- [ ] VERDE: implementar una extracción segura compartida del basename o un parseo local equivalente.
-- [ ] VERDE: pasan todas las pruebas de adapters.
-- [ ] Refactorizar sin exponer los payloads sin procesar de los hooks.
+- [x] ROJO: las pruebas de adapters exigen `adapterId` y un `projectName` saneado.
+- [x] ROJO: las pruebas cubren `cwd` ausente o malformado y `session_id` ausente.
+- [x] ROJO: las pruebas conservan la regla de que `SubagentStop` no finaliza al padre.
+- [x] VERDE: implementar una extracción segura compartida del basename o un parseo local equivalente.
+- [x] VERDE: pasan todas las pruebas de adapters.
+- [x] Refactorizar sin exponer los payloads sin procesar de los hooks.
 
 **Puerta de verificación:** `npx vitest run tests/adapters`
 
 **Evidencias**
 
-- Evidencia ROJA: _pendiente_
-- Evidencia VERDE: _pendiente_
-- Resultado de la puerta: _pendiente_
+- Evidencia ROJA: 6 fallos esperados en adapters por `adapterId` ausente y
+  `session_id` numérico sin filtrar; 1 fallo adicional demuestra que la máquina
+  mezclaba dos adapters con el mismo `sessionId`.
+- Evidencia VERDE: extracción compartida de strings y basename, eventos con
+  `adapterId` obligatorio y clave compuesta también en la máquina de estados.
+- Resultado de la puerta: 4 archivos y 74 pruebas correctas con
+  `npx vitest run tests/adapters tests/state-machine.test.ts --exclude '.claude/**'`;
+  `npm run build` correcto.
 
 ### [ ] T03 — Construir el tracker por ejecución
 
@@ -678,6 +683,8 @@ Añadir entradas sin reescribir el historial.
 | 2026-09-02 | T00 | Completada | Suite propia 531/531, compilación correcta y E2E 3/3. Se documenta que el comando unitario sin exclusión también descubre worktrees de `.claude`. |
 | 2026-09-02 | T01 | En curso | Comienza la eliminación de las contradicciones sobre notificaciones en el contrato del producto y de contribución. |
 | 2026-09-02 | T01 | Completada | `AGENTS.md`, `CONTRIBUTING.md` y el product brief local coinciden en modos, contadores, pausa principal, privacidad y exclusión de subagentes. |
+| 2026-09-03 | T02 | En curso | Comienza la ampliación TDD de `AgentEvent` con identidad de adapter y nombre de proyecto saneado. |
+| 2026-09-03 | T02 | Completada | Los adapters emiten identidad estable y solo el basename seguro; la máquina diferencia sesiones iguales de adapters distintos. Puerta 74/74 y build correctos. |
 
 ## Registro de decisiones
 

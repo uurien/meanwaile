@@ -1,4 +1,10 @@
-import { AgentAdapter, AgentEvent, AgentEventHandler } from './types';
+import {
+  AgentAdapter,
+  AgentEvent,
+  AgentEventHandler,
+  optionalNonEmptyString,
+  projectNameFromCwd,
+} from './types';
 import { isSyntheticTaskNotification } from './synthetic-prompt';
 
 export class CodexAdapter implements AgentAdapter {
@@ -13,25 +19,32 @@ export class CodexAdapter implements AgentAdapter {
     if (!body || typeof body !== 'object') return null;
     const payload = body as Record<string, unknown>;
     const hookName = payload['hook_event_name'] as string | undefined;
-    const sessionId = payload['session_id'] as string | undefined;
+    const sessionId = optionalNonEmptyString(payload['session_id']);
     const ts = Date.now();
 
     const agentName = 'Codex';
+    const eventContext = {
+      adapterId: this.name,
+      sessionId,
+      agentName,
+      projectName: projectNameFromCwd(payload['cwd']),
+      timestamp: ts,
+    };
 
     switch (hookName) {
       case 'PermissionRequest':
-        return { type: 'needs_user', sessionId, agentName, timestamp: ts };
+        return { type: 'needs_user', ...eventContext };
       case 'Stop':
-        return { type: 'task_finished', sessionId, agentName, timestamp: ts };
+        return { type: 'task_finished', ...eventContext };
       case 'UserPromptSubmit':
         if (isSyntheticTaskNotification(payload)) return null;
-        return { type: 'prompt_submitted', sessionId, agentName, timestamp: ts };
+        return { type: 'prompt_submitted', ...eventContext };
       case 'PreToolUse':
         // Same rationale as the Claude Code adapter: a tool call retrying
         // after an approval prompt (or any tool call at all) means the agent
         // is actively working again, but it is not a fresh user prompt and
         // must not override a manual popover dismissal for this turn.
-        return { type: 'work_resumed', sessionId, agentName, timestamp: ts };
+        return { type: 'work_resumed', ...eventContext };
       case 'SubagentStop':
         // SubagentStop identifies the child separately; session_id still
         // belongs to the parent and must remain active until its own Stop.
