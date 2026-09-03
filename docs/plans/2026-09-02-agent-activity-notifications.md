@@ -4,7 +4,7 @@
 
 **Creado:** 2026-09-02
 
-**Progreso:** 5/11 tareas completadas
+**Progreso:** 6/11 tareas completadas
 
 **Alcance:** Vista de ejecuciones de agentes, notificaciones nativas, ajustes de comportamiento y rediseño acordado de la interfaz.
 
@@ -357,7 +357,7 @@ interface AppSettings {
   `src/settings-store.ts` al 100 % en statements, branches, functions y lines;
   `npm run build` correcto.
 
-### [ ] T05 — Implementar la política de notificaciones nativas
+### [x] T05 — Implementar la política de notificaciones nativas
 
 **Objetivo:** Convertir las transiciones significativas del tracker en
 notificaciones nativas deduplicadas con textos multiagente correctos.
@@ -374,19 +374,19 @@ notificaciones nativas deduplicadas con textos multiagente correctos.
 
 **Comportamiento requerido**
 
-- [ ] No se muestra ninguna notificación cuando el interruptor principal está apagado.
-- [ ] Se respetan `notifyNeedsUser` y `notifyFinished` de forma independiente.
-- [ ] Los eventos de trabajo o reanudación no generan notificaciones.
-- [ ] Los hooks duplicados no generan notificaciones duplicadas.
-- [ ] La caducidad silenciosa de registros obsoletos no genera notificaciones.
-- [ ] No se notifica cuando Electron indica que no existe soporte.
-- [ ] `silent` respeta el ajuste de sonido.
-- [ ] El texto de necesita-atención incluye agente y proyecto cuando están disponibles.
-- [ ] El texto de finalización utiliza los contadores posteriores a retirar la ejecución terminada.
-- [ ] Los textos en singular y plural son correctos.
-- [ ] Los estados restantes mixtos mencionan los agentes activos que necesitan atención.
-- [ ] Si el popup está visible, se suprime la notificación nativa.
-- [ ] Al pulsar una notificación se abre la vista `Agents` y se destaca la ejecución; nunca se controla otra aplicación.
+- [x] No se muestra ninguna notificación cuando el interruptor principal está apagado.
+- [x] Se respetan `notifyNeedsUser` y `notifyFinished` de forma independiente.
+- [x] Los eventos de trabajo o reanudación no generan notificaciones.
+- [x] Los hooks duplicados no generan notificaciones duplicadas.
+- [x] La caducidad silenciosa de registros obsoletos no genera notificaciones.
+- [x] No se notifica cuando Electron indica que no existe soporte.
+- [x] `silent` respeta el ajuste de sonido.
+- [x] El texto de necesita-atención incluye agente y proyecto cuando están disponibles.
+- [x] El texto de finalización utiliza los contadores posteriores a retirar la ejecución terminada.
+- [x] Los textos en singular y plural son correctos.
+- [x] Los estados restantes mixtos mencionan los agentes activos que necesitan atención.
+- [x] Si el popup está visible, se suprime la notificación nativa.
+- [x] Al pulsar una notificación se abre la vista `Agents` y se destaca la ejecución; nunca se controla otra aplicación.
 
 **Ejemplos de texto**
 
@@ -398,17 +398,20 @@ notificaciones nativas deduplicadas con textos multiagente correctos.
 
 **Checklist TDD**
 
-- [ ] ROJO: las pruebas unitarias cubren la matriz completa de políticas.
-- [ ] VERDE: implementar detrás de una fachada inyectada para `Notification` de Electron.
-- [ ] Refactorizar la generación de textos para separarla de los efectos de Electron.
+- [x] ROJO: las pruebas unitarias cubren la matriz completa de políticas.
+- [x] VERDE: implementar detrás de una fachada inyectada para `Notification` de Electron.
+- [x] Refactorizar la generación de textos para separarla de los efectos de Electron.
 
 **Puerta de verificación:** `npx vitest run tests/notification-service.test.ts tests/notification-copy.test.ts`
 
 **Evidencias**
 
-- Evidencia ROJA: _pendiente_
-- Evidencia VERDE: _pendiente_
-- Resultado de la puerta: _pendiente_
+- Evidencia ROJA: las dos suites nuevas fallan al importar
+  `notification-service` y `notification-copy`, todavía inexistentes.
+- Evidencia VERDE: fachada de plataforma inyectable, política independiente de
+  Electron y copy separado con plurales y resumen posterior a la finalización.
+- Resultado de la puerta: 20/20 pruebas focalizadas y cobertura al 100 % de
+  ambos módulos; regresión propia 597/597 y `npm run build` correcto.
 
 ### [ ] T06 — Orquestar eventos, IPC, tray y permisos
 
@@ -696,6 +699,8 @@ Añadir entradas sin reescribir el historial.
 | 2026-09-03 | T03 | Completada | Tracker puro con identidad compuesta, transiciones deduplicadas, contadores, historial máximo de 20 y caducidad silenciosa; puerta 34/34. |
 | 2026-09-03 | T04 | En curso | Comienza la migración TDD de ajustes para separar juegos automáticos y notificaciones. |
 | 2026-09-03 | T04 | Completada | Ajustes migrados sin romper el formato antiguo; los cuatro modos, preferencias por evento y sonido quedan validados. Puerta 27/27. |
+| 2026-09-03 | T05 | En curso | Comienza la matriz TDD de política, copy multiagente y clic de notificaciones nativas. |
+| 2026-09-03 | T05 | Completada | Política opt-in, silenciosa, deduplicada y suprimida con popup visible; textos multiagente y clic hacia `Agents` cubiertos. Puerta 20/20. |
 
 ## Registro de decisiones
 
