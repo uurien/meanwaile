@@ -234,10 +234,12 @@ body {
 
 .agents-count {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 6px;
-  padding: 12px 12px 10px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+  padding: 14px 10px 12px;
   border-radius: 14px;
   background: var(--bg-card);
   border: 1px solid var(--border-soft);
@@ -245,12 +247,17 @@ body {
   color: rgba(255, 255, 255, 0.45);
 }
 
+.agents-count__top {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .agents-count__dot {
   flex: 0 0 auto;
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  align-self: center;
   background: rgba(255, 255, 255, 0.3);
 }
 
@@ -263,11 +270,14 @@ body {
 }
 
 .agents-count__value {
-  flex-basis: calc(100% - 14px);
   color: var(--text-primary);
   font-size: 22px;
   font-weight: 700;
   line-height: 1;
+}
+
+.agents-count__label {
+  display: block;
 }
 
 .agents-list,

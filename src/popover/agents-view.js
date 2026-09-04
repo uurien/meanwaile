@@ -36,9 +36,13 @@ function byAttentionThenRecency(left, right) {
 function countCard(kind, value, label, tone) {
   const card = el('div', 'agents-count');
   card.dataset.kind = kind;
+
   const dot = el('span', 'agents-count__dot');
   dot.dataset.tone = tone;
-  card.append(dot, el('b', 'agents-count__value', String(value ?? 0)), document.createTextNode(` ${label}`));
+  const top = el('span', 'agents-count__top');
+  top.append(dot, el('b', 'agents-count__value', String(value ?? 0)));
+
+  card.append(top, el('span', 'agents-count__label', ` ${label}`));
   return card;
 }
 
