@@ -72,6 +72,21 @@ body {
   letter-spacing: -0.2px;
 }
 
+#brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+}
+
+#brand-mark[hidden] {
+  display: none;
+}
+
+#header-left {
+  gap: 10px;
+}
+
 #back-btn,
 #menu-btn {
   width: 34px;
@@ -148,13 +163,22 @@ body {
   outline: none;
 }
 
-/* ─── Games / Agents tabs ─────────────────────────────────────────────── */
+/* ─── Games / Agents tabs (segmented control) ─────────────────────────── */
+
+:root {
+  --amber: #e6b34a;
+  --amber-wash: rgba(230, 179, 74, 0.12);
+}
 
 #tabs {
   flex: 0 0 auto;
+  align-self: center;
   display: flex;
-  gap: 6px;
-  padding: 0 24px 12px 24px;
+  gap: 4px;
+  margin: 2px 0 14px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 #tabs[hidden] {
@@ -165,27 +189,27 @@ body {
   appearance: none;
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.5);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
-  padding: 6px 12px;
+  padding: 6px 22px;
   border-radius: 9px;
   cursor: pointer;
 }
 
 #tabs [role='tab']:hover {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.75);
 }
 
 #tabs [role='tab'][aria-selected='true'] {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 #tabs [role='tab']:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.22);
 }
 
 /* ─── Agents view ─────────────────────────────────────────────────────── */
@@ -194,7 +218,7 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 4px 24px 24px 24px;
+  padding: 0 20px 22px 20px;
 }
 
 #agents-screen[hidden] {
@@ -202,16 +226,48 @@ body {
 }
 
 .agents-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.agents-count {
   display: flex;
-  gap: 16px;
-  padding-bottom: 14px;
-  color: rgba(255, 255, 255, 0.5);
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  padding: 12px 12px 10px;
+  border-radius: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.agents-count__dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  align-self: center;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.agents-count__dot[data-tone='working'] {
+  background: var(--accent);
+}
+
+.agents-count__dot[data-tone='needs'] {
+  background: var(--amber);
 }
 
 .agents-count__value {
+  flex-basis: calc(100% - 14px);
   color: var(--text-primary);
+  font-size: 22px;
   font-weight: 700;
+  line-height: 1;
 }
 
 .agents-list,
@@ -219,68 +275,132 @@ body {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .agent-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
   background: var(--bg-card);
-  border: 1px solid transparent;
+  border: 1px solid var(--border-soft);
   cursor: pointer;
 }
 
-.agent-row:hover,
-.agent-row:focus-visible {
+.agent-row:hover {
   border-color: var(--border-strong);
+}
+
+.agent-row:focus-visible {
   outline: none;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.agent-row[data-status='needs_user'] {
+  border-color: rgba(230, 179, 74, 0.5);
 }
 
 .agent-row--highlight {
-  border-color: var(--accent);
-  background: var(--accent-wash);
+  border-color: var(--amber);
+  box-shadow: 0 0 0 1px var(--amber);
+}
+
+.agent-row__icon {
+  position: relative;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agent-row__pip {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-card);
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.agent-row__pip[data-tone='working'] {
+  background: var(--accent);
+}
+
+.agent-row__pip[data-tone='needs'] {
+  background: var(--amber);
+}
+
+.agent-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 
 .agent-row__label {
   color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.agent-row[data-status='needs_user'] .agent-row__status {
-  color: var(--accent);
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .agent-row__status {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 12px;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12.5px;
+  text-transform: capitalize;
+}
+
+.agent-row[data-status='needs_user'] .agent-row__status {
+  color: var(--amber);
 }
 
 .agents-empty,
 .agents-recent-empty {
   color: rgba(255, 255, 255, 0.35);
   font-size: 13px;
-  padding: 8px 0;
+  padding: 6px 2px;
 }
 
 .agents-recent-title {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 12px;
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  margin: 20px 0 8px;
+  letter-spacing: 0.5px;
+  margin: 22px 0 10px;
 }
 
 .agents-recent .agent-recent-row {
-  padding: 8px 12px;
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13.5px;
+}
+
+.agents-recent .agent-recent-row::before {
+  /* filled circle + check, drawn entirely in CSS so it adds no text */
+  content: '';
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='M3 7.5 6 10l5-6' fill='none' stroke='%23cfcfcf' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 13px no-repeat;
 }
 
 /* ─── Hub screen ──────────────────────────────────────────────────────── */

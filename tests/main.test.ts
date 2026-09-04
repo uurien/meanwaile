@@ -1239,12 +1239,12 @@ describe('settings window IPC', () => {
     expect(mocks.BrowserWindow.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 
-  it('creates the settings window at the redesigned size', () => {
+  it('creates the settings window at the redesigned size with a plain title', () => {
     const call = mocks.BrowserWindow.mock.calls.find(
-      ([opts]) => (opts as { title?: string })?.title === 'Meanwaile — Settings',
+      ([opts]) => (opts as { title?: string })?.title === 'Meanwaile',
     );
     expect(call).toBeDefined();
-    expect(call![0]).toMatchObject({ width: 380, height: 560 });
+    expect(call![0]).toMatchObject({ width: 400, height: 600 });
   });
 
   it('open-settings focuses the existing settings window instead of creating a new one', () => {

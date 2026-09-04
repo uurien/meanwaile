@@ -2,6 +2,7 @@ import { createHub } from './carousel.js';
 import { renderAgents } from './agents-view.js';
 
 const backBtn = document.getElementById('back-btn');
+const brandMark = document.getElementById('brand-mark');
 const brand = document.getElementById('brand');
 const gameName = document.getElementById('game-name');
 const hubScreen = document.getElementById('hub-screen');
@@ -151,6 +152,7 @@ function openGame(game) {
   started = false;
 
   backBtn.hidden = false;
+  brandMark.hidden = true;
   brand.hidden = true;
   gameName.hidden = false;
   gameName.textContent = game.name;
@@ -179,6 +181,7 @@ function goHome() {
   hideOverlay();
 
   backBtn.hidden = true;
+  brandMark.hidden = false;
   brand.hidden = false;
   gameName.hidden = true;
   tabs.hidden = false;

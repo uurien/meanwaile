@@ -564,6 +564,12 @@ carrusel existente ni el comportamiento del host de juegos.
   `npm test -- --exclude '.claude/**'` → 35 archivos, 671 pruebas. `npm run build`
   correcto. Cobertura 100 % en `agents-view.js`, `popover.js` y `carousel.js`.
 - Ruta de la captura: _pendiente de la verificación visual manual del usuario._
+- Ajuste visual (2026-09-04): tras revisar contra `main-05-agents-games-tabs-v3-agents-view.png`
+  se rehízo el CSS/estructura: marca de app en la cabecera, pestañas como control
+  segmentado (sin contorno verde de foco), contadores como tres tarjetas con punto
+  de estado (verde/ámbar/gris), filas de agente con azulejo de icono + pip + dos
+  líneas y anillo ámbar en `needs_user`/resaltado, filas recientes con círculo de
+  check. Regresión 700/700, cobertura 100 %.
 
 ### [x] T08 — Construir la ventana de configuración rediseñada
 
@@ -635,6 +641,13 @@ acordada; verificar que el escalado estándar de texto no recorta contenido.
   correctas. Regresión propia `npm test -- --exclude '.claude/**'` → 35 archivos,
   684 pruebas. `npm run build` correcto. Cobertura 100 % (incluye `settings.js`).
 - Ruta de la captura: _pendiente de la verificación visual manual del usuario._
+- Ajuste visual (2026-09-04): tras revisar contra `settings-05-compact-summary-v2-help.png`
+  se rehízo la ventana: cada grupo en una tarjeta con icono circular por fila,
+  opciones anidadas como casillas con check verde (no interruptores), `Sonido`
+  como `select`, `Puerto … · Active` en línea, sin botón `Cancel` (Escape y
+  controles nativos cierran) y un único botón primario verde a ancho completo
+  `Save settings`. Título de ventana `Meanwaile`, `400×600`. Regresión 700/700,
+  cobertura 100 %.
 
 ### [x] T09 — Probar la integración entre funcionalidades y las regresiones
 
@@ -767,6 +780,7 @@ Añadir entradas sin reescribir el historial.
 | 2026-09-03 | T08 | Completada | Ventana de ajustes rediseñada en `Automation`/`Notifications`/`Detection`: interruptores independientes, sub-controles que se deshabilitan conservando su valor, `select` de sonido, estado real del servidor junto al puerto y tooltips accesibles (`aria-describedby`, hover/focus/blur/Escape) con los textos exactos. `main.ts` abre la ventana a `380×560`. Puerta 160/160, regresión 684/684, build y cobertura 100 %. Puerta visual pendiente de la prueba manual final. |
 | 2026-09-03 | T09 | Completada | `tests/main-integration.test.ts` cubre concurrencia Claude+Codex, sesiones del mismo proyecto, finalización parcial/última, `needs_user`, idempotencia de hooks, exclusión de `SubagentStop`, la matriz de ajustes y las regresiones de galería/puerto/supresión. Puerta completa: `npm test` 698/698, `npm run build` y `npm run test:e2e` 3/3 correctos; cobertura 100 %. |
 | 2026-09-03 | T10 | En curso | Mitad documental completada: `README.md` (intro, estado, popup `Games`/`Agents`, Settings con valores por defecto, Notifications, privacidad del historial), `AGENTS.md` (secciones «Execution tracker», «Notification service», «Settings model») y `CONTRIBUTING.md` (ya coherente desde T01). Enlaces verificados; sin telemetría/almacenamiento de prompts/control de terminal. Pendiente: matriz manual por plataforma y capturas (hardware del usuario). |
+| 2026-09-04 | T07/T08 | Ajuste visual | El usuario indica que la primera implementación no coincidía con las referencias de diseño. Rehecho CSS/estructura de la vista `Agents` (marca de app, pestañas segmentadas sin contorno de foco, contadores en tarjetas con punto de estado, filas con azulejo de icono + pip + dos líneas, anillo ámbar de atención, recientes con círculo de check) y de la ventana de ajustes (tarjeta por grupo, icono circular por fila, casillas con check, `select` de sonido, puerto en línea con `· Active`, sin `Cancel`, botón primario verde a ancho completo, título `Meanwaile`, `400×600`). Pruebas actualizadas: regresión 700/700, cobertura 100 %, build y E2E 3/3 correctos. Verificación visual final pendiente del usuario. |
 
 ## Registro de decisiones
 

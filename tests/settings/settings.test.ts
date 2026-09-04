@@ -38,7 +38,6 @@ let notifyFinished: HTMLInputElement;
 let notificationSound: HTMLSelectElement;
 let serverStatus: HTMLElement;
 let errorMsg: HTMLElement;
-let cancelBtn: HTMLElement;
 let saveBtn: HTMLElement;
 
 async function loadSettingsPage(
@@ -78,7 +77,6 @@ async function loadSettingsPage(
   notificationSound = document.getElementById('notification-sound') as HTMLSelectElement;
   serverStatus = document.getElementById('server-status')!;
   errorMsg = document.getElementById('error-msg')!;
-  cancelBtn = document.getElementById('cancel-btn')!;
   saveBtn = document.getElementById('save-btn')!;
 }
 
@@ -99,9 +97,23 @@ describe('settings page — layout', () => {
     expect(document.querySelector('.intro-card')).toBeNull();
   });
 
-  it('labels the submit button "Save settings"', async () => {
+  it('labels the submit button "Save settings" and is the single primary action (no Cancel button)', async () => {
     await loadSettingsPage();
     expect(saveBtn.textContent).toBe('Save settings');
+    expect(document.getElementById('cancel-btn')).toBeNull();
+  });
+
+  it('wraps each group in a card with a circular row icon', async () => {
+    await loadSettingsPage();
+    expect(document.querySelectorAll('.group .card').length).toBeGreaterThanOrEqual(3);
+    expect(document.querySelector('.row .row__icon')).not.toBeNull();
+  });
+
+  it('renders the nested notification options as checkboxes, not switches', async () => {
+    await loadSettingsPage();
+    expect(notifyNeedsUser.getAttribute('role')).toBeNull();
+    expect(notifyFinished.getAttribute('role')).toBeNull();
+    expect(notifyNeedsUser.closest('.checks')).not.toBeNull();
   });
 });
 
@@ -236,6 +248,9 @@ describe('settings page — help tooltips', () => {
 
     help.dispatchEvent(new Event('focus'));
     expect(tip.hidden).toBe(false);
+    // A non-Escape key on the trigger leaves the tooltip open.
+    help.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(tip.hidden).toBe(false);
     help.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(tip.hidden).toBe(true);
 
@@ -284,9 +299,9 @@ describe('settings page — save & cancel', () => {
     expect(errorMsg.textContent).toBe('Port must be an integer between 1 and 65535.');
   });
 
-  it('closes the window when Cancel is clicked', async () => {
+  it('closes the window on Escape', async () => {
     await loadSettingsPage();
-    cancelBtn.click();
-    expect(closeSpy).toHaveBeenCalledOnce();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(closeSpy).toHaveBeenCalled();
   });
 });

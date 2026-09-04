@@ -8,7 +8,6 @@ const notifyFinished = document.getElementById('notify-finished');
 const notificationSound = document.getElementById('notification-sound');
 const serverStatus = document.getElementById('server-status');
 const errorMsg = document.getElementById('error-msg');
-const cancelBtn = document.getElementById('cancel-btn');
 
 const SERVER_STATUS_TEXT = {
   active: 'Active',
@@ -56,7 +55,10 @@ function wireTooltip(id) {
   trigger.addEventListener('mouseleave', hide);
   trigger.addEventListener('blur', hide);
   trigger.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') hide();
+    if (e.key !== 'Escape') return;
+    // Escape dismisses the tooltip first; it must not also close the window.
+    hide();
+    e.stopPropagation();
   });
 }
 
@@ -84,8 +86,11 @@ form.addEventListener('submit', async (e) => {
   }
 });
 
-cancelBtn.addEventListener('click', () => {
-  window.close();
+// This window has no in-content Cancel button (the design puts a single
+// full-width primary action); Escape and the native title-bar controls
+// dismiss it without saving.
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') window.close();
 });
 
 loadCurrentSettings();

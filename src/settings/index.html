@@ -2,86 +2,101 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:" />
   <link rel="stylesheet" href="settings.css" />
-  <title>Meanwaile — Settings</title>
+  <title>Meanwaile</title>
 </head>
 <body>
   <form id="settings-form">
     <section class="group">
       <h2 class="group__title">Automation</h2>
-
-      <div class="row row--switch">
-        <label for="auto-open-games">Open games automatically</label>
-        <input id="auto-open-games" name="autoOpenGames" type="checkbox" role="switch" />
-      </div>
-
-      <div class="row">
-        <span class="row__label">
-          <label for="auto-open-delay">Idle time</label>
-          <button type="button" class="help" id="help-idle" aria-label="About idle time" aria-describedby="tip-idle">?</button>
-        </span>
-        <span class="row__control">
-          <input id="auto-open-delay" name="autoOpenDelaySeconds" type="number" min="1" step="1" required />
-          <span class="unit">s</span>
-        </span>
-        <span role="tooltip" id="tip-idle" class="tooltip" hidden>Meanwaile checks whether you have been away from your keyboard and mouse for this long before opening a game.</span>
+      <div class="card">
+        <div class="row row--switch">
+          <span class="row__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="12" rx="4"/><path d="M7 12h3M8.5 10.5v3"/><circle cx="15.5" cy="11.5" r="1"/><circle cx="18" cy="14" r="1"/></svg>
+          </span>
+          <label for="auto-open-games">Open games automatically</label>
+          <input id="auto-open-games" name="autoOpenGames" type="checkbox" role="switch" class="toggle" />
+        </div>
       </div>
     </section>
 
     <section class="group">
       <h2 class="group__title">Notifications</h2>
+      <div class="card">
+        <div class="row row--switch">
+          <span class="row__icon row__icon--amber" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>
+          </span>
+          <label for="notifications-enabled">Notifications</label>
+          <input id="notifications-enabled" name="notificationsEnabled" type="checkbox" role="switch" class="toggle" />
+        </div>
 
-      <div class="row row--switch">
-        <label for="notifications-enabled">Notifications</label>
-        <input id="notifications-enabled" name="notificationsEnabled" type="checkbox" role="switch" />
-      </div>
+        <div class="checks">
+          <label class="check">
+            <input id="notify-needs-user" name="notifyNeedsUser" type="checkbox" />
+            <span>When an agent needs attention</span>
+          </label>
+          <label class="check">
+            <input id="notify-finished" name="notifyFinished" type="checkbox" />
+            <span>When an agent finishes</span>
+          </label>
+        </div>
 
-      <div class="row row--switch row--nested">
-        <label for="notify-needs-user">When an agent needs attention</label>
-        <input id="notify-needs-user" name="notifyNeedsUser" type="checkbox" />
-      </div>
+        <div class="divider"></div>
 
-      <div class="row row--switch row--nested">
-        <label for="notify-finished">When an agent finishes</label>
-        <input id="notify-finished" name="notifyFinished" type="checkbox" />
-      </div>
-
-      <div class="row row--nested">
-        <label for="notification-sound">Sound</label>
-        <select id="notification-sound" name="notificationSound">
-          <option value="none">No sound</option>
-          <option value="system">System sound</option>
-        </select>
+        <div class="row">
+          <label for="notification-sound">Sound</label>
+          <select id="notification-sound" name="notificationSound">
+            <option value="none">No sound</option>
+            <option value="system">System sound</option>
+          </select>
+        </div>
       </div>
     </section>
 
     <section class="group">
       <h2 class="group__title">Detection</h2>
 
-      <div class="row">
-        <span class="row__label">
-          <label for="http-port">Port</label>
-          <button type="button" class="help" id="help-port" aria-label="About the port" aria-describedby="tip-port">?</button>
-        </span>
-        <span class="row__control">
-          <input id="http-port" name="httpPort" type="number" min="1" max="65535" step="1" required />
-        </span>
-        <span role="tooltip" id="tip-port" class="tooltip" hidden>The local port Meanwaile uses to receive events from your agents. Change it only if there is a conflict.</span>
+      <div class="card">
+        <div class="row">
+          <span class="row__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+          </span>
+          <span class="row__label">
+            <label for="auto-open-delay">Idle time</label>
+            <button type="button" class="help" id="help-idle" aria-label="About idle time" aria-describedby="tip-idle">?</button>
+          </span>
+          <span class="row__control">
+            <input id="auto-open-delay" name="autoOpenDelaySeconds" type="number" min="1" step="1" required />
+            <span class="unit">s</span>
+          </span>
+          <span role="tooltip" id="tip-idle" class="tooltip" hidden>Meanwaile checks whether you have been away from your keyboard and mouse for this long before opening a game.</span>
+        </div>
       </div>
 
-      <div class="row row--status">
-        <span class="row__label">Server</span>
-        <span id="server-status" class="status">…</span>
+      <div class="card">
+        <div class="row">
+          <span class="row__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="6" rx="1"/><rect x="14" y="14" width="7" height="6" rx="1"/><path d="M6.5 10v3h11v1M17.5 14v-1"/></svg>
+          </span>
+          <span class="row__label">
+            <label for="http-port">Port</label>
+            <button type="button" class="help" id="help-port" aria-label="About the port" aria-describedby="tip-port">?</button>
+          </span>
+          <span class="row__control">
+            <input id="http-port" name="httpPort" type="number" min="1" max="65535" step="1" required />
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span id="server-status" class="status">…</span>
+          </span>
+          <span role="tooltip" id="tip-port" class="tooltip" hidden>The local port Meanwaile uses to receive events from your agents. Change it only if there is a conflict.</span>
+        </div>
       </div>
     </section>
 
     <p id="error-msg" role="alert"></p>
 
-    <div id="actions">
-      <button type="button" id="cancel-btn">Cancel</button>
-      <button type="submit" id="save-btn">Save settings</button>
-    </div>
+    <button type="submit" id="save-btn">Save settings</button>
   </form>
   <script src="settings.js"></script>
 </body>

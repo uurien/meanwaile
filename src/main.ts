@@ -419,12 +419,12 @@ function showSettingsWindow(): void {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 380,
-    height: 560,
+    width: 400,
+    height: 600,
     resizable: false,
     minimizable: false,
     maximizable: false,
-    title: 'Meanwaile — Settings',
+    title: 'Meanwaile',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
