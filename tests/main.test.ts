@@ -1709,16 +1709,28 @@ describe('agent activity orchestration (T06)', () => {
     await saveSettings();
   });
 
-  it('routes a normal tray open to Games and a notification click to Agents', () => {
+  it('a normal tray open does not force a tab and a notification click routes to Agents', () => {
     mocks.win.isVisible.mockReturnValue(false);
     mocks.win.webContents.send.mockClear();
 
+    // A plain reopen must resume whatever the popover already had selected —
+    // it must not steer the renderer to any particular tab.
     triggerTray('click');
-    expect(viewCalls().at(-1)![1]).toBe('games');
+    expect(viewCalls()).toHaveLength(0);
 
-    mocks.win.webContents.send.mockClear();
     mocks.ipcMain.handlers['open-popover']?.({}, 'agents');
     expect(viewCalls().at(-1)![1]).toBe('agents');
+  });
+
+  it('reopening after the popover was left on Agents stays on Agents, not Games', async () => {
+    mocks.win.isVisible.mockReturnValue(false);
+    mocks.ipcMain.handlers['open-popover']?.({}, 'agents');
+    mocks.win.webContents.send.mockClear();
+
+    triggerTray('click');
+
+    expect(viewCalls()).toHaveLength(0);
+    expect(await mocks.ipcMain.handlers['popover-view-get']?.()).toBe('agents');
   });
 
   it('reports the pending popover view over popover-view-get IPC', async () => {

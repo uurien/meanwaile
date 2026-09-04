@@ -217,11 +217,11 @@ function topRightPosition(winBounds: { width: number; height: number }): { x: nu
   };
 }
 
-function showPopover(view: PopoverView = 'games'): void {
+function showPopover(view?: PopoverView): void {
   /* v8 ignore next */
   if (!tray) return;
 
-  pendingPopoverView = view;
+  if (view) pendingPopoverView = view;
 
   if (!popover || popover.isDestroyed()) {
     popover = createPopover();
@@ -250,9 +250,12 @@ function showPopover(view: PopoverView = 'games'): void {
   popover.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   popover.show();
   popover.focus();
-  // Tell the renderer which tab to select. A game already in progress takes
-  // precedence over this default — that decision lives in the popover.
-  popover.webContents.send('popover-view', view);
+  // Only steer the renderer to a specific tab when one was explicitly
+  // requested (currently: a notification click, via the open-popover IPC). A
+  // plain reopen — tray click or auto-open — must resume whatever the
+  // popover already had on screen (Games, Agents, or a game in progress)
+  // instead of resetting it, since nothing hid or destroyed that state.
+  if (view) popover.webContents.send('popover-view', view);
   const openedPopover = popover;
   setTimeout(() => {
     if (openedPopover && !openedPopover.isDestroyed()) {
