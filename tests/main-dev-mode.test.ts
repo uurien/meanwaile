@@ -64,8 +64,17 @@ const mocks = vi.hoisted(() => {
     handlers: appHandlers,
   };
 
-  const server = { listen: vi.fn((_p: unknown, _h: unknown, cb?: () => void) => cb?.()), close: vi.fn() };
+  const server = {
+    listen: vi.fn((_p: unknown, _h: unknown, cb?: () => void) => cb?.()),
+    close: vi.fn(),
+    on: vi.fn(),
+  };
   const httpCreateServer = vi.fn(() => server);
+
+  const Notification = Object.assign(
+    vi.fn(() => ({ on: vi.fn(), show: vi.fn() })),
+    { isSupported: vi.fn(() => true) },
+  );
 
   const ipcMainHandlers: Record<string, (...a: unknown[]) => void> = {};
   const ipcMain = {
@@ -80,7 +89,15 @@ const mocks = vi.hoisted(() => {
 
   const powerMonitor = { getSystemIdleTime: vi.fn(() => 0) };
   const dialog = { showMessageBox: vi.fn(async () => ({ response: 1 })) };
-  const DEFAULT_SETTINGS = { httpPort: 3821, autoOpenDelaySeconds: 15 };
+  const DEFAULT_SETTINGS = {
+    httpPort: 3821,
+    autoOpenDelaySeconds: 15,
+    autoOpenGames: true,
+    notificationsEnabled: false,
+    notifyNeedsUser: true,
+    notifyFinished: true,
+    notificationSound: 'none',
+  };
 
   return {
     win,
@@ -90,6 +107,7 @@ const mocks = vi.hoisted(() => {
     powerMonitor,
     dialog,
     DEFAULT_SETTINGS,
+    Notification,
     BrowserWindow: vi.fn(() => win),
     Tray: vi.fn(() => tray),
     Menu: { buildFromTemplate: vi.fn(() => ({})) },
@@ -107,6 +125,7 @@ vi.mock('electron', () => ({
   ipcMain: mocks.ipcMain,
   powerMonitor: mocks.powerMonitor,
   dialog: mocks.dialog,
+  Notification: mocks.Notification,
 }));
 
 vi.mock('http', () => ({ createServer: mocks.httpCreateServer }));

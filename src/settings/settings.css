@@ -4,71 +4,329 @@
   padding: 0;
 }
 
+:root {
+  --bg: #17181a;
+  --card: #1f2123;
+  --card-border: rgba(255, 255, 255, 0.08);
+  --text: #f3f3f1;
+  --text-dim: rgba(255, 255, 255, 0.45);
+  --text-mid: rgba(255, 255, 255, 0.68);
+  --green: #4caf7d;
+  --amber: #e0b24c;
+  --danger: #e07070;
+}
+
 body {
-  background: #1e1e1e;
+  background: var(--bg);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #e0e0e0;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
 }
 
 #settings-form {
   display: flex;
   flex-direction: column;
+  gap: 22px;
+  padding: 22px 20px 20px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+  padding-left: 2px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.row__icon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-mid);
+}
+
+.row__icon--amber {
+  color: var(--amber);
+  border-color: rgba(224, 178, 76, 0.35);
+}
+
+.row > label,
+.row__label {
+  flex: 1 1 auto;
+  font-size: 14px;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  padding: 16px;
 }
 
-label {
-  font-size: 12px;
-  color: #aaa;
-  margin-top: 8px;
+.row__label label {
+  font-size: 14px;
 }
 
-input {
-  background: #2a2a2a;
-  color: #e0e0e0;
-  border: 1px solid #444;
+.row__control {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.unit,
+.dot-sep {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+/* ─── Toggle switch ──────────────────────────────────────────────────── */
+
+.toggle {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 24px;
+  appearance: none;
+  background: #3a3d40;
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f5f5f3;
+  transition: transform 0.15s;
+}
+
+.toggle:checked {
+  background: var(--green);
+}
+
+.toggle:checked::after {
+  transform: translateX(18px);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* ─── Nested checkboxes ──────────────────────────────────────────────── */
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 46px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-mid);
+  cursor: pointer;
+}
+
+.check input {
+  appearance: none;
+  width: 18px;
+  height: 18px;
   border-radius: 6px;
-  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  position: relative;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.check input:checked {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.check input:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid #10221a;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.check input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 0 -16px;
+}
+
+/* ─── Inputs & selects ──────────────────────────────────────────────── */
+
+input[type='number'] {
+  width: 70px;
+  background: #2a2d30;
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 7px 8px;
   font-size: 13px;
   font-family: inherit;
+  text-align: right;
 }
 
-input:focus {
+select {
+  background: #2a2d30;
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 7px 26px 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 8l3-3.5' fill='none' stroke='%23999' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+}
+
+input:focus,
+select:focus {
   outline: none;
-  border-color: #666;
+  border-color: var(--green);
 }
 
-#error-msg {
-  color: #e07070;
-  font-size: 12px;
-  min-height: 14px;
-  margin-top: 8px;
+input:disabled,
+select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-#actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 12px;
-}
+/* ─── Help tooltip ──────────────────────────────────────────────────── */
 
-button {
-  background: #2a2a2a;
-  color: #aaa;
-  border: 1px solid #444;
-  border-radius: 6px;
-  padding: 6px 14px;
-  font-size: 12px;
-  cursor: pointer;
+.help {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1;
+  cursor: help;
   font-family: inherit;
 }
 
-button:hover {
-  background: #333;
-  color: #ddd;
-  border-color: #666;
+.help:hover,
+.help:focus-visible {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.55);
+  outline: none;
+}
+
+.tooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 46px;
+  z-index: 10;
+  max-width: 280px;
+  padding: 9px 11px;
+  background: #2c2f31;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-mid);
+  pointer-events: none;
+}
+
+.tooltip[hidden] {
+  display: none;
+}
+
+/* ─── Server status ─────────────────────────────────────────────────── */
+
+.status {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.status[data-state='active'] {
+  color: var(--green);
+}
+
+.status[data-state='error'] {
+  color: var(--danger);
+}
+
+/* ─── Footer ────────────────────────────────────────────────────────── */
+
+#error-msg {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+#error-msg:empty {
+  display: none;
 }
 
 #save-btn {
-  color: #e0e0e0;
+  width: 100%;
+  background: var(--green);
+  color: #0f1f17;
+  border: none;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+#save-btn:hover {
+  background: #5bbf8c;
+}
+
+#save-btn:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
 }

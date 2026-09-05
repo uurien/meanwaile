@@ -4,13 +4,15 @@
 
 macOS menu-bar app that detects when your AI coding agent is working and you're idle — and opens a minigame in a small popup to fill the wait. When the agent needs you back, the game pauses and lets you decide.
 
-No notifications. No integrations. One trick, done well.
+Optionally, it can also show a quiet native notification when a principal agent needs your attention or finishes, and a live **Agents** view of what's currently working. Automatic games and notifications are two independent switches — turn on either, both, or neither.
+
+No account. No external integrations. No productivity surveillance.
 
 ---
 
 ## Status
 
-Working end to end: the hook server, agent adapters for Claude Code and Codex, state machine, first-run onboarding (login item + agent hooks), settings (HTTP port, idle threshold), and two minigames (circle-tap, Meanwaile Runner) are all in place. The popup opens automatically once an agent has been working and the system has been idle past the configured threshold, pauses when the agent needs input or finishes, and opens on demand any time via the tray icon.
+Working end to end: the hook server, agent adapters for Claude Code and Codex, per-execution tracking for concurrent agents, state machine, first-run onboarding (login item + agent hooks), settings, native notifications, the **Games** / **Agents** popup, and two minigames (circle-tap, Meanwaile Runner) are all in place. The popup opens automatically once an agent has been working and the system has been idle past the configured threshold, pauses when any principal agent needs input or finishes (even if another is still working), and opens on demand any time via the tray icon. `SubagentStop` is ignored throughout.
 
 ---
 
@@ -55,9 +57,27 @@ npm start
 
 `npm start` compiles TypeScript and launches Electron. An icon appears in your menu bar. The app hides from the Dock intentionally. Click the icon to open the popup.
 
+## The popup: Games and Agents
+
+The popup has two tabs. **Games** (left, shown by default) is the game hub. **Agents** (right) is a read-only view of current agent executions: how many are working, how many need you, and a short list of recently finished ones. It only ever shows the agent name and the project folder's basename — never full paths, prompts, transcripts, tool input, or assistant output. The recent-completions list is kept in memory only, capped at 20, and cleared when Meanwaile quits.
+
+The `···` menu in the popup header holds **Add game** and **Settings**.
+
 ## Settings
 
-Click the ⚙ icon inside the popup to open the settings window, where you can change the HTTP port the hook server listens on and the idle threshold before the popup auto-opens. If you change the port and already had hooks installed, Meanwaile asks whether to update the hook URL in `~/.claude/settings.json` for you.
+Open **Settings** from the `···` menu. It has three groups:
+
+- **Automation** — *Open games automatically* (on by default) and *Idle time*, the keyboard/mouse idle threshold before the popup may auto-open (default 15 s). Idle time is disabled, but preserved, when auto-open is off.
+- **Notifications** — the *Notifications* master switch (off by default), plus *When an agent needs attention*, *When an agent finishes*, and *Sound* (*No sound* by default). The per-event and sound controls are disabled, but preserved, when the master switch is off.
+- **Detection** — the *Port* the hook server listens on (default 3821), with a live status readout, and help tooltips on Idle time and Port.
+
+If you change the port and already had hooks installed, Meanwaile asks whether to update the hook URL in `~/.claude/settings.json` (and `~/.codex/hooks.json`) for you — it never rewrites those files silently.
+
+## Notifications
+
+Native notifications are opt-in and entirely local. Only two events can raise one: a principal agent needs your attention, or a principal agent finishes. They are silent by default, carry no prompt or transcript content, and are suppressed while the popup is already visible. Clicking one opens the **Agents** tab and highlights the relevant row — it never focuses or controls the terminal the agent runs in. `SubagentStop` never notifies.
+
+Platform notes: on macOS, packaged builds must be signed for the system to deliver notifications (the DMG releases are). `Notification` support and any OS-level permission prompt are the operating system's; Settings shows whether the local server is running, and the app degrades quietly if the OS reports no notification support.
 
 ## Configure Claude Code hooks
 

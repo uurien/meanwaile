@@ -1,4 +1,4 @@
-import { app, Tray, BrowserWindow, Menu, nativeImage, ipcMain, powerMonitor, dialog, screen } from 'electron';
+import { app, Tray, BrowserWindow, Menu, nativeImage, ipcMain, powerMonitor, dialog, screen, Notification } from 'electron';
 import started from 'electron-squirrel-startup';
 import * as http from 'http';
 import * as os from 'os';
@@ -7,6 +7,8 @@ import { ClaudeCodeAdapter } from './adapters/claude-code';
 import { CodexAdapter } from './adapters/codex';
 import { AgentEvent } from './adapters/types';
 import { StateMachine } from './state-machine';
+import { ExecutionTracker, ExecutionCounts } from './execution-tracker';
+import { NotificationService, NotificationPlatform } from './notification-service';
 import {
   hasOnboarded,
   markOnboarded,
@@ -72,13 +74,21 @@ interface GalleryGame extends CatalogGame {
   updateAvailable: boolean;
 }
 
+type PopoverView = 'games' | 'agents';
+type ServerStatus = 'starting' | 'active' | 'error';
+
 let tray: Tray | null = null;
+let trayContextMenu: Menu | null = null;
 let popover: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 let galleryWindow: BrowserWindow | null = null;
 let httpServer: http.Server | null = null;
+let serverStatus: ServerStatus = 'starting';
 let autoOpenTimer: ReturnType<typeof setTimeout> | null = null;
 let autoOpenSuppressed = false;
+// Which view the popover should land on the next time it is shown. Normal
+// tray/auto-open flows want Games; a native-notification click wants Agents.
+let pendingPopoverView: PopoverView = 'games';
 // The tray bounds and work area the last showPopover() call positioned
 // against. Only read by the E2E position test (see e2e-hooks.ts) - it has to
 // assert against the exact inputs used, not a fresh tray.getBounds() reading.
@@ -88,6 +98,28 @@ let currentSettings: AppSettings = { ...DEFAULT_SETTINGS };
 const adapter = new ClaudeCodeAdapter();
 const codexAdapter = new CodexAdapter();
 const machine = new StateMachine();
+const tracker = new ExecutionTracker();
+
+// Thin facade over Electron's Notification so NotificationService stays free
+// of Electron imports and fully unit-testable.
+const notificationPlatform: NotificationPlatform = {
+  isSupported: () => Notification.isSupported(),
+  create: (options) => {
+    const native = new Notification(options);
+    return {
+      on: (eventName, handler) => native.on(eventName, handler),
+      show: () => native.show(),
+    };
+  },
+};
+
+const notificationService = new NotificationService({
+  platform: notificationPlatform,
+  isPopoverVisible: () => Boolean(popover && !popover.isDestroyed() && popover.isVisible()),
+  // A notification click only ever opens our own Agents view; it never
+  // focuses or controls the terminal the originating agent runs in.
+  openAgents: () => showPopover('agents'),
+});
 
 function dismissPopover(): void {
   if (machine.snapshot().state !== 'idle') autoOpenSuppressed = true;
@@ -185,9 +217,11 @@ function topRightPosition(winBounds: { width: number; height: number }): { x: nu
   };
 }
 
-function showPopover(): void {
+function showPopover(view?: PopoverView): void {
   /* v8 ignore next */
   if (!tray) return;
+
+  if (view) pendingPopoverView = view;
 
   if (!popover || popover.isDestroyed()) {
     popover = createPopover();
@@ -216,6 +250,12 @@ function showPopover(): void {
   popover.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   popover.show();
   popover.focus();
+  // Only steer the renderer to a specific tab when one was explicitly
+  // requested (currently: a notification click, via the open-popover IPC). A
+  // plain reopen — tray click or auto-open — must resume whatever the
+  // popover already had on screen (Games, Agents, or a game in progress)
+  // instead of resetting it, since nothing hid or destroyed that state.
+  if (view) popover.webContents.send('popover-view', view);
   const openedPopover = popover;
   setTimeout(() => {
     if (openedPopover && !openedPopover.isDestroyed()) {
@@ -238,9 +278,28 @@ function togglePopover(): void {
 // input, which also covers window/Space switches since those require input),
 // surface the popover automatically.
 function maybeAutoOpenPopover(): void {
+  if (!currentSettings.autoOpenGames) return;
   if (popover && !popover.isDestroyed() && popover.isVisible()) return;
   if (powerMonitor.getSystemIdleTime() * 1000 >= currentSettings.autoOpenDelaySeconds * 1000) {
     showPopover();
+  }
+}
+
+// Reflects the live working / needs-attention counters in the tray tooltip.
+// AppIndicator/StatusNotifierItem trays on Linux only surface a menu
+// registered up front via setContextMenu(), so re-register it after the
+// tooltip changes there (a no-op elsewhere — see AGENTS.md / tray-platform).
+function refreshTray(counts: ExecutionCounts): void {
+  /* v8 ignore next */
+  if (!tray) return;
+
+  const parts: string[] = [];
+  if (counts.working > 0) parts.push(`${counts.working} working`);
+  if (counts.needsUser > 0) parts.push(`${counts.needsUser} needs you`);
+  tray.setToolTip(parts.length > 0 ? `Meanwaile — ${parts.join(', ')}` : 'Meanwaile');
+
+  if (trayContextMenu && shouldPersistContextMenu(process.platform)) {
+    tray.setContextMenu(trayContextMenu);
   }
 }
 
@@ -265,6 +324,7 @@ function codexConfigTomlPath(): string {
 }
 
 function startHttpServer(port: number): void {
+  serverStatus = 'starting';
   httpServer = http.createServer((req, res) => {
     const targetAdapter = req.url === '/hook' ? adapter : req.url === '/hook/codex' ? codexAdapter : null;
     if (req.method !== 'POST' || !targetAdapter) {
@@ -288,7 +348,15 @@ function startHttpServer(port: number): void {
     });
   });
 
+  // A failed bind (port already in use, permission denied) must not leave the
+  // Settings screen claiming the server is "Active".
+  httpServer.on('error', (err) => {
+    serverStatus = 'error';
+    console.error('[meanwaile] HTTP server error:', err);
+  });
+
   httpServer.listen(port, '127.0.0.1', () => {
+    serverStatus = 'active';
     console.log(`[meanwaile] HTTP server listening on http://127.0.0.1:${port}/hook (and /hook/codex)`);
   });
 }
@@ -354,12 +422,12 @@ function showSettingsWindow(): void {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 300,
-    height: 260,
+    width: 400,
+    height: 600,
     resizable: false,
     minimizable: false,
     maximizable: false,
-    title: 'Meanwaile — Settings',
+    title: 'Meanwaile',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -587,6 +655,7 @@ app.on('ready', async () => {
     { type: 'separator' },
     { label: 'Exit', click: () => app.quit() },
   ]);
+  trayContextMenu = contextMenu;
   tray.on('click', togglePopover);
   tray.on('right-click', () => tray!.popUpContextMenu(contextMenu));
   // AppIndicator/StatusNotifierItem trays (GNOME/Ubuntu and most Linux
@@ -606,6 +675,11 @@ app.on('ready', async () => {
   ipcMain.on('popover-close', dismissPopover);
   ipcMain.on('open-settings', () => { showSettingsWindow(); });
   ipcMain.on('open-gallery', () => { showGalleryWindow(); });
+  ipcMain.on('open-popover', (_event, view) => { showPopover(view === 'agents' ? 'agents' : 'games'); });
+  ipcMain.handle('activity-get', () => tracker.snapshot());
+  ipcMain.handle('popover-view-get', () => pendingPopoverView);
+  ipcMain.handle('notifications-status', () => ({ supported: Notification.isSupported() }));
+  ipcMain.handle('server-status', () => serverStatus);
   ipcMain.handle('games-list', () => listGames(path.join(__dirname, '..'), app.getPath('userData')));
   ipcMain.handle('gallery-list', async () => {
     const rootDir = path.join(__dirname, '..');
@@ -671,6 +745,29 @@ app.on('ready', async () => {
     machine.handle(event);
     const nextState = machine.snapshot().state;
 
+    // The per-execution projection runs on every event the adapter surfaces
+    // (SubagentStop is already dropped by the adapters, so it never reaches
+    // here). Its snapshot is pushed even when the aggregate state is
+    // unchanged - one of two agents finishing does not move the machine.
+    const trackerResult = tracker.handle(event);
+    popover?.webContents.send('activity-change', trackerResult.snapshot);
+    refreshTray(trackerResult.snapshot.counts);
+
+    // A significant needs_user / finished transition for any principal agent
+    // interrupts the game and may raise a native notification, independent of
+    // whether the aggregate state changed.
+    if (
+      trackerResult.isSignificant &&
+      (trackerResult.transition === 'needs_user' || trackerResult.transition === 'finished')
+    ) {
+      popover?.webContents.send('agent-interruption', {
+        transition: trackerResult.transition,
+        execution: trackerResult.execution,
+        counts: trackerResult.snapshot.counts,
+      });
+      notificationService.handle(trackerResult, currentSettings);
+    }
+
     if (nextState !== 'agent_working') {
       clearAutoOpenTimer();
       if (nextState === 'idle') autoOpenSuppressed = false;
@@ -688,7 +785,10 @@ app.on('ready', async () => {
     const startsOfferWindow =
       event.type === 'prompt_submitted' ||
       (event.type === 'work_resumed' && previousState === 'needs_user');
-    if (!autoOpenSuppressed && startsOfferWindow) {
+    // Automatic game opening and native notifications are independent
+    // switches: with autoOpenGames off, the idle timer is never armed, but
+    // manual opens and the live Agents view keep working.
+    if (!autoOpenSuppressed && startsOfferWindow && currentSettings.autoOpenGames) {
       armAutoOpenTimer();
     }
   };

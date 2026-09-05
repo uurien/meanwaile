@@ -3,7 +3,7 @@ import { StateMachine } from '../src/state-machine';
 import { AgentEvent } from '../src/adapters/types';
 
 function event(type: AgentEvent['type'], extra: Partial<AgentEvent> = {}): AgentEvent {
-  return { type, timestamp: 0, ...extra };
+  return { type, adapterId: 'test-adapter', timestamp: 0, ...extra };
 }
 
 describe('StateMachine', () => {
@@ -77,6 +77,16 @@ describe('StateMachine', () => {
   });
 
   describe('multiple concurrent agents', () => {
+    it('keeps sessions with the same sessionId isolated by adapter', () => {
+      const m = new StateMachine();
+      m.handle(event('prompt_submitted', { adapterId: 'claude-code', sessionId: 'shared' }));
+      m.handle(event('prompt_submitted', { adapterId: 'codex', sessionId: 'shared' }));
+
+      m.handle(event('task_finished', { adapterId: 'claude-code', sessionId: 'shared' }));
+
+      expect(m.snapshot().state).toBe('agent_working');
+    });
+
     it('does not pause when one of several agents finishes while another is still working', () => {
       const m = new StateMachine();
       m.handle(event('prompt_submitted', { sessionId: 'agent-a' }));

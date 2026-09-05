@@ -15,10 +15,18 @@ describe('ClaudeCodeAdapter.parseHookPayload', () => {
   });
 
   it('Notification permission_prompt → needs_user', () => {
-    const e = parse({ hook_event_name: 'Notification', notification_type: 'permission_prompt', session_id: 's1' });
+    const e = parse({
+      hook_event_name: 'Notification',
+      notification_type: 'permission_prompt',
+      session_id: 's1',
+      cwd: '/Users/alice/projects/website/',
+    });
     expect(e?.type).toBe('needs_user');
     expect(e?.sessionId).toBe('s1');
     expect(e?.agentName).toBe('Claude');
+    expect(e?.adapterId).toBe('claude-code');
+    expect(e?.projectName).toBe('website');
+    expect(e).not.toHaveProperty('cwd');
   });
 
   it('Notification idle_prompt → needs_user', () => {
@@ -34,6 +42,17 @@ describe('ClaudeCodeAdapter.parseHookPayload', () => {
     const e = parse({ hook_event_name: 'Stop', session_id: 'x' });
     expect(e?.type).toBe('task_finished');
     expect(e?.agentName).toBe('Claude');
+    expect(e?.adapterId).toBe('claude-code');
+    expect(e?.projectName).toBeUndefined();
+  });
+
+  it.each([undefined, null, 42, {}, '   ', '/'])('does not expose a project name for malformed cwd %j', (cwd) => {
+    expect(parse({ hook_event_name: 'Stop', cwd })?.projectName).toBeUndefined();
+  });
+
+  it('keeps a missing or malformed session_id undefined', () => {
+    expect(parse({ hook_event_name: 'Stop' })?.sessionId).toBeUndefined();
+    expect(parse({ hook_event_name: 'Stop', session_id: 42 })?.sessionId).toBeUndefined();
   });
 
   it('SubagentStop does not finish the parent session', () => {

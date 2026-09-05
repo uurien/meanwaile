@@ -13,7 +13,7 @@ Node.js 24+ is required (see `.nvmrc`).
 
 ## Tests
 
-Write tests however you like — before, after, alongside, doesn't matter. What matters is that CI enforces **100% coverage** (statements, branches, functions, lines — see `vitest.config.ts`). A PR that drops coverage won't pass.
+Use test-driven development: write or extend a test first, confirm it fails for the expected reason, then add the minimum implementation that makes it pass. CI also enforces **100% coverage** (statements, branches, functions, lines — see `vitest.config.ts`). A PR that drops coverage won't pass.
 
 ```bash
 npm test -- --coverage
@@ -50,11 +50,11 @@ TypeScript strict mode is on. No `any` without a comment explaining why it's una
 
 Meanwaile has a deliberately narrow product philosophy. PRs that work but go against it will be asked to change scope:
 
-- **No notifications, ever.** The app never nags or interrupts. No toast, no badge, no sound.
+- **Notifications stay quiet and local.** Only agent attention and completion events may produce native notifications. They must be user-configurable, use no prompt or transcript content, default to no sound, and be suppressed while the popup is already visible.
 - **No agent lock-in.** Nothing agent-specific outside `src/adapters/`.
 - **Wait detection is conservative by design.** A false positive (game opens while the user is still reading output) is the failure mode we protect against. Don't make triggering more aggressive to fix a missed case — tune the idle threshold instead.
 - **Games stay mild.** No deep progression, no streaks, no dailies. Rounds of 30–90s. The game should never make anyone wish their agent were slower.
-- **Agent events always win.** If `onNeedsUser` or `onTaskFinished` fires mid-game, the game pauses immediately — continuing to play is always a deliberate choice, never the default.
+- **Principal-agent events always win.** If `onNeedsUser` or `onTaskFinished` fires for a principal agent mid-game, the game pauses immediately, even when another agent is still working. `SubagentStop` is ignored. Continuing to play is always a deliberate choice, never the default.
 
 ## Scope
 
@@ -62,4 +62,4 @@ macOS, Windows, and Ubuntu (Linux) are officially supported. On Ubuntu under Way
 
 ## Reporting bugs / proposing features
 
-Open an issue. For bugs, include: OS and version (e.g. macOS 14, Windows 11, Ubuntu 24.04), Meanwaile version, which coding agent/adapter you were using, and steps to reproduce. For features, explain the use case before jumping to implementation — see the product constraints above first, since a lot of "obvious" features (notifications, integrations, deeper game progression) are intentionally out of scope.
+Open an issue. For bugs, include: OS and version (e.g. macOS 14, Windows 11, Ubuntu 24.04), Meanwaile version, which coding agent/adapter you were using, and steps to reproduce. For features, explain the use case before jumping to implementation — see the product constraints above first, since external integrations, productivity surveillance, and deeper game progression are intentionally out of scope.

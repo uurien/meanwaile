@@ -34,4 +34,28 @@ contextBridge.exposeInMainWorld('meanwaile', {
   onGamesChanged(cb: () => void): void {
     ipcRenderer.on('games-changed', () => cb());
   },
+  getActivity(): Promise<unknown> {
+    return ipcRenderer.invoke('activity-get');
+  },
+  onActivityChange(cb: (snapshot: unknown) => void): void {
+    ipcRenderer.on('activity-change', (_event, snapshot) => cb(snapshot));
+  },
+  onAgentInterruption(cb: (payload: unknown) => void): void {
+    ipcRenderer.on('agent-interruption', (_event, payload) => cb(payload));
+  },
+  openPopover(view: 'games' | 'agents'): void {
+    ipcRenderer.send('open-popover', view);
+  },
+  onPopoverView(cb: (view: unknown) => void): void {
+    ipcRenderer.on('popover-view', (_event, view) => cb(view));
+  },
+  getPopoverView(): Promise<unknown> {
+    return ipcRenderer.invoke('popover-view-get');
+  },
+  getNotificationStatus(): Promise<unknown> {
+    return ipcRenderer.invoke('notifications-status');
+  },
+  getServerStatus(): Promise<unknown> {
+    return ipcRenderer.invoke('server-status');
+  },
 });
