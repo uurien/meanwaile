@@ -373,6 +373,7 @@ describe('silent stale-agent discard', () => {
       state: 'idle',
       sessionId: null,
       agentName: null,
+      silent: true,
     });
 
     vi.useRealTimers();

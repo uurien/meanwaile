@@ -6,6 +6,7 @@ export interface StateSnapshot {
   state: AppState;
   sessionId: string | null;
   agentName: string | null;
+  silent?: boolean;
 }
 
 export type StateChangeHandler = (snapshot: StateSnapshot) => void;
@@ -64,7 +65,7 @@ export class StateMachine {
     )[0];
     this.sessionId = latest?.sessionId ?? null;
     this.agentName = latest?.agentName ?? null;
-    this.transition(this.aggregateState());
+    this.transition(this.aggregateState(), true);
     return true;
   }
 
@@ -89,10 +90,11 @@ export class StateMachine {
     return 'agent_working';
   }
 
-  private transition(next: AppState): void {
+  private transition(next: AppState, silent = false): void {
     if (this.state === next) return;
     this.state = next;
-    this.onChange?.(this.snapshot());
+    const snapshot = this.snapshot();
+    this.onChange?.(silent ? { ...snapshot, silent: true } : snapshot);
   }
 
   snapshot(): StateSnapshot {

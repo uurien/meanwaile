@@ -404,6 +404,23 @@ describe('inside a game: agent-driven pause/resume', () => {
       expect(iframePostMessage).toHaveBeenCalledWith({ type: 'game:pause' }, '*');
     });
 
+    it('a silent stale discard updates state without pausing or showing the overlay', () => {
+      triggerStateChange({ state: 'agent_working', sessionId: 'stale' });
+      overlay.style.display = 'none';
+      iframePostMessage.mockClear();
+
+      triggerStateChange({ state: 'idle', sessionId: null, agentName: null, silent: true });
+
+      expect(overlay.style.display).toBe('none');
+      expect(iframePostMessage).not.toHaveBeenCalledWith({ type: 'game:pause' }, '*');
+
+      // Receiving the same state normally afterwards remains a no-op, which
+      // proves the silent update still synchronized the renderer's state.
+      triggerStateChange({ state: 'idle', sessionId: null, agentName: null });
+      expect(overlay.style.display).toBe('none');
+      expect(iframePostMessage).not.toHaveBeenCalledWith({ type: 'game:pause' }, '*');
+    });
+
     it('does nothing when the same state is received twice', () => {
       triggerStateChange({ state: 'needs_user' });
       iframePostMessage.mockClear();

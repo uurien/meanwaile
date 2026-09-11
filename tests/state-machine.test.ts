@@ -34,7 +34,12 @@ describe('StateMachine', () => {
     const discarded = m.discard(event('work_resumed', { sessionId: 'stale' }));
 
     expect(discarded).toBe(true);
-    expect(onChange).toHaveBeenCalledWith({ state: 'idle', sessionId: null, agentName: null });
+    expect(onChange).toHaveBeenCalledWith({
+      state: 'idle',
+      sessionId: null,
+      agentName: null,
+      silent: true,
+    });
     expect(m.snapshot()).toEqual({ state: 'idle', sessionId: null, agentName: null });
   });
 
