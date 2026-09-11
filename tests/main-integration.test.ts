@@ -353,6 +353,33 @@ describe('idempotency and subagents', () => {
   });
 });
 
+describe('silent stale-agent discard', () => {
+  it('removes an agent after one minute without hooks and does not finish, interrupt or notify', async () => {
+    vi.useFakeTimers();
+    await setSettings({ autoOpenGames: false, notificationsEnabled: true });
+    const recentBefore = (await ipc('activity-get')).recent.length;
+
+    postHook({ hook_event_name: 'UserPromptSubmit', session_id: 'goes-stale' });
+    mocks.win.webContents.send.mockClear();
+    mocks.Notification.mockClear();
+    vi.advanceTimersByTime(60_000);
+
+    expect(lastActivity()!.counts).toMatchObject({ active: 0, working: 0, needsUser: 0 });
+    expect((await ipc('activity-get')).recent).toHaveLength(recentBefore);
+    expect(interruptions()).toHaveLength(0);
+    expect(mocks.Notification).not.toHaveBeenCalled();
+    expect(mocks.tray.setToolTip.mock.calls.at(-1)![0]).toBe('Meanwaile');
+    expect(sends('state-change').at(-1)).toEqual({
+      state: 'idle',
+      sessionId: null,
+      agentName: null,
+    });
+
+    vi.useRealTimers();
+    await setSettings({});
+  });
+});
+
 describe('settings acceptance matrix', () => {
   it.each([
     { autoOpenGames: true, notificationsEnabled: false, timerArms: true, notifies: false },

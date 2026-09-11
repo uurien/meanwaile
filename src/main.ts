@@ -31,6 +31,7 @@ import { installGame, uninstallGame, readInstalledGames } from './game-installer
 import { fetchCatalog, CatalogGame } from './games-gallery';
 import { trayIconFileName, shouldPersistContextMenu } from './tray-platform';
 import { installE2ETestHooks, PopoverPlacement } from './e2e-hooks';
+import { AgentLivenessMonitor } from './agent-liveness-monitor';
 
 // Squirrel.Windows relaunches the app with --squirrel-install/-updated/
 // -uninstall/-obsolete during install/update/uninstall so it can create or
@@ -99,6 +100,21 @@ const adapter = new ClaudeCodeAdapter();
 const codexAdapter = new CodexAdapter();
 const machine = new StateMachine();
 const tracker = new ExecutionTracker();
+// A missing terminal hook must not leave a phantom execution behind. This
+// path deliberately bypasses completion/interruption handling: expiry is a
+// local bookkeeping correction, not evidence that an agent finished.
+const livenessMonitor = new AgentLivenessMonitor((event) => {
+  const trackerResult = tracker.discard(event);
+  machine.discard(event);
+  popover?.webContents.send('activity-change', trackerResult.snapshot);
+  refreshTray(trackerResult.snapshot.counts);
+
+  const state = machine.snapshot().state;
+  if (state !== 'agent_working') {
+    clearAutoOpenTimer();
+    if (state === 'idle') autoOpenSuppressed = false;
+  }
+});
 
 // Thin facade over Electron's Notification so NotificationService stays free
 // of Electron imports and fully unit-testable.
@@ -270,6 +286,20 @@ function togglePopover(): void {
     return;
   }
   showPopover();
+}
+
+function clearAutoOpenTimer(): void {
+  if (!autoOpenTimer) return;
+  clearTimeout(autoOpenTimer);
+  autoOpenTimer = null;
+}
+
+function armAutoOpenTimer(): void {
+  clearAutoOpenTimer();
+  // setTimeout and the OS HID-idle clock do not share an origin. The small
+  // buffer avoids reading a fraction of a second short without widening
+  // the false-positive window after a fast app switch.
+  autoOpenTimer = setTimeout(maybeAutoOpenPopover, currentSettings.autoOpenDelaySeconds * 1000 + 500);
 }
 
 // Called autoOpenDelaySeconds after the agent starts working. If nothing has
@@ -726,18 +756,6 @@ app.on('ready', async () => {
     return result;
   });
 
-  const clearAutoOpenTimer = (): void => {
-    if (!autoOpenTimer) return;
-    clearTimeout(autoOpenTimer);
-    autoOpenTimer = null;
-  };
-  const armAutoOpenTimer = (): void => {
-    clearAutoOpenTimer();
-    // setTimeout and the OS HID-idle clock do not share an origin. The small
-    // buffer avoids reading a fraction of a second short without widening
-    // the false-positive window after a fast app switch.
-    autoOpenTimer = setTimeout(maybeAutoOpenPopover, currentSettings.autoOpenDelaySeconds * 1000 + 500);
-  };
   const handleAgentEvent = (event: AgentEvent): void => {
     const previousState = machine.snapshot().state;
     if (event.type === 'prompt_submitted') autoOpenSuppressed = false;
@@ -750,6 +768,7 @@ app.on('ready', async () => {
     // here). Its snapshot is pushed even when the aggregate state is
     // unchanged - one of two agents finishing does not move the machine.
     const trackerResult = tracker.handle(event);
+    livenessMonitor.observe(event);
     popover?.webContents.send('activity-change', trackerResult.snapshot);
     refreshTray(trackerResult.snapshot.counts);
 
@@ -807,5 +826,6 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  livenessMonitor.stop();
   stopHttpServer();
 });

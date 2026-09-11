@@ -25,6 +25,38 @@ describe('StateMachine', () => {
     expect(m.snapshot().state).toBe('idle');
   });
 
+  it('silently discards a stale session and clears its display identity', () => {
+    const m = new StateMachine();
+    const onChange = vi.fn();
+    m.handle(event('prompt_submitted', { sessionId: 'stale', agentName: 'Claude' }));
+    m.onStateChange(onChange);
+
+    const discarded = m.discard(event('work_resumed', { sessionId: 'stale' }));
+
+    expect(discarded).toBe(true);
+    expect(onChange).toHaveBeenCalledWith({ state: 'idle', sessionId: null, agentName: null });
+    expect(m.snapshot()).toEqual({ state: 'idle', sessionId: null, agentName: null });
+  });
+
+  it('discarding one stale session keeps another active session working', () => {
+    const m = new StateMachine();
+    m.handle(event('prompt_submitted', { sessionId: 'stale' }));
+    m.handle(event('prompt_submitted', { sessionId: 'live' }));
+    const onChange = vi.fn();
+    m.onStateChange(onChange);
+
+    expect(m.discard(event('work_resumed', { sessionId: 'stale' }))).toBe(true);
+    expect(m.snapshot().state).toBe('agent_working');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('reports a no-op when the stale session is no longer tracked', () => {
+    const m = new StateMachine();
+
+    expect(m.discard(event('work_resumed', { sessionId: 'missing' }))).toBe(false);
+    expect(m.snapshot().state).toBe('idle');
+  });
+
   it('needs_user → needs_user', () => {
     const m = new StateMachine();
     m.handle(event('prompt_submitted'));
