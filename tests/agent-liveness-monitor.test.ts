@@ -15,12 +15,13 @@ describe('AgentLivenessMonitor', () => {
     vi.useRealTimers();
   });
 
-  it('discards an agent after one minute without another hook', () => {
+  it('discards an agent after ten minutes without another hook', () => {
     vi.useFakeTimers();
     const onStale = vi.fn();
     const monitor = new AgentLivenessMonitor(onStale);
     const started = event('prompt_submitted', 'stale');
 
+    expect(AGENT_SILENCE_TIMEOUT_MS).toBe(10 * 60 * 1000);
     monitor.observe(started);
     vi.advanceTimersByTime(AGENT_SILENCE_TIMEOUT_MS - 1);
     expect(onStale).not.toHaveBeenCalled();
@@ -30,19 +31,19 @@ describe('AgentLivenessMonitor', () => {
     expect(onStale).toHaveBeenCalledWith(started);
   });
 
-  it('restarts the minute when another hook arrives for the same agent', () => {
+  it('restarts the ten-minute window when another hook arrives for the same agent', () => {
     vi.useFakeTimers();
     const onStale = vi.fn();
     const monitor = new AgentLivenessMonitor(onStale);
 
     monitor.observe(event('prompt_submitted', 'active'));
-    vi.advanceTimersByTime(45_000);
+    vi.advanceTimersByTime(9 * 60 * 1000);
     const latest = event('work_resumed', 'active');
     monitor.observe(latest);
-    vi.advanceTimersByTime(15_000);
+    vi.advanceTimersByTime(60_000);
     expect(onStale).not.toHaveBeenCalled();
 
-    vi.advanceTimersByTime(45_000);
+    vi.advanceTimersByTime(9 * 60 * 1000);
     expect(onStale).toHaveBeenCalledWith(latest);
   });
 
@@ -52,9 +53,9 @@ describe('AgentLivenessMonitor', () => {
     const monitor = new AgentLivenessMonitor(onStale);
 
     monitor.observe(event('prompt_submitted', 'shared', 'claude-code'));
-    vi.advanceTimersByTime(30_000);
+    vi.advanceTimersByTime(AGENT_SILENCE_TIMEOUT_MS / 2);
     monitor.observe(event('work_resumed', 'shared', 'codex'));
-    vi.advanceTimersByTime(30_000);
+    vi.advanceTimersByTime(AGENT_SILENCE_TIMEOUT_MS / 2);
 
     expect(onStale).toHaveBeenCalledOnce();
     expect(onStale.mock.calls[0][0].adapterId).toBe('claude-code');

@@ -1,6 +1,6 @@
 import { AgentEvent, agentEventKey } from './adapters/types';
 
-export const AGENT_SILENCE_TIMEOUT_MS = 60_000;
+export const AGENT_SILENCE_TIMEOUT_MS = 10 * 60 * 1000;
 
 export type StaleAgentHandler = (event: AgentEvent) => void;
 

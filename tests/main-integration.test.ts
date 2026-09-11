@@ -354,7 +354,7 @@ describe('idempotency and subagents', () => {
 });
 
 describe('silent stale-agent discard', () => {
-  it('removes an agent after one minute without hooks and does not finish, interrupt or notify', async () => {
+  it('removes an agent after ten minutes without hooks and does not finish, interrupt or notify', async () => {
     vi.useFakeTimers();
     await setSettings({ autoOpenGames: false, notificationsEnabled: true });
     const recentBefore = (await ipc('activity-get')).recent.length;
@@ -362,7 +362,12 @@ describe('silent stale-agent discard', () => {
     postHook({ hook_event_name: 'UserPromptSubmit', session_id: 'goes-stale' });
     mocks.win.webContents.send.mockClear();
     mocks.Notification.mockClear();
-    vi.advanceTimersByTime(60_000);
+    vi.advanceTimersByTime(10 * 60 * 1000 - 1);
+
+    expect((await ipc('activity-get')).counts.active).toBe(1);
+    expect(lastActivity()).toBeUndefined();
+
+    vi.advanceTimersByTime(1);
 
     expect(lastActivity()!.counts).toMatchObject({ active: 0, working: 0, needsUser: 0 });
     expect((await ipc('activity-get')).recent).toHaveLength(recentBefore);

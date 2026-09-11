@@ -59,7 +59,7 @@ npm start
 
 ## The popup: Games and Agents
 
-The popup has two tabs. **Games** (left, shown by default) is the game hub. **Agents** (right) is a read-only view of current agent executions: how many are working, how many need you, and a short list of recently finished ones. It only ever shows the agent name and the project folder's basename — never full paths, prompts, transcripts, tool input, or assistant output. If an active execution produces no hook for 60 seconds, Meanwaile silently discards it instead of treating it as finished or notifying you. The recent-completions list is kept in memory only, capped at 20, and cleared when Meanwaile quits.
+The popup has two tabs. **Games** (left, shown by default) is the game hub. **Agents** (right) is a read-only view of current agent executions: how many are working, how many need you, and a short list of recently finished ones. It only ever shows the agent name and the project folder's basename — never full paths, prompts, transcripts, tool input, or assistant output. If an active execution produces no hook for 10 minutes, Meanwaile silently discards it instead of treating it as finished or notifying you. The recent-completions list is kept in memory only, capped at 20, and cleared when Meanwaile quits.
 
 The `···` menu in the popup header holds **Add game** and **Settings**.
 
