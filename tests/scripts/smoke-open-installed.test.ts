@@ -163,4 +163,23 @@ describe('smokeOpen', () => {
       smokeOpen({ platform: 'linux', binPath: '/does/not/exist/meanwaile' }),
     ).rejects.toThrow(/not found/i);
   });
+
+  it('waits for the killed process to actually exit before cleaning up its user-data dir', async () => {
+    // Regression test for a Windows CI flake: cleanup used to fire right after
+    // kill() was called, racing the OS releasing file handles under
+    // userDataDir and intermittently failing with EPERM. A process that
+    // delays its exit past the SIGTERM handler proves smokeOpen now waits.
+    const stub = writeStubBinary(
+      "process.on('SIGTERM', () => setTimeout(() => process.exit(0), 300)); setInterval(() => {}, 1000);",
+    );
+    const start = Date.now();
+    const result = await smokeOpen({
+      platform: 'linux',
+      graceMs: 50,
+      binPath: process.execPath,
+      spawnArgs: [stub],
+    });
+    expect(result.ok).toBe(true);
+    expect(Date.now() - start).toBeGreaterThanOrEqual(300);
+  });
 });
