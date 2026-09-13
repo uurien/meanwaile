@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 
 // End-to-end wiring of main.ts: adapters → StateMachine + ExecutionTracker →
 // native notifications, game interruptions, tray counters and IPC. Runs in
@@ -227,6 +227,10 @@ beforeEach(() => {
   mocks.win.isVisible.mockReturnValue(false);
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('multi-agent activity projection', () => {
   it('keeps Claude and Codex on different projects as two distinct working executions', () => {
     postHook({ hook_event_name: 'UserPromptSubmit', session_id: 'c1', cwd: '/home/u/website' }, '/hook');
@@ -381,7 +385,6 @@ describe('silent stale-agent discard', () => {
       silent: true,
     });
 
-    vi.useRealTimers();
     await setSettings({});
   });
 });
@@ -409,7 +412,6 @@ describe('settings acceptance matrix', () => {
     postHook({ hook_event_name: 'Stop', session_id: sid });
     expect(mocks.Notification.mock.calls.length > 0).toBe(notifies);
 
-    vi.useRealTimers();
     await setSettings({});
   });
 });
@@ -451,7 +453,6 @@ describe('regressions preserved', () => {
     vi.advanceTimersByTime(16000);
     expect(mocks.win.show).not.toHaveBeenCalled();
 
-    vi.useRealTimers();
     postHook({ hook_event_name: 'Stop', session_id: 'suppress' });
   });
 });
