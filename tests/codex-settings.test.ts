@@ -11,7 +11,7 @@ import {
 } from '../src/codex-settings';
 
 const URL = 'http://localhost:3821/hook/codex';
-const MANAGED_EVENTS = ['UserPromptSubmit', 'Stop', 'SubagentStop', 'PreToolUse', 'PermissionRequest'];
+const MANAGED_EVENTS = ['UserPromptSubmit', 'Stop', 'SubagentStop', 'PreToolUse', 'PostToolUse', 'PermissionRequest'];
 
 function readHooks(hooksPath: string) {
   return JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
@@ -38,7 +38,7 @@ describe('installCodexHooks', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it('creates the file with exactly the 5 managed events when missing', () => {
+  it('creates the file with all six managed events when missing', () => {
     installCodexHooks(hooksPath, URL);
     const hooksFile = readHooks(hooksPath);
 
@@ -49,7 +49,6 @@ describe('installCodexHooks', () => {
         expect(hooksFile.hooks[event]).toEqual([entryFor(URL)]);
       }
     }
-    expect(hooksFile.hooks.PostToolUse).toBeUndefined();
   });
 
   it('creates the parent directory if missing', () => {
@@ -105,7 +104,7 @@ describe('installCodexHooks', () => {
     expect(hooksFile.hooks.Stop).toEqual([{ notHooks: true }, entryFor(URL)]);
   });
 
-  it('leaves pre-existing PostToolUse untouched — it is not a managed event', () => {
+  it('preserves a pre-existing PostToolUse entry when adding its own', () => {
     fs.writeFileSync(
       hooksPath,
       JSON.stringify({
@@ -118,7 +117,10 @@ describe('installCodexHooks', () => {
     installCodexHooks(hooksPath, URL);
     const hooksFile = readHooks(hooksPath);
 
-    expect(hooksFile.hooks.PostToolUse).toEqual([{ hooks: [{ type: 'command', command: 'legacy' }] }]);
+    expect(hooksFile.hooks.PostToolUse).toEqual([
+      { hooks: [{ type: 'command', command: 'legacy' }] },
+      entryFor(URL),
+    ]);
   });
 
   it('does not clobber a malformed hooks file — logs a warning and leaves it untouched', () => {

@@ -17,6 +17,7 @@ describe('CodexAdapter.parseHookPayload', () => {
   it('PermissionRequest → needs_user', () => {
     const e = parse({
       hook_event_name: 'PermissionRequest',
+      permission_mode: 'default',
       tool_name: 'exec',
       session_id: 's1',
       cwd: 'C:\\Users\\alice\\projects\\meanwaile',
@@ -84,8 +85,8 @@ describe('CodexAdapter.parseHookPayload', () => {
     expect(e?.sessionId).toBe('s1');
   });
 
-  it('PostToolUse → null', () => {
-    expect(parse({ hook_event_name: 'PostToolUse', tool_name: 'exec' })).toBeNull();
+  it('PostToolUse → work_resumed', () => {
+    expect(parse({ hook_event_name: 'PostToolUse', tool_name: 'exec' })?.type).toBe('work_resumed');
   });
 
   it('SessionStart → null', () => {
@@ -93,6 +94,38 @@ describe('CodexAdapter.parseHookPayload', () => {
   });
 
   describe('onEvent / emit', () => {
+    it('waits five seconds before emitting needs_user', () => {
+      vi.useFakeTimers();
+      const adapter = new CodexAdapter();
+      const handler = vi.fn();
+      adapter.onEvent(handler);
+
+      adapter.emit({ hook_event_name: 'PermissionRequest', session_id: 's1' });
+      vi.advanceTimersByTime(4_999);
+      expect(handler).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      expect(handler).toHaveBeenCalledOnce();
+      expect(handler).toHaveBeenCalledWith(expect.objectContaining({ type: 'needs_user', sessionId: 's1' }));
+      vi.useRealTimers();
+    });
+
+    it('cancels a pending needs_user when the same session resumes work', () => {
+      vi.useFakeTimers();
+      const adapter = new CodexAdapter();
+      const handler = vi.fn();
+      adapter.onEvent(handler);
+
+      adapter.emit({ hook_event_name: 'PermissionRequest', session_id: 's1' });
+      vi.advanceTimersByTime(4_999);
+      adapter.emit({ hook_event_name: 'PreToolUse', session_id: 's1' });
+      vi.advanceTimersByTime(1);
+
+      expect(handler).toHaveBeenCalledOnce();
+      expect(handler).toHaveBeenCalledWith(expect.objectContaining({ type: 'work_resumed', sessionId: 's1' }));
+      vi.useRealTimers();
+    });
+
     it('emit calls registered handler with parsed event', () => {
       const adapter = new CodexAdapter();
       const handler = vi.fn();

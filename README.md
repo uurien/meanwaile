@@ -117,6 +117,13 @@ behind this flag). Codex only executes `command`-type hooks (it has no `http`
 hook type like Claude Code), so each installed hook just shells out to `curl`
 and forwards its stdin payload to the daemon.
 
+Codex emits `PermissionRequest` before choosing whether the request goes to
+the user or to auto-review, and its current payload does not expose that
+routing decision. Meanwaile therefore holds this signal for five seconds. If
+Codex reports resumed work in that window, the pending alert is cancelled; if
+not, it becomes a normal needs-attention notification. See
+[openai/codex#28833](https://github.com/openai/codex/issues/28833).
+
 The `config.toml` edit is done with [`smol-toml`](https://www.npmjs.com/package/smol-toml)
 purely to *read* the file safely — the actual write is a targeted insertion
 of a single `hooks = true` line into your existing `[features]` table (or a
@@ -135,6 +142,7 @@ To install manually, merge this into `~/.codex/hooks.json`:
     "Stop":             [{"hooks": [{"type": "command", "command": "curl -s -X POST -H \"Content-Type: application/json\" -d @- http://localhost:3821/hook/codex", "timeout": 30}]}],
     "SubagentStop":     [{"hooks": [{"type": "command", "command": "curl -s -X POST -H \"Content-Type: application/json\" -d @- http://localhost:3821/hook/codex", "timeout": 30}]}],
     "PreToolUse":       [{"hooks": [{"type": "command", "command": "curl -s -X POST -H \"Content-Type: application/json\" -d @- http://localhost:3821/hook/codex", "timeout": 30}]}],
+    "PostToolUse":      [{"hooks": [{"type": "command", "command": "curl -s -X POST -H \"Content-Type: application/json\" -d @- http://localhost:3821/hook/codex", "timeout": 30}]}],
     "PermissionRequest": [{"matcher": "*", "hooks": [{"type": "command", "command": "curl -s -X POST -H \"Content-Type: application/json\" -d @- http://localhost:3821/hook/codex", "timeout": 30}]}]
   }
 }
@@ -173,8 +181,7 @@ curl -s -X POST http://localhost:3821/hook \
   -d '{"hook_event_name":"Stop","session_id":"test"}'
 ```
 
-The Codex adapter listens on `/hook/codex` instead, with the same
-`hook_event_name` field but `PermissionRequest` in place of `Notification`:
+The Codex adapter listens on `/hook/codex` instead:
 
 ```bash
 curl -s -X POST http://localhost:3821/hook/codex \

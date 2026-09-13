@@ -138,7 +138,10 @@ const notificationService = new NotificationService({
 });
 
 function dismissPopover(): void {
-  if (machine.snapshot().state !== 'idle') autoOpenSuppressed = true;
+  if (machine.snapshot().state !== 'idle') {
+    autoOpenSuppressed = true;
+    clearAutoOpenTimer();
+  }
   popover?.hide();
 }
 
