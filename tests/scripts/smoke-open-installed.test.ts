@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -164,22 +164,33 @@ describe('smokeOpen', () => {
     ).rejects.toThrow(/not found/i);
   });
 
-  it('waits for the killed process to actually exit before cleaning up its user-data dir', async () => {
-    // Regression test for a Windows CI flake: cleanup used to fire right after
-    // kill() was called, racing the OS releasing file handles under
-    // userDataDir and intermittently failing with EPERM. A process that
-    // delays its exit past the SIGTERM handler proves smokeOpen now waits.
-    const stub = writeStubBinary(
-      "process.on('SIGTERM', () => setTimeout(() => process.exit(0), 300)); setInterval(() => {}, 1000);",
-    );
-    const start = Date.now();
-    const result = await smokeOpen({
-      platform: 'linux',
-      graceMs: 50,
-      binPath: process.execPath,
-      spawnArgs: [stub],
-    });
-    expect(result.ok).toBe(true);
-    expect(Date.now() - start).toBeGreaterThanOrEqual(300);
+  it('cleans up the user-data dir with retries so a transient Windows file lock does not fail the job', async () => {
+    // Regression test for a Windows CI flake: killing the app doesn't mean
+    // its file handles under userDataDir are released instantly (helper
+    // processes like GPU/crashpad aren't reached by kill() either), so a bare
+    // rmSync intermittently failed with EPERM. Assert the retry options
+    // that guard against that are actually passed through, rather than
+    // asserting on real timing (which would just trade one flaky test for
+    // another).
+    const stub = writeStubBinary('setInterval(() => {}, 1000);');
+    const rmSpy = vi.spyOn(fs, 'rmSync');
+    try {
+      const result = await smokeOpen({
+        platform: 'linux',
+        graceMs: 50,
+        binPath: process.execPath,
+        spawnArgs: [stub],
+      });
+      expect(result.ok).toBe(true);
+      const userDataDirCall = rmSpy.mock.calls.find(([, opts]) => (opts as { recursive?: boolean })?.recursive);
+      expect(userDataDirCall?.[1]).toMatchObject({
+        recursive: true,
+        force: true,
+        maxRetries: expect.any(Number),
+        retryDelay: expect.any(Number),
+      });
+    } finally {
+      rmSpy.mockRestore();
+    }
   });
 });

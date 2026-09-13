@@ -141,22 +141,12 @@ async function smokeOpen({
 
   if (!outcome.exitedEarly) {
     child.kill('SIGTERM');
-    // Wait for the process to actually finish exiting before touching its
-    // user-data dir. `kill()` only sends the signal - on Windows the OS can
-    // take a beat after that to release file handles Electron (and any
-    // helper processes) held open under userDataDir, and removing it too
-    // soon intermittently fails with EPERM. Bounded so a hung process can't
-    // stall the job forever.
-    await new Promise((resolve) => {
-      const timer = setTimeout(resolve, 5_000);
-      child.once('exit', () => {
-        clearTimeout(timer);
-        resolve();
-      });
-    });
   }
-  // maxRetries/retryDelay as a backstop: even after exit, Windows can hold
-  // a lock on freshly-closed files for a moment longer (AV scanning, etc).
+  // maxRetries/retryDelay: on Windows, killing the app doesn't mean its file
+  // handles under userDataDir (LevelDB, GPU cache, helper processes like the
+  // GPU/crashpad process that `kill()` doesn't reach) are released instantly.
+  // Retrying with backoff on EPERM/EBUSY - rather than guessing how long to
+  // wait - is what this option exists for.
   fs.rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 
   return { ...classifyOutcome(outcome), stderr, outcome };
