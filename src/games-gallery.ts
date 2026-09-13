@@ -18,6 +18,10 @@ export interface CatalogGame {
 
 export type CatalogResult = { ok: true; games: CatalogGame[] } | { ok: false; error: string };
 
+// Returned by the 'gallery-install'/'gallery-uninstall' IPC handlers in main.ts.
+export type GalleryInstallResult = { ok: true } | { ok: false; error: string };
+export type GalleryUninstallResult = { ok: true } | { ok: false; cancelled: true };
+
 interface CollectionEntry {
   id: string;
   path: string;

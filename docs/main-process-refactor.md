@@ -136,7 +136,7 @@ instead of ending up with another big, hard-to-follow file.
 
 ### Step 1 — `preload.ts` + `ipc-channels.ts`
 
-**Status: proposed, not started.**
+**Status: done.**
 
 The smallest, lowest-risk step, and the natural starting point since it
 defines the contract every later IPC step will build on.
