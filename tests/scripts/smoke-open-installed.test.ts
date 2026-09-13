@@ -164,16 +164,33 @@ describe('smokeOpen', () => {
     ).rejects.toThrow(/not found/i);
   });
 
-  it('cleans up the user-data dir with retries so a transient Windows file lock does not fail the job', async () => {
-    // Regression test for a Windows CI flake: killing the app doesn't mean
-    // its file handles under userDataDir are released instantly (helper
-    // processes like GPU/crashpad aren't reached by kill() either), so a bare
-    // rmSync intermittently failed with EPERM. Assert the retry options
-    // that guard against that are actually passed through, rather than
-    // asserting on real timing (which would just trade one flaky test for
-    // another).
+  it('waits for the killed process to actually exit before cleaning up its user-data dir', async () => {
+    // Regression test for a Windows CI flake: cleanup used to fire right
+    // after kill() was called, racing the OS releasing file handles under
+    // userDataDir. A process that delays its own exit past the SIGTERM
+    // handler proves smokeOpen now waits for the real exit instead of
+    // assuming kill() is instantaneous.
+    const stub = writeStubBinary(
+      "process.on('SIGTERM', () => setTimeout(() => process.exit(0), 200)); setInterval(() => {}, 1000);",
+    );
+    const start = Date.now();
+    const result = await smokeOpen({
+      platform: 'linux',
+      graceMs: 50,
+      binPath: process.execPath,
+      spawnArgs: [stub],
+    });
+    expect(result.ok).toBe(true);
+    expect(Date.now() - start).toBeGreaterThanOrEqual(200);
+  });
+
+  it('cleans up the user-data dir with async retries so a lingering Windows file lock does not fail the job', async () => {
+    // fs.rmSync's own maxRetries/retryDelay did not actually dodge the EPERM
+    // in real Windows CI runs (same failure, same timing, with or without
+    // it) - fs.promises.rm's retry runs on the event loop with real
+    // setTimeout backoff instead, so assert that's what cleanup now uses.
     const stub = writeStubBinary('setInterval(() => {}, 1000);');
-    const rmSpy = vi.spyOn(fs, 'rmSync');
+    const rmSpy = vi.spyOn(fs.promises, 'rm');
     try {
       const result = await smokeOpen({
         platform: 'linux',
@@ -182,13 +199,15 @@ describe('smokeOpen', () => {
         spawnArgs: [stub],
       });
       expect(result.ok).toBe(true);
-      const userDataDirCall = rmSpy.mock.calls.find(([, opts]) => (opts as { recursive?: boolean })?.recursive);
-      expect(userDataDirCall?.[1]).toMatchObject({
-        recursive: true,
-        force: true,
-        maxRetries: expect.any(Number),
-        retryDelay: expect.any(Number),
-      });
+      expect(rmSpy).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          recursive: true,
+          force: true,
+          maxRetries: expect.any(Number),
+          retryDelay: expect.any(Number),
+        }),
+      );
     } finally {
       rmSpy.mockRestore();
     }
