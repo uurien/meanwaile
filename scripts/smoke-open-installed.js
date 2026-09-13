@@ -141,8 +141,25 @@ async function smokeOpen({
 
   if (!outcome.exitedEarly) {
     child.kill('SIGTERM');
+    // Wait for the process to actually finish exiting before touching its
+    // user-data dir - `kill()` only sends the signal, and the OS can take a
+    // beat afterwards to tear the process down. Bounded so a hung process
+    // can't stall the job forever.
+    await new Promise((resolve) => {
+      const timer = setTimeout(resolve, 10_000);
+      child.once('exit', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
   }
-  fs.rmSync(userDataDir, { recursive: true, force: true });
+  // fs.promises.rm, not the sync fs.rmSync: on Windows, even after the
+  // process is gone its file handles under userDataDir (LevelDB, GPU cache,
+  // helper processes like GPU/crashpad that outlive the main process) can
+  // stay locked for a moment - fs.rmSync's maxRetries/retryDelay did not
+  // actually avoid the EPERM in CI, but the async fs.rm's retry (real
+  // setTimeout backoff on the event loop, not the sync variant's) does.
+  await fs.promises.rm(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
 
   return { ...classifyOutcome(outcome), stderr, outcome };
 }

@@ -38,12 +38,35 @@ function installedVersion(gameDir) {
   }
 }
 
-async function downloadZip(url, fetchImpl) {
+class HttpError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function fetchOnce(url, fetchImpl) {
   const response = await fetchImpl(url);
   if (!response.ok) {
-    throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
+    throw new HttpError(`Failed to download ${url}: ${response.status} ${response.statusText}`, response.status);
   }
   return Buffer.from(await response.arrayBuffer());
+}
+
+// GitHub Releases occasionally answers a good asset URL with a transient 5xx
+// (or the request fails outright) - retry those with backoff instead of
+// failing the whole `npm ci` postinstall. A 4xx (e.g. 404, bad tag/asset
+// name) won't fix itself on retry, so it's rethrown immediately.
+async function downloadZip(url, fetchImpl, { retries = 3, retryDelayMs = 1000 } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetchOnce(url, fetchImpl);
+    } catch (error) {
+      const transient = !(error instanceof HttpError) || error.status >= 500;
+      if (!transient || attempt >= retries) throw error;
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs * (attempt + 1)));
+    }
+  }
 }
 
 function extractZip(buffer, targetDir) {
