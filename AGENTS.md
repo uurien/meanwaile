@@ -77,7 +77,11 @@ Receives events via local HTTP server (hook type `http`). Do not use `command` h
 
 ### State machine
 
-Three states: `idle` → `agent-working` → `needs-user`. Transitions are driven exclusively by adapter events, not by raw hook payloads.
+Three states: `idle` → `agent-working` → `needs-user`. Transitions are driven by normalized adapter events or the adapter-agnostic silence monitor, never by raw hook payloads.
+
+### Agent liveness
+
+`src/agent-liveness-monitor.ts` maintains one resettable timer per `(adapterId, sessionId)`. Every normalized principal-agent hook refreshes that execution's timer; `task_finished` cancels it. After 10 minutes with no hook, the execution is discarded from both the state machine and execution tracker. This is bookkeeping only: it is not added to recent completions and must never interrupt a game or raise a notification.
 
 ### Wait detector
 
@@ -85,7 +89,7 @@ Runs on top of the state machine. Combines two signals — agent state and `powe
 
 ### Execution tracker
 
-`src/execution-tracker.ts` is a pure projection that runs alongside the state machine on every adapter event. Identity is the `(adapterId, sessionId)` composite (never `sessionId` alone), so Claude and Codex sessions that happen to share an id stay distinct. It emits a snapshot (`active` executions, `recent` completions, and `counts` of `working` / `needsUser` / `active` / `finished`) plus whether the event was a significant transition (`started` / `resumed` / `needs_user` / `finished`). `recent` is in-memory only, capped at 20, newest first; records with no event for 24 h expire silently and are not a completion. Only sanitized fields are kept — `agentName`, `projectName` (the `cwd` basename), timestamps — never paths, prompts, transcripts, tool input, or assistant output.
+`src/execution-tracker.ts` is a pure projection that runs alongside the state machine on every adapter event. Identity is the `(adapterId, sessionId)` composite (never `sessionId` alone), so Claude and Codex sessions that happen to share an id stay distinct. It emits a snapshot (`active` executions, `recent` completions, and `counts` of `working` / `needsUser` / `active` / `finished`) plus whether the event was a significant transition (`started` / `resumed` / `needs_user` / `finished`). Active executions are discarded by the silence monitor after 10 minutes without a hook. `recent` is in-memory only, capped at 20, newest first; records older than 24 h expire silently. Only sanitized fields are kept — `agentName`, `projectName` (the `cwd` basename), timestamps — never paths, prompts, transcripts, tool input, or assistant output.
 
 ### Notification service
 

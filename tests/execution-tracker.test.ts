@@ -136,6 +136,29 @@ describe('ExecutionTracker', () => {
     expect(result.snapshot.recent.map((execution) => execution.sessionId)).toEqual(['one']);
   });
 
+  it('silently discards an active execution without recording a completion', () => {
+    const tracker = createTracker();
+    tracker.handle(event('prompt_submitted', 100, { sessionId: 'stale' }));
+    tracker.handle(event('task_finished', 110, { sessionId: 'already-finished' }));
+
+    const result = tracker.discard(event('work_resumed', 200, { sessionId: 'stale' }));
+
+    expect(result.discarded).toBe(true);
+    expect(result.snapshot.active).toHaveLength(0);
+    expect(result.snapshot.recent.map((execution) => execution.sessionId)).toEqual([
+      'already-finished',
+    ]);
+  });
+
+  it('reports a no-op when the execution to discard is no longer active', () => {
+    const tracker = createTracker();
+
+    const result = tracker.discard(event('work_resumed', 200, { sessionId: 'missing' }));
+
+    expect(result.discarded).toBe(false);
+    expect(result.snapshot.counts.active).toBe(0);
+  });
+
   it('records a finish seen after launch even when the active start was not observed', () => {
     const tracker = createTracker();
 

@@ -19,6 +19,12 @@ export interface AgentEvent {
   timestamp: number;
 }
 
+const DEFAULT_SESSION_KEY = '__default__';
+
+export function agentEventKey(event: AgentEvent): string {
+  return JSON.stringify([event.adapterId, event.sessionId ?? DEFAULT_SESSION_KEY]);
+}
+
 export function optionalNonEmptyString(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();

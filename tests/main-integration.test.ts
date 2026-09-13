@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 
 // End-to-end wiring of main.ts: adapters → StateMachine + ExecutionTracker →
 // native notifications, game interruptions, tray counters and IPC. Runs in
@@ -227,6 +227,10 @@ beforeEach(() => {
   mocks.win.isVisible.mockReturnValue(false);
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('multi-agent activity projection', () => {
   it('keeps Claude and Codex on different projects as two distinct working executions', () => {
     postHook({ hook_event_name: 'UserPromptSubmit', session_id: 'c1', cwd: '/home/u/website' }, '/hook');
@@ -353,6 +357,38 @@ describe('idempotency and subagents', () => {
   });
 });
 
+describe('silent stale-agent discard', () => {
+  it('removes an agent after ten minutes without hooks and does not finish, interrupt or notify', async () => {
+    vi.useFakeTimers();
+    await setSettings({ autoOpenGames: false, notificationsEnabled: true });
+    const recentBefore = (await ipc('activity-get')).recent.length;
+
+    postHook({ hook_event_name: 'UserPromptSubmit', session_id: 'goes-stale' });
+    mocks.win.webContents.send.mockClear();
+    mocks.Notification.mockClear();
+    vi.advanceTimersByTime(10 * 60 * 1000 - 1);
+
+    expect((await ipc('activity-get')).counts.active).toBe(1);
+    expect(lastActivity()).toBeUndefined();
+
+    vi.advanceTimersByTime(1);
+
+    expect(lastActivity()!.counts).toMatchObject({ active: 0, working: 0, needsUser: 0 });
+    expect((await ipc('activity-get')).recent).toHaveLength(recentBefore);
+    expect(interruptions()).toHaveLength(0);
+    expect(mocks.Notification).not.toHaveBeenCalled();
+    expect(mocks.tray.setToolTip.mock.calls.at(-1)![0]).toBe('Meanwaile');
+    expect(sends('state-change').at(-1)).toEqual({
+      state: 'idle',
+      sessionId: null,
+      agentName: null,
+      silent: true,
+    });
+
+    await setSettings({});
+  });
+});
+
 describe('settings acceptance matrix', () => {
   it.each([
     { autoOpenGames: true, notificationsEnabled: false, timerArms: true, notifies: false },
@@ -376,7 +412,6 @@ describe('settings acceptance matrix', () => {
     postHook({ hook_event_name: 'Stop', session_id: sid });
     expect(mocks.Notification.mock.calls.length > 0).toBe(notifies);
 
-    vi.useRealTimers();
     await setSettings({});
   });
 });
@@ -418,7 +453,6 @@ describe('regressions preserved', () => {
     vi.advanceTimersByTime(16000);
     expect(mocks.win.show).not.toHaveBeenCalled();
 
-    vi.useRealTimers();
     postHook({ hook_event_name: 'Stop', session_id: 'suppress' });
   });
 });

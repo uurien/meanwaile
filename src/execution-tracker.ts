@@ -1,4 +1,4 @@
-import { AgentEvent } from './adapters/types';
+import { AgentEvent, agentEventKey } from './adapters/types';
 
 export type ActiveExecutionStatus = 'working' | 'needs_user';
 export type ExecutionTransition = 'started' | 'resumed' | 'needs_user' | 'finished';
@@ -42,16 +42,20 @@ export interface ExecutionTrackerResult {
   snapshot: ExecutionSnapshot;
 }
 
+export interface ExecutionDiscardResult {
+  discarded: boolean;
+  snapshot: ExecutionSnapshot;
+}
+
 export interface ExecutionTrackerOptions {
   now?: () => number;
 }
 
-const DEFAULT_SESSION_ID = '__default__';
 const MAX_RECENT_EXECUTIONS = 20;
 const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
 function executionId(event: AgentEvent): string {
-  return JSON.stringify([event.adapterId, event.sessionId ?? DEFAULT_SESSION_ID]);
+  return agentEventKey(event);
 }
 
 function updatedIdentity(
@@ -117,6 +121,11 @@ export class ExecutionTracker {
         finished: recent.length,
       },
     };
+  }
+
+  discard(event: AgentEvent): ExecutionDiscardResult {
+    const discarded = this.active.delete(executionId(event));
+    return { discarded, snapshot: this.snapshot() };
   }
 
   private handleWorking(event: AgentEvent, id: string): ExecutionTrackerResult {

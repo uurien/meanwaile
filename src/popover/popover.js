@@ -293,6 +293,10 @@ window.meanwaile.onStateChange((snapshot) => {
   currentState = snapshot.state;
   currentSessionId = snapshot.sessionId;
   currentAgentName = snapshot.agentName;
+  // A stale execution is only a bookkeeping correction. Keep the renderer's
+  // aggregate state in sync so later real events are handled correctly, but
+  // never pause, resume, or change the current game UI for this transition.
+  if (snapshot.silent) return;
   // A plain aggregate state change supersedes any pending interruption text.
   pendingInterruption = null;
 

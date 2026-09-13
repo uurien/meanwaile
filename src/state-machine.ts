@@ -1,4 +1,4 @@
-import { AgentEvent } from './adapters/types';
+import { AgentEvent, agentEventKey } from './adapters/types';
 
 export type AppState = 'idle' | 'agent_working' | 'needs_user';
 
@@ -6,18 +6,18 @@ export interface StateSnapshot {
   state: AppState;
   sessionId: string | null;
   agentName: string | null;
+  silent?: boolean;
 }
 
 export type StateChangeHandler = (snapshot: StateSnapshot) => void;
 
 type SessionStatus = 'working' | 'needs_user';
 
-// Real hook payloads normally carry a session_id; this key covers events that
-// omit one. It is still scoped by adapter in sessionKey().
-const DEFAULT_SESSION_KEY = '__default__';
-
-function sessionKey(event: AgentEvent): string {
-  return JSON.stringify([event.adapterId, event.sessionId ?? DEFAULT_SESSION_KEY]);
+interface TrackedSession {
+  status: SessionStatus;
+  sessionId: string | null;
+  agentName: string | null;
+  updatedAt: number;
 }
 
 export class StateMachine {
@@ -29,7 +29,7 @@ export class StateMachine {
   // The aggregate state only drops to idle once this is empty - one agent
   // finishing while another is still running must not pause the game out
   // from under the other agent's work.
-  private sessions = new Map<string, SessionStatus>();
+  private sessions = new Map<string, TrackedSession>();
 
   onStateChange(handler: StateChangeHandler): void {
     this.onChange = handler;
@@ -39,14 +39,14 @@ export class StateMachine {
     if (event.sessionId) this.sessionId = event.sessionId;
     if (event.agentName) this.agentName = event.agentName;
 
-    const key = sessionKey(event);
+    const key = agentEventKey(event);
     switch (event.type) {
       case 'prompt_submitted':
       case 'work_resumed':
-        this.sessions.set(key, 'working');
+        this.trackSession(key, 'working', event);
         break;
       case 'needs_user':
-        this.sessions.set(key, 'needs_user');
+        this.trackSession(key, 'needs_user', event);
         break;
       case 'task_finished':
         this.sessions.delete(key);
@@ -56,21 +56,45 @@ export class StateMachine {
     this.transition(this.aggregateState());
   }
 
+  discard(event: AgentEvent): boolean {
+    const discarded = this.sessions.delete(agentEventKey(event));
+    if (!discarded) return false;
+
+    const latest = [...this.sessions.values()].sort(
+      (left, right) => right.updatedAt - left.updatedAt,
+    )[0];
+    this.sessionId = latest?.sessionId ?? null;
+    this.agentName = latest?.agentName ?? null;
+    this.transition(this.aggregateState(), true);
+    return true;
+  }
+
+  private trackSession(key: string, status: SessionStatus, event: AgentEvent): void {
+    const current = this.sessions.get(key);
+    this.sessions.set(key, {
+      status,
+      sessionId: event.sessionId ?? current?.sessionId ?? null,
+      agentName: event.agentName ?? current?.agentName ?? null,
+      updatedAt: event.timestamp,
+    });
+  }
+
   private aggregateState(): AppState {
     if (this.sessions.size === 0) return 'idle';
     // needs_user outranks working: a session blocked on the user (e.g. a
     // permission prompt) needs attention right now, regardless of whether
     // another agent is still happily working on its own.
-    for (const status of this.sessions.values()) {
-      if (status === 'needs_user') return 'needs_user';
+    for (const session of this.sessions.values()) {
+      if (session.status === 'needs_user') return 'needs_user';
     }
     return 'agent_working';
   }
 
-  private transition(next: AppState): void {
+  private transition(next: AppState, silent = false): void {
     if (this.state === next) return;
     this.state = next;
-    this.onChange?.(this.snapshot());
+    const snapshot = this.snapshot();
+    this.onChange?.(silent ? { ...snapshot, silent: true } : snapshot);
   }
 
   snapshot(): StateSnapshot {
