@@ -2,14 +2,18 @@ import {
   AgentAdapter,
   AgentEvent,
   AgentEventHandler,
+  agentEventKey,
   optionalNonEmptyString,
   projectNameFromCwd,
 } from './types';
 import { isSyntheticTaskNotification } from './synthetic-prompt';
 
+const NEEDS_USER_CONFIRMATION_MS = 5_000;
+
 export class CodexAdapter implements AgentAdapter {
   name = 'codex';
   private handler: AgentEventHandler | null = null;
+  private readonly pendingNeedsUser = new Map<string, ReturnType<typeof setTimeout>>();
 
   onEvent(handler: AgentEventHandler): void {
     this.handler = handler;
@@ -40,10 +44,11 @@ export class CodexAdapter implements AgentAdapter {
         if (isSyntheticTaskNotification(payload)) return null;
         return { type: 'prompt_submitted', ...eventContext };
       case 'PreToolUse':
-        // Same rationale as the Claude Code adapter: a tool call retrying
-        // after an approval prompt (or any tool call at all) means the agent
-        // is actively working again, but it is not a fresh user prompt and
-        // must not override a manual popover dismissal for this turn.
+      case 'PostToolUse':
+        // Either side of a tool lifecycle confirms that the agent is active.
+        // PostToolUse is especially useful after an auto-approved request,
+        // while this remains distinct from a fresh user prompt so it cannot
+        // override a manual popover dismissal for the current turn.
         return { type: 'work_resumed', ...eventContext };
       case 'SubagentStop':
         // SubagentStop identifies the child separately; session_id still
@@ -57,6 +62,27 @@ export class CodexAdapter implements AgentAdapter {
   emit(body: unknown): void {
     if (!this.handler) return;
     const event = this.parseHookPayload(body);
-    if (event) this.handler(event);
+    if (!event) return;
+
+    const key = agentEventKey(event);
+    const pending = this.pendingNeedsUser.get(key);
+    if (pending) {
+      clearTimeout(pending);
+      this.pendingNeedsUser.delete(key);
+    }
+
+    if (event.type !== 'needs_user') {
+      this.handler(event);
+      return;
+    }
+
+    // PermissionRequest runs before Codex chooses between user review and
+    // auto-review. Give automatic approvals a short window to resume work;
+    // only surface needs_user if no later lifecycle event clears the request.
+    const timer = setTimeout(() => {
+      this.pendingNeedsUser.delete(key);
+      this.handler?.(event);
+    }, NEEDS_USER_CONFIRMATION_MS);
+    this.pendingNeedsUser.set(key, timer);
   }
 }

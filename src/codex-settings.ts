@@ -2,7 +2,14 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-const MANAGED_HOOK_EVENTS = ['UserPromptSubmit', 'Stop', 'SubagentStop', 'PreToolUse', 'PermissionRequest'] as const;
+const MANAGED_HOOK_EVENTS = [
+  'UserPromptSubmit',
+  'Stop',
+  'SubagentStop',
+  'PreToolUse',
+  'PostToolUse',
+  'PermissionRequest',
+] as const;
 
 interface CommandHook {
   type: string;
@@ -28,8 +35,7 @@ export function codexCommandFor(hookUrl: string): string {
 }
 
 // PermissionRequest is the only managed event that supports (and needs) a
-// matcher — UserPromptSubmit/Stop/SubagentStop/PreToolUse have none. "*"
-// matches every tool, mirroring the "all tool calls" scope of the others.
+// matcher. The adapter confirms it remains pending before surfacing it.
 function entryFor(hookUrl: string, event: string): HookEntry {
   const hooks: CommandHook[] = [{ type: 'command', command: codexCommandFor(hookUrl), timeout: 30 }];
   return event === 'PermissionRequest' ? { matcher: '*', hooks } : { hooks };

@@ -304,6 +304,68 @@ describe('interruptions and notifications across agents', () => {
     postHook({ hook_event_name: 'Stop', session_id: 's2' });
   });
 
+  it('cancels Codex needs_user when work resumes within the five-second confirmation window', async () => {
+    vi.useFakeTimers();
+    postHook(
+      { hook_event_name: 'UserPromptSubmit', session_id: 'codex-auto-review', cwd: '/home/u/api' },
+      '/hook/codex',
+    );
+    mocks.win.webContents.send.mockClear();
+    mocks.Notification.mockClear();
+
+    postHook(
+      {
+        hook_event_name: 'PermissionRequest',
+        permission_mode: 'default',
+        session_id: 'codex-auto-review',
+        cwd: '/home/u/api',
+      },
+      '/hook/codex',
+    );
+
+    vi.advanceTimersByTime(4_999);
+    expect(interruptions()).toEqual([]);
+    expect(notificationArgs()).toEqual([]);
+
+    postHook({ hook_event_name: 'PostToolUse', session_id: 'codex-auto-review' }, '/hook/codex');
+    vi.advanceTimersByTime(1);
+
+    const recordedInterruptions = interruptions();
+    const recordedNotifications = notificationArgs();
+    const recordedCounts = (await ipc('activity-get')).counts;
+
+    postHook({ hook_event_name: 'Stop', session_id: 'codex-auto-review' }, '/hook/codex');
+
+    expect(recordedInterruptions).toEqual([]);
+    expect(recordedNotifications).toEqual([]);
+    expect(recordedCounts).toMatchObject({ working: 1, needsUser: 0 });
+  });
+
+  it('notifies when a Codex PermissionRequest is still pending after five seconds', () => {
+    vi.useFakeTimers();
+    postHook(
+      { hook_event_name: 'UserPromptSubmit', session_id: 'codex-user-review', cwd: '/home/u/api' },
+      '/hook/codex',
+    );
+    mocks.win.webContents.send.mockClear();
+    mocks.Notification.mockClear();
+
+    postHook(
+      { hook_event_name: 'PermissionRequest', session_id: 'codex-user-review', cwd: '/home/u/api' },
+      '/hook/codex',
+    );
+    vi.advanceTimersByTime(5_000);
+
+    const recordedInterruptions = interruptions();
+    const recordedNotifications = notificationArgs();
+    const recordedCounts = lastActivity()!.counts;
+    postHook({ hook_event_name: 'Stop', session_id: 'codex-user-review' }, '/hook/codex');
+
+    expect(recordedInterruptions.at(-1)).toMatchObject({ transition: 'needs_user' });
+    expect(recordedNotifications.at(-1)).toMatchObject({ title: 'Codex · api needs your attention' });
+    expect(recordedCounts).toMatchObject({ working: 0, needsUser: 1 });
+  });
+
   it('the last execution finishing zeroes the counters, interrupts the game and says no agents remain', () => {
     postHook({ hook_event_name: 'UserPromptSubmit', session_id: 'solo', cwd: '/home/u/website' });
     mocks.win.webContents.send.mockClear();
