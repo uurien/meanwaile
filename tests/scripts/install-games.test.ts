@@ -7,6 +7,7 @@ import {
   assetUrl,
   readManifest,
   installedVersion,
+  downloadZip,
   GAME_CSP,
   injectGameCsp,
   installGame,
@@ -95,6 +96,75 @@ describe('installedVersion', () => {
     const dir = mkTmpDir();
     fs.writeFileSync(path.join(dir, 'game.json'), '{not json');
     expect(installedVersion(dir)).toBeNull();
+  });
+});
+
+describe('downloadZip', () => {
+  it('retries a transient 5xx and succeeds once the server recovers', async () => {
+    const buffer = zipBufferFor('circle-tap', '1.0.0');
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls++;
+      if (calls < 3) {
+        return { ok: false, status: 500, statusText: 'Internal Server Error', arrayBuffer: async () => new ArrayBuffer(0) };
+      }
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        arrayBuffer: async () => buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+      };
+    };
+
+    const result = await downloadZip('https://example.com/x.zip', fetchImpl, { retries: 3, retryDelayMs: 1 });
+
+    expect(calls).toBe(3);
+    expect(Buffer.compare(result, buffer)).toBe(0);
+  });
+
+  it('retries when the fetch itself throws (network failure), not just a bad status', async () => {
+    let calls = 0;
+    const buffer = zipBufferFor('circle-tap', '1.0.0');
+    const fetchImpl = async () => {
+      calls++;
+      if (calls < 2) throw new Error('fetch failed');
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        arrayBuffer: async () => buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+      };
+    };
+
+    await downloadZip('https://example.com/x.zip', fetchImpl, { retries: 3, retryDelayMs: 1 });
+
+    expect(calls).toBe(2);
+  });
+
+  it('gives up and throws after exhausting retries on a persistent 5xx', async () => {
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls++;
+      return { ok: false, status: 502, statusText: 'Bad Gateway', arrayBuffer: async () => new ArrayBuffer(0) };
+    };
+
+    await expect(
+      downloadZip('https://example.com/x.zip', fetchImpl, { retries: 2, retryDelayMs: 1 }),
+    ).rejects.toThrow(/502/);
+    expect(calls).toBe(3); // initial attempt + 2 retries
+  });
+
+  it('does not retry a 4xx - a bad asset URL will not fix itself', async () => {
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls++;
+      return { ok: false, status: 404, statusText: 'Not Found', arrayBuffer: async () => new ArrayBuffer(0) };
+    };
+
+    await expect(
+      downloadZip('https://example.com/x.zip', fetchImpl, { retries: 3, retryDelayMs: 1 }),
+    ).rejects.toThrow(/404/);
+    expect(calls).toBe(1);
   });
 });
 
