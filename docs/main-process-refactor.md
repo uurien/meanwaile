@@ -179,6 +179,25 @@ strings. `main.ts`'s `ipcMain` registrations switch to the same constants in
 Step 4, once the `ipc/` modules exist — Step 1 only needs `preload.ts` to
 consume it, since that's the file being fixed right now.
 
+**Gotcha found while implementing this: `preload.ts` needs its own bundling
+step.** Electron sandboxes preload scripts by default (Electron 20+); inside
+that sandbox `require()` is a polyfill that only resolves `electron`,
+`events`, `timers`, `url` — never a project-local file. Once `preload.ts`
+imports the real `CHANNELS` value (not just a type) from `ipc-channels.ts`,
+`tsc` compiles that to `require('./ipc-channels')`, which the sandboxed
+preload can't resolve — it fails to load at all, silently leaving
+`window.meanwaile` undefined at runtime (caught by the e2e suite, not the
+Vitest unit tests, since only Playwright launches a real sandboxed Electron
+window). This only affects code that runs *inside* `preload.ts` — `main.ts`
+is the unsandboxed main process and can `require()`/`import` `ipc-channels.ts`
+normally in Step 4, no special handling needed there.
+
+Fix: `scripts/bundle-preload.js` runs after `tsc` (as part of `npm run
+build`) and inlines `dist/preload.js`'s local requires with esbuild, leaving
+`electron` as the only external `require()` in the output. `sandbox` stays
+enabled on all three windows — nothing about `main.ts`'s webPreferences
+changes.
+
 **Out of scope for this step:** `popover.js` / `settings.js` / `gallery.js`
 stay plain JS with no type checking (they aren't compiled by `tsc` — no
 `allowJs` in `tsconfig.json`); converting them to TypeScript, if ever done, is
@@ -188,8 +207,10 @@ exporting the two types above.
 **Verification:** this is a typing/organization change with no behavior
 change. `tests/preload.test.ts` asserts channel names as literal strings,
 which keeps passing once those literals live in `ipc-channels.ts` with the
-same values. No new tests are needed; run the existing suite and `tsc` to
-confirm nothing regressed.
+same values. `tests/scripts/bundle-preload.test.ts` covers the new bundling
+script. Run the existing suite, `tsc`, and the e2e suite (`npm run
+test:e2e`) — the e2e suite is what actually exercises a real sandboxed
+preload and would have caught the gotcha above.
 
 ### Step 2 — `window-factory.ts` + `windows/*.ts`
 
