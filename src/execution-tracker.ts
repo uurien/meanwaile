@@ -42,6 +42,14 @@ export interface ExecutionTrackerResult {
   snapshot: ExecutionSnapshot;
 }
 
+// Sent to the popover over the 'agent-interruption' IPC channel when a
+// significant needs_user/finished transition occurs for any principal agent.
+export interface AgentInterruptionPayload {
+  transition: ExecutionTransition;
+  execution?: ActiveExecution | FinishedExecution;
+  counts: ExecutionCounts;
+}
+
 export interface ExecutionDiscardResult {
   discarded: boolean;
   snapshot: ExecutionSnapshot;

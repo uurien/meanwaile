@@ -75,8 +75,8 @@ interface GalleryGame extends CatalogGame {
   updateAvailable: boolean;
 }
 
-type PopoverView = 'games' | 'agents';
-type ServerStatus = 'starting' | 'active' | 'error';
+export type PopoverView = 'games' | 'agents';
+export type ServerStatus = 'starting' | 'active' | 'error';
 
 let tray: Tray | null = null;
 let trayContextMenu: Menu | null = null;

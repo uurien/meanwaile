@@ -1,61 +1,92 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { CHANNELS } from './ipc-channels';
+import type { StateSnapshot } from './state-machine';
+import type { AppSettings, ValidationResult } from './settings-store';
+import type { GameManifest } from './games-catalog';
+import type { CatalogResult, GalleryInstallResult, GalleryUninstallResult } from './games-gallery';
+import type { ExecutionSnapshot, AgentInterruptionPayload } from './execution-tracker';
+import type { PopoverView, ServerStatus } from './main';
 
-contextBridge.exposeInMainWorld('meanwaile', {
-  onStateChange(cb: (snapshot: unknown) => void): void {
-    ipcRenderer.on('state-change', (_event, snapshot) => cb(snapshot));
+export interface MeanwaileApi {
+  onStateChange(cb: (snapshot: StateSnapshot) => void): void;
+  close(): void;
+  openSettings(): void;
+  listGames(): Promise<GameManifest[]>;
+  getSettings(): Promise<AppSettings>;
+  saveSettings(settings: Partial<Record<keyof AppSettings, unknown>>): Promise<ValidationResult>;
+  openGallery(): void;
+  listCatalog(): Promise<CatalogResult>;
+  installGame(id: string, version: string): Promise<GalleryInstallResult>;
+  uninstallGame(id: string, name: string): Promise<GalleryUninstallResult>;
+  onGamesChanged(cb: () => void): void;
+  getActivity(): Promise<ExecutionSnapshot>;
+  onActivityChange(cb: (snapshot: ExecutionSnapshot) => void): void;
+  onAgentInterruption(cb: (payload: AgentInterruptionPayload) => void): void;
+  openPopover(view: PopoverView): void;
+  onPopoverView(cb: (view: PopoverView) => void): void;
+  getPopoverView(): Promise<PopoverView>;
+  getNotificationStatus(): Promise<{ supported: boolean }>;
+  getServerStatus(): Promise<ServerStatus>;
+}
+
+const api: MeanwaileApi = {
+  onStateChange(cb) {
+    ipcRenderer.on(CHANNELS.stateChange, (_event, snapshot) => cb(snapshot));
   },
-  close(): void {
-    ipcRenderer.send('popover-close');
+  close() {
+    ipcRenderer.send(CHANNELS.popoverClose);
   },
-  openSettings(): void {
-    ipcRenderer.send('open-settings');
+  openSettings() {
+    ipcRenderer.send(CHANNELS.openSettings);
   },
-  listGames(): Promise<unknown> {
-    return ipcRenderer.invoke('games-list');
+  listGames() {
+    return ipcRenderer.invoke(CHANNELS.gamesList);
   },
-  getSettings(): Promise<unknown> {
-    return ipcRenderer.invoke('settings-get');
+  getSettings() {
+    return ipcRenderer.invoke(CHANNELS.settingsGet);
   },
-  saveSettings(settings: unknown): Promise<unknown> {
-    return ipcRenderer.invoke('settings-save', settings);
+  saveSettings(settings) {
+    return ipcRenderer.invoke(CHANNELS.settingsSave, settings);
   },
-  openGallery(): void {
-    ipcRenderer.send('open-gallery');
+  openGallery() {
+    ipcRenderer.send(CHANNELS.openGallery);
   },
-  listCatalog(): Promise<unknown> {
-    return ipcRenderer.invoke('gallery-list');
+  listCatalog() {
+    return ipcRenderer.invoke(CHANNELS.galleryList);
   },
-  installGame(id: string, version: string): Promise<unknown> {
-    return ipcRenderer.invoke('gallery-install', id, version);
+  installGame(id, version) {
+    return ipcRenderer.invoke(CHANNELS.galleryInstall, id, version);
   },
-  uninstallGame(id: string, name: string): Promise<unknown> {
-    return ipcRenderer.invoke('gallery-uninstall', id, name);
+  uninstallGame(id, name) {
+    return ipcRenderer.invoke(CHANNELS.galleryUninstall, id, name);
   },
-  onGamesChanged(cb: () => void): void {
-    ipcRenderer.on('games-changed', () => cb());
+  onGamesChanged(cb) {
+    ipcRenderer.on(CHANNELS.gamesChanged, () => cb());
   },
-  getActivity(): Promise<unknown> {
-    return ipcRenderer.invoke('activity-get');
+  getActivity() {
+    return ipcRenderer.invoke(CHANNELS.activityGet);
   },
-  onActivityChange(cb: (snapshot: unknown) => void): void {
-    ipcRenderer.on('activity-change', (_event, snapshot) => cb(snapshot));
+  onActivityChange(cb) {
+    ipcRenderer.on(CHANNELS.activityChange, (_event, snapshot) => cb(snapshot));
   },
-  onAgentInterruption(cb: (payload: unknown) => void): void {
-    ipcRenderer.on('agent-interruption', (_event, payload) => cb(payload));
+  onAgentInterruption(cb) {
+    ipcRenderer.on(CHANNELS.agentInterruption, (_event, payload) => cb(payload));
   },
-  openPopover(view: 'games' | 'agents'): void {
-    ipcRenderer.send('open-popover', view);
+  openPopover(view) {
+    ipcRenderer.send(CHANNELS.openPopover, view);
   },
-  onPopoverView(cb: (view: unknown) => void): void {
-    ipcRenderer.on('popover-view', (_event, view) => cb(view));
+  onPopoverView(cb) {
+    ipcRenderer.on(CHANNELS.popoverView, (_event, view) => cb(view));
   },
-  getPopoverView(): Promise<unknown> {
-    return ipcRenderer.invoke('popover-view-get');
+  getPopoverView() {
+    return ipcRenderer.invoke(CHANNELS.popoverViewGet);
   },
-  getNotificationStatus(): Promise<unknown> {
-    return ipcRenderer.invoke('notifications-status');
+  getNotificationStatus() {
+    return ipcRenderer.invoke(CHANNELS.notificationsStatus);
   },
-  getServerStatus(): Promise<unknown> {
-    return ipcRenderer.invoke('server-status');
+  getServerStatus() {
+    return ipcRenderer.invoke(CHANNELS.serverStatus);
   },
-});
+};
+
+contextBridge.exposeInMainWorld('meanwaile', api);
